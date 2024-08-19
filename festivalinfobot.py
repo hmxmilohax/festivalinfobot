@@ -435,11 +435,12 @@ def fetch_shop_tracks():
                 
                 if entry.get('tracks'):
                     for track in entry['tracks']:
-                        if 'sid_placeholder' in track['id']:
-                            track_id = track["id"]  # Use the track's ID as the unique key
-                            if track_id not in available_tracks:
-                                available_tracks[track_id] = {
+                        dev_name = track.get("devName")
+                        if dev_name and 'sid_placeholder' in track['id']:
+                            if dev_name not in available_tracks:
+                                available_tracks[dev_name] = {
                                     "id": track["id"],
+                                    "devName": dev_name,
                                     "title": track.get("title", "Unknown Title").strip() if track.get("title") else "Unknown Title",
                                     "artist": track.get("artist", "Unknown Artist").strip() if track.get("artist") else "Unknown Artist",
                                     "releaseYear": track.get("releaseYear", "Unknown Year"),
@@ -453,7 +454,7 @@ def fetch_shop_tracks():
                 print('No tracks found in the shop.')
                 return None
 
-            return list(available_tracks.values())  # Convert the dictionary back to a list
+            return available_tracks  # Return dictionary keyed by devName
 
     except Exception as e:
         print(f'Error fetching shop tracks: {e}')
@@ -510,18 +511,46 @@ async def search(ctx, *, query: str = None):
     if query is None:
         await ctx.send("Please provide a search term.")
         return
+    
+    # Fetch the tracks from the jam API
     tracks = fetch_available_jam_tracks()
     if not tracks:
         await ctx.send('Could not fetch tracks.')
         return
 
+    # Fetch the daily shortnames data for later comparison
+    daily_shortnames_data = fetch_daily_shortnames()
+
+    # Perform fuzzy search on the fetched tracks
     matched_tracks = fuzzy_search_tracks(tracks, query)
     if not matched_tracks:
         await ctx.send('No tracks found matching your search.')
         return
-    
+
+    # Fetch the shop tracks for later comparison
+    shop_tracks = fetch_shop_tracks()
+
     if len(matched_tracks) == 1:
         embed = generate_track_embed(matched_tracks[0])
+        track_devname = matched_tracks[0]['track']['sn']
+
+        # Check if the song is currently in the shop
+        if shop_tracks and track_devname in shop_tracks:
+            out_date = shop_tracks[track_devname].get('outDate')
+            if out_date:
+                out_date_ts = datetime.fromisoformat(out_date.replace('Z', '+00:00'))
+                human_readable_out_date = out_date_ts.strftime("%B %d, %Y")
+                embed.add_field(name="Shop", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
+            else:
+                embed.add_field(name="Shop", value="Currently in the shop!", inline=False)
+
+        # Check if the song is currently in the daily rotation
+        if daily_shortnames_data and track_devname in daily_shortnames_data:
+            active_until = daily_shortnames_data[track_devname]['activeUntil']
+            active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00'))
+            human_readable_until = active_until_date.strftime("%B %d, %Y")
+            embed.add_field(name="Daily Jam Track", value=f"Free in daily rotation until {human_readable_until}.", inline=False)
+
         await ctx.send(embed=embed)
     else:
         # More than one match, prompt user to choose
@@ -541,6 +570,25 @@ async def search(ctx, *, query: str = None):
             chosen_index = int(msg.content) - 1
             chosen_track = matched_tracks[chosen_index]
             embed = generate_track_embed(chosen_track)
+            track_devname = chosen_track['track']['sn']
+
+            # Check if the song is currently in the shop
+            if shop_tracks and track_devname in shop_tracks:
+                out_date = shop_tracks[track_devname].get('outDate')
+                if out_date:
+                    out_date_ts = datetime.fromisoformat(out_date.replace('Z', '+00:00'))
+                    human_readable_out_date = out_date_ts.strftime("%B %d, %Y")
+                    embed.add_field(name="Shop", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
+                else:
+                    embed.add_field(name="Shop", value="Currently in the shop!", inline=False)
+
+            # Check if the song is currently in the daily rotation
+            if daily_shortnames_data and track_devname in daily_shortnames_data:
+                active_until = daily_shortnames_data[track_devname]['activeUntil']
+                active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00'))
+                human_readable_until = active_until_date.strftime("%B %d, %Y")
+                embed.add_field(name="Daily Jam Track", value=f"Free in daily rotation until {human_readable_until}.", inline=False)
+
             await ctx.send(embed=embed)
         except TimeoutError:
             await ctx.send("You didn't respond in time. Search cancelled.")
