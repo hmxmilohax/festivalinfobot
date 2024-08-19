@@ -7,6 +7,54 @@ from configparser import ConfigParser
 from difflib import get_close_matches
 from datetime import datetime, timezone
 import string
+from discord.ext.commands import DefaultHelpCommand
+
+class CustomHelpCommand(DefaultHelpCommand):
+    def __init__(self):
+        super().__init__()
+        self.no_category = 'Available Commands'
+        self.command_attrs['help'] = 'Shows this help message'
+
+    async def send_bot_help(self, mapping):
+        embed = discord.Embed(
+            title="Festival Tracker Help",
+            description="A simple bot to probe fortnite spark-tracks api for song data.",
+            color=0x8927A1
+        )
+
+        for cog, commands in mapping.items():
+            if cog:
+                name = cog.qualified_name
+                filtered = await self.filter_commands(commands, sort=True)
+                if filtered:
+                    value = '\n'.join([f"`!{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
+                    embed.add_field(name=name, value=value, inline=False)
+            else:
+                filtered = await self.filter_commands(commands, sort=True)
+                if filtered:
+                    value = '\n'.join([f"`!{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
+                    embed.add_field(name=self.no_category, value=value, inline=False)
+
+        embed.set_footer(text="Type !help <command> for more details on a command.")
+        channel = self.get_destination()
+        await channel.send(embed=embed)
+
+    async def send_command_help(self, command):
+        embed = discord.Embed(
+            title=f"Help with `!{command.name}`",
+            description=command.help or "No description provided.",
+            color=0x8927A1
+        )
+
+        # Properly format the usage with the command signature
+        usage = f"`!{command.qualified_name} {command.signature}`" if command.signature else f"`!{command.qualified_name}`"
+        embed.add_field(name="Usage", value=usage, inline=False)
+
+        if command.aliases:
+            embed.add_field(name="Aliases", value=", ".join(command.aliases), inline=False)
+
+        channel = self.get_destination()
+        await channel.send(embed=embed)
 
 # Load configuration from config.ini
 config = ConfigParser()
@@ -27,7 +75,11 @@ SONGS_FILE = 'known_songs.json'  # File to save known songs
 intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent
 
-bot = commands.Bot(command_prefix='!', intents=intents)
+bot = commands.Bot(
+    command_prefix='!', 
+    intents=intents, 
+    help_command=CustomHelpCommand()
+)
 
 class PaginatorView(discord.ui.View):
     def __init__(self, embeds, user_id):
@@ -323,7 +375,7 @@ async def on_ready():
     # Start the song check loop
     check_for_new_songs.start()
 
-@bot.command(name='search')
+@bot.command(name='search', help='Search for a track by name or artist.')
 async def search(ctx, *, query: str):
     tracks = fetch_available_jam_tracks()
     if not tracks:
@@ -360,7 +412,7 @@ async def search(ctx, *, query: str):
         except TimeoutError:
             await ctx.send("You didn't respond in time. Search cancelled.")
 
-@bot.command(name='daily')
+@bot.command(name='daily', help='Display the tracks currently in daily rotation.')
 async def daily_tracks(ctx):
     tracks = fetch_available_jam_tracks()
     daily_shortnames_data = fetch_daily_shortnames()
@@ -428,7 +480,7 @@ async def daily_tracks(ctx):
     else:
         await ctx.send("No daily tracks found.")
 
-@bot.command(name='count')
+@bot.command(name='count', help='Show the total number of available tracks in the API.')
 async def count_tracks(ctx):
     tracks = fetch_available_jam_tracks()
     if not tracks:
