@@ -93,15 +93,26 @@ class PaginatorView(discord.ui.View):
 
     def add_buttons(self):
         self.clear_items()
+        # "First" button
+        self.add_item(FirstButton(style=discord.ButtonStyle.primary, label='First', user_id=self.user_id))
+        
+        # "Previous" button
         if self.current_page > 0:
             self.add_item(PreviousButton(style=discord.ButtonStyle.primary, label='Previous', user_id=self.user_id))
         else:
             self.add_item(PreviousButton(style=discord.ButtonStyle.secondary, label='Previous', disabled=True, user_id=self.user_id))
-        
+
+        # "Page#" button
+        self.add_item(PageNumberButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
+
+        # "Next" button
         if self.current_page < self.total_pages - 1:
             self.add_item(NextButton(style=discord.ButtonStyle.primary, label='Next', user_id=self.user_id))
         else:
             self.add_item(NextButton(style=discord.ButtonStyle.secondary, label='Next', disabled=True, user_id=self.user_id))
+        
+        # "Last" button
+        self.add_item(LastButton(style=discord.ButtonStyle.primary, label='Last', user_id=self.user_id))
 
     def get_embed(self):
         return self.embeds[self.current_page]
@@ -115,23 +126,21 @@ class PaginatorView(discord.ui.View):
                 item.disabled = True
             await self.message.edit(view=self)
         except discord.NotFound:
-            # Handle the case where the message no longer exists
             print("Message was not found when trying to edit after timeout.")
         except Exception as e:
-            # Log any other exceptions that might occur
             print(f"An error occurred during on_timeout: {e}")
 
-class NextButton(discord.ui.Button):
+class FirstButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')
         super().__init__(*args, **kwargs)
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"You did not trigger this list. Use the {COMMAND_PREFIX}daily to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
-        view.current_page += 1
+        view.current_page = 0
         embed = view.get_embed()
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
@@ -143,10 +152,45 @@ class PreviousButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"You did not trigger this list. Use the {COMMAND_PREFIX}daily to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page -= 1
+        embed = view.get_embed()
+        view.update_buttons()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class PageNumberButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
+
+class NextButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
+            return
+        view: PaginatorView = self.view
+        view.current_page += 1
+        embed = view.get_embed()
+        view.update_buttons()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class LastButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
+            return
+        view: PaginatorView = self.view
+        view.current_page = view.total_pages - 1
         embed = view.get_embed()
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
@@ -234,9 +278,8 @@ def fetch_daily_shortnames():
         print(f'Error fetching daily shortnames: {e}')
         return None
 
-def generate_tracks_embeds(tracks, title, daily_shortnames):
+def generate_tracks_embeds(tracks, title, daily_shortnames, chunk_size=5):
     embeds = []
-    chunk_size = 5  # Limit the number of tracks per embed to 5 for readability
     
     for i in range(0, len(tracks), chunk_size):
         embed = discord.Embed(title=title, color=0x8927A1)
@@ -254,7 +297,6 @@ def generate_tracks_embeds(tracks, title, daily_shortnames):
         embeds.append(embed)
     
     return embeds
-
 def generate_difficulty_bar(difficulty, max_blocks=7):
     filled_blocks = '■' * difficulty
     empty_blocks = '□' * (max_blocks - difficulty)
@@ -498,4 +540,26 @@ async def count_tracks(ctx):
 
     await ctx.send(embed=embed)
 
+@bot.command(name='tracklist', help='Browse through the full list of available tracks.')
+async def tracklist(ctx):
+    tracks = fetch_available_jam_tracks()
+    if not tracks:
+        await ctx.send('Could not fetch tracks.')
+        return
+    
+    # Convert the tracks dictionary to a list and sort it alphabetically by track title
+    track_list = sorted(tracks.values(), key=lambda x: x['track']['tt'].lower())
+
+    if not track_list:
+        await ctx.send('No tracks available.')
+        return
+
+    # Generate paginated embeds with 10 tracks per embed
+    embeds = generate_tracks_embeds(track_list, "Available Tracks", daily_shortnames={}, chunk_size=10)
+    
+    # Initialize the paginator view
+    view = PaginatorView(embeds, ctx.author.id)
+    view.message = await ctx.send(embed=view.get_embed(), view=view)
+
 bot.run(DISCORD_TOKEN)
+
