@@ -299,12 +299,12 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
                 f"Drums: {generate_difficulty_bar(difficulty.get('drums', 0))}"
                 f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
             )
-
+            embed.add_field(name="", value="\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\n", inline=False)
             embed.add_field(
                 name="",
                 value=(
                     f"{track['title']} *{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
-                    f"`{difficulty_str}\n`"
+                    f"`{difficulty_str}`"
                 ),
                 inline=False
             )
@@ -325,15 +325,18 @@ def generate_tracks_embeds(tracks, title, daily_shortnames, chunk_size=5):
             if active_until:
                 active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00'))
                 human_readable_until = active_until_date.strftime("%B %d, %Y, %I:%M %p UTC")
-                embed.add_field(name=track['track']['tt'], value=f"*{track['track']['an']}* - Leaving {human_readable_until}", inline=False)
+                embed.add_field(name="", value=f"{track['track']['tt']} - *{track['track']['an']}*\nLeaving {human_readable_until}", inline=False)
             else:
-                embed.add_field(name=track['track']['tt'], value=f"*{track['track']['an']}*", inline=False)
+                embed.add_field(name="", value=f"{track['track']['tt']} - *{track['track']['an']}*", inline=False)
         embeds.append(embed)
     
     return embeds
+
 def generate_difficulty_bar(difficulty, max_blocks=7):
-    filled_blocks = '■' * difficulty
-    empty_blocks = '□' * (max_blocks - difficulty)
+    # Map difficulty from a 0-6 range to a 1-7 range
+    scaled_difficulty = difficulty + 1  # Convert 0-6 range to 1-7
+    filled_blocks = '■' * scaled_difficulty
+    empty_blocks = '□' * (max_blocks - scaled_difficulty)
     return filled_blocks + empty_blocks
 
 def generate_track_embed(track_data, is_new=False):
@@ -490,7 +493,10 @@ async def on_ready():
     check_for_new_songs.start()
 
 @bot.command(name='search', help='Search for a track by name or artist.')
-async def search(ctx, *, query: str):
+async def search(ctx, *, query: str = None):
+    if query is None:
+        await ctx.send("Please provide a search term.")
+        return
     tracks = fetch_available_jam_tracks()
     if not tracks:
         await ctx.send('Could not fetch tracks.')
@@ -566,7 +572,7 @@ async def daily_tracks(ctx):
 
     if daily_tracks:
         embeds = []
-        chunk_size = 5  # Limit the number of tracks per embed to 5 for readability
+        chunk_size = 10  # Limit the number of tracks per embed to 5 for readability
         
         for i in range(0, len(daily_tracks), chunk_size):
             embed = discord.Embed(title="Daily Rotation Tracks", color=0x8927A1)
@@ -581,10 +587,10 @@ async def daily_tracks(ctx):
                 # Format timestamps in Discord format
                 active_since_display = f"<t:{active_since_ts}:R>" if active_since_ts else "Unknown"
                 active_until_display = f"<t:{active_until_ts}:R>" if active_until_ts else "Unknown"
-
+                embed.add_field(name="", value="\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\n", inline=False)
                 embed.add_field(
-                    name=title if title else 'Unknown Title',
-                    value=f"*{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
+                    name="",
+                    value=f"{title if title else 'Unknown Title'} - *{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
                     inline=False
                 )
             embeds.append(embed)
@@ -616,16 +622,27 @@ async def tracklist(ctx):
     if not tracks:
         await ctx.send('Could not fetch tracks.')
         return
-    
-    # Convert the tracks dictionary to a list and sort it alphabetically by track title
-    track_list = sorted(tracks.values(), key=lambda x: x['track']['tt'].lower())
+
+    # Use a dictionary to ensure only unique tracks are included
+    unique_tracks = {}
+    for track_id, track in tracks.items():
+        track_sn = track['track']['sn']  # Using the shortname as a unique identifier
+        if track_sn not in unique_tracks:
+            unique_tracks[track_sn] = track
+
+    # Convert the unique_tracks dictionary to a list and sort it alphabetically by track title
+    track_list = sorted(unique_tracks.values(), key=lambda x: x['track']['tt'].lower())
 
     if not track_list:
         await ctx.send('No tracks available.')
         return
 
+    # Calculate total tracks and update the title
+    total_tracks = len(track_list)
+    title = f"Available Tracks (Total: {total_tracks})"
+
     # Generate paginated embeds with 10 tracks per embed
-    embeds = generate_tracks_embeds(track_list, "Available Tracks", daily_shortnames={}, chunk_size=10)
+    embeds = generate_tracks_embeds(track_list, title, daily_shortnames={}, chunk_size=10)
     
     # Initialize the paginator view
     view = PaginatorView(embeds, ctx.author.id)
@@ -649,8 +666,8 @@ async def shop_tracks(ctx):
     total_tracks = len(tracks)
     title = f"Shop Tracks (Total: {total_tracks})"
 
-    # Generate paginated embeds with 10 tracks per embed
-    embeds = generate_shop_tracks_embeds(tracks, title, chunk_size=5)
+    # Generate paginated embeds with 7 tracks per embed
+    embeds = generate_shop_tracks_embeds(tracks, title, chunk_size=7)
     
     # Initialize the paginator view
     view = PaginatorView(embeds, ctx.author.id)
