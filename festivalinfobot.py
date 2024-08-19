@@ -38,7 +38,7 @@ class CustomHelpCommand(DefaultHelpCommand):
     async def send_bot_help(self, mapping):
         embed = discord.Embed(
             title="Festival Tracker Help",
-            description="A simple bot to probe fortnite spark-tracks api for song data. [Source](https://github.com/hmxmilohax/festivalinfobot)",
+            description="A simple bot to check Fortnite Festival song data. [Source](https://github.com/hmxmilohax/festivalinfobot)",
             color=0x8927A1
         )
 
