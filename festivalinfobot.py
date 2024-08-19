@@ -18,6 +18,7 @@ CHANNEL_IDS = config.get('discord', 'channel_ids', fallback="").split(',')
 CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
 
 API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
+# I am too lazy to authenticate and pull daily rotation myself, so im gonna cheat and steal it from these fine fellows
 SHORTNAMES_URL = 'https://raw.githubusercontent.com/FNFestival/fnfestival.github.io/main/data/jam_tracks.json'
 SONGS_FILE = 'known_songs.json'  # File to save known songs
 
