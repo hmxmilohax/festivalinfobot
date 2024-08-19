@@ -185,6 +185,17 @@ def generate_track_embed(track_data, is_new=False):
         human_readable_date = last_modified.strftime("%B %d, %Y, %I:%M %p")
         embed.add_field(name="Last Modified", value=human_readable_date, inline=True)
     
+    # Add Song Rating
+    rating = track.get('ar', 'N/A')
+    if rating == 'T':
+        rating_description = 'Mature'
+    elif rating == 'E':
+        rating_description = 'Everyone'
+    else:
+        rating_description = 'Unknown'
+    
+    embed.add_field(name="Rating", value=rating_description, inline=True)
+    
     # Difficulty bars
     vocals_diff = track['in'].get('vl', 0)
     guitar_diff = track['in'].get('gr', 0)
