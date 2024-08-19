@@ -1,11 +1,11 @@
 
 # Festival Info Bot
 
-Festival Info is a Discord bot that tracks and reports new songs in the Fortnite Spark Tracks API. The bot checks the API every minute for new tracks and can also provide information about daily tracks and perform search queries for specific songs.
+Festival Info is a Discord bot that tracks and reports new songs in Fortnite Festival. The bot checks every 15 minutes for new tracks and can also provide information about daily tracks and perform search queries for specific songs.
 
 ## Features
 
-- **Real-Time Song Tracking:** The bot checks the Fortnite Spark Tracks API every minute and reports new songs to specified Discord channels.
+- **Real-Time Song Tracking:** The bot checks Fortnite Festival every 15 minutes and reports new songs to specified Discord channels.
 - **Daily Tracks Report:** The bot can generate a list of daily tracks and display them in Discord.
 - **Search Functionality:** The bot allows users to search for songs by title or artist.
 

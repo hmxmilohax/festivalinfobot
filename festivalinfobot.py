@@ -330,7 +330,7 @@ def load_known_songs_from_disk():
             return set(json.load(file))
     return set()
 
-@tasks.loop(minutes=1)
+@tasks.loop(minutes=15)
 async def check_for_new_songs():
     if not CHANNEL_IDS:
         print("No channel IDs provided; skipping the 1-minute probe.")
