@@ -164,7 +164,7 @@ def generate_track_embed(track_data, is_new=False):
     track = track_data['track']
     title = f"New song in API:\n{track['tt']}" if is_new else track['tt']
     placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
-    embed = discord.Embed(title=title, description=f"{track['an']}", color=0x8927A1)
+    embed = discord.Embed(title=title, description=f"*{track['an']}*", color=0x8927A1)
     
     # Add various fields to the embed
     embed.add_field(name="Release Year", value=track['ry'], inline=True)
