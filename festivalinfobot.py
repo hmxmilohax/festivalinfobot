@@ -290,25 +290,29 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
             duration_minutes = track['duration'] // 60
             duration_seconds = track['duration'] % 60
             duration_str = f"{duration_minutes}m {duration_seconds}s"
+
+            # Convert inDate and outDate to Discord timestamp format
+            in_date_ts = int(datetime.fromisoformat(track['inDate'].replace('Z', '+00:00')).timestamp()) if track.get('inDate') else None
+            out_date_ts = int(datetime.fromisoformat(track['outDate'].replace('Z', '+00:00')).timestamp()) if track.get('outDate') else None
             
-            # Convert inDate and outDate to a more readable format
-            in_date_str = datetime.fromisoformat(track['inDate'].replace('Z', '+00:00')).strftime("%B %d, %Y") if track.get('inDate') else "Unknown"
-            out_date_str = datetime.fromisoformat(track['outDate'].replace('Z', '+00:00')).strftime("%B %d, %Y") if track.get('outDate') else "Unknown"
+            in_date_display = f"<t:{in_date_ts}:R>" if in_date_ts else "Unknown"
+            out_date_display = f"<t:{out_date_ts}:R>" if out_date_ts else "Unknown"
 
             # Inline difficulty as boxes
             difficulty = track['difficulty']
             difficulty_str = (
                 f"Lead: {generate_difficulty_bar(difficulty.get('guitar', 0))} "
                 f"Bass: {generate_difficulty_bar(difficulty.get('bass', 0))} "
-                f"Drums: {generate_difficulty_bar(difficulty.get('drums', 0))}"
+                f"Drums: {generate_difficulty_bar(difficulty.get('drums', 0))} "
                 f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
             )
+
             embed.add_field(name="", value="\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\n", inline=False)
             embed.add_field(
                 name="",
                 value=(
                     f"{track['title']} *{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
-                    f"Available from: {in_date_str} to {out_date_str}\n"
+                    f"Added {in_date_display} - Leaving {out_date_display}\n"
                     f"`{difficulty_str}`"
                 ),
                 inline=False
