@@ -138,7 +138,7 @@ class FirstButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page = 0
@@ -153,7 +153,7 @@ class PreviousButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page -= 1
@@ -173,7 +173,7 @@ class NextButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page += 1
@@ -188,7 +188,7 @@ class LastButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page = view.total_pages - 1
@@ -290,6 +290,10 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
             duration_minutes = track['duration'] // 60
             duration_seconds = track['duration'] % 60
             duration_str = f"{duration_minutes}m {duration_seconds}s"
+            
+            # Convert inDate and outDate to a more readable format
+            in_date_str = datetime.fromisoformat(track['inDate'].replace('Z', '+00:00')).strftime("%B %d, %Y") if track.get('inDate') else "Unknown"
+            out_date_str = datetime.fromisoformat(track['outDate'].replace('Z', '+00:00')).strftime("%B %d, %Y") if track.get('outDate') else "Unknown"
 
             # Inline difficulty as boxes
             difficulty = track['difficulty']
@@ -304,6 +308,7 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
                 name="",
                 value=(
                     f"{track['title']} *{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
+                    f"Available from: {in_date_str} to {out_date_str}\n"
                     f"`{difficulty_str}`"
                 ),
                 inline=False
@@ -420,8 +425,10 @@ def fetch_shop_tracks():
             entries = data['data']['entries']
             available_tracks = {}
 
-            # Extract tracks with 'sid_placeholder' in their ID
             for entry in entries:
+                in_date = entry.get('inDate')
+                out_date = entry.get('outDate')
+                
                 if entry.get('tracks'):
                     for track in entry['tracks']:
                         if 'sid_placeholder' in track['id']:
@@ -433,7 +440,9 @@ def fetch_shop_tracks():
                                     "artist": track.get("artist", "Unknown Artist").strip() if track.get("artist") else "Unknown Artist",
                                     "releaseYear": track.get("releaseYear", "Unknown Year"),
                                     "duration": track.get("duration", 0),
-                                    "difficulty": track.get("difficulty", {})
+                                    "difficulty": track.get("difficulty", {}),
+                                    "inDate": in_date,  # Assign entry-level inDate
+                                    "outDate": out_date  # Assign entry-level outDate
                                 }
 
             if not available_tracks:
