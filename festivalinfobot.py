@@ -23,6 +23,7 @@ CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
 
 API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
 MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
+SHOP_API_URL = 'https://fortnite-api.com/v2/shop'
 SONGS_FILE = 'known_songs.json'  # File to save known songs
 
 # Set up Discord bot with necessary intents
@@ -278,6 +279,39 @@ def fetch_daily_shortnames():
         print(f'Error fetching daily shortnames: {e}')
         return None
 
+def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
+    embeds = []
+
+    for i in range(0, len(tracks), chunk_size):
+        embed = discord.Embed(title=title, color=0x8927A1)
+        chunk = tracks[i:i + chunk_size]
+        for track in chunk:
+            # Convert duration from seconds to a more readable format
+            duration_minutes = track['duration'] // 60
+            duration_seconds = track['duration'] % 60
+            duration_str = f"{duration_minutes}m {duration_seconds}s"
+
+            # Inline difficulty as boxes
+            difficulty = track['difficulty']
+            difficulty_str = (
+                f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
+                f"Lead: {generate_difficulty_bar(difficulty.get('guitar', 0))} "
+                f"Bass: {generate_difficulty_bar(difficulty.get('bass', 0))} "
+                f"Drums: {generate_difficulty_bar(difficulty.get('drums', 0))}"
+            )
+
+            embed.add_field(
+                name="",
+                value=(
+                    f"{track['title']} *{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
+                    f"`{difficulty_str}\n`"
+                ),
+                inline=False
+            )
+        embeds.append(embed)
+
+    return embeds
+
 def generate_tracks_embeds(tracks, title, daily_shortnames, chunk_size=5):
     embeds = []
     
@@ -372,6 +406,43 @@ def load_known_songs_from_disk():
         with open(SONGS_FILE, 'r') as file:
             return set(json.load(file))
     return set()
+
+def fetch_shop_tracks():
+    try:
+        response = requests.get(SHOP_API_URL)
+        data = response.json()
+
+        # Check if 'data' and 'entries' keys exist in the response
+        if 'data' in data and 'entries' in data['data']:
+            entries = data['data']['entries']
+            available_tracks = {}
+
+            # Extract tracks with 'sid_placeholder' in their ID
+            for entry in entries:
+                if entry.get('tracks'):
+                    for track in entry['tracks']:
+                        if 'sid_placeholder' in track['id']:
+                            track_id = track["id"]  # Use the track's ID as the unique key
+                            if track_id not in available_tracks:
+                                available_tracks[track_id] = {
+                                    "id": track["id"],
+                                    "title": track.get("title", "Unknown Title").strip() if track.get("title") else "Unknown Title",
+                                    "artist": track.get("artist", "Unknown Artist").strip() if track.get("artist") else "Unknown Artist",
+                                    "releaseYear": track.get("releaseYear", "Unknown Year"),
+                                    "duration": track.get("duration", 0),
+                                    "difficulty": track.get("difficulty", {})
+                                }
+
+            print(f"Total unique tracks found: {len(available_tracks)}")
+            if not available_tracks:
+                print('No tracks found in the shop.')
+                return None
+
+            return list(available_tracks.values())  # Convert the dictionary back to a list
+
+    except Exception as e:
+        print(f'Error fetching shop tracks: {e}')
+        return None
 
 @tasks.loop(minutes=15)
 async def check_for_new_songs():
@@ -556,6 +627,31 @@ async def tracklist(ctx):
 
     # Generate paginated embeds with 10 tracks per embed
     embeds = generate_tracks_embeds(track_list, "Available Tracks", daily_shortnames={}, chunk_size=10)
+    
+    # Initialize the paginator view
+    view = PaginatorView(embeds, ctx.author.id)
+    view.message = await ctx.send(embed=view.get_embed(), view=view)
+
+@bot.command(name='shop', help='Browse through the tracks currently available in the shop.')
+async def shop_tracks(ctx):
+    tracks = fetch_shop_tracks()
+    if not tracks:
+        await ctx.send('Could not fetch shop tracks.')
+        return
+    
+    # Sort the tracks alphabetically by title
+    tracks.sort(key=lambda x: x['title'].lower())
+
+    if not tracks:
+        await ctx.send('No tracks available in the shop.')
+        return
+
+    # Calculate total tracks and update the title
+    total_tracks = len(tracks)
+    title = f"Shop Tracks (Total: {total_tracks})"
+
+    # Generate paginated embeds with 10 tracks per embed
+    embeds = generate_shop_tracks_embeds(tracks, title, chunk_size=5)
     
     # Initialize the paginator view
     view = PaginatorView(embeds, ctx.author.id)
