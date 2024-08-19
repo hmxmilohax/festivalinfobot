@@ -208,12 +208,12 @@ def generate_track_embed(track_data, is_new=False):
 
     # Construct the vertical difficulty bars
     difficulties = (
-        f"Lead:     {generate_difficulty_bar(guitar_diff)}\n"
-        f"Bass:     {generate_difficulty_bar(bass_diff)}\n"
-        f"Drums:    {generate_difficulty_bar(drums_diff)}\n"
-        f"Vocals:   {generate_difficulty_bar(vocals_diff)}\n"
-        f"Pro Lead: {generate_difficulty_bar(pro_guitar_diff)}\n"
-        f"Pro Bass: {generate_difficulty_bar(pro_bass_diff)}\n"
+        f"Lead:      {generate_difficulty_bar(guitar_diff)}\n"
+        f"Bass:      {generate_difficulty_bar(bass_diff)}\n"
+        f"Drums:     {generate_difficulty_bar(drums_diff)}\n"
+        f"Vocals:    {generate_difficulty_bar(vocals_diff)}\n"
+        f"Pro Lead:  {generate_difficulty_bar(pro_guitar_diff)}\n"
+        f"Pro Bass:  {generate_difficulty_bar(pro_bass_diff)}\n"
         f"Pro Drums: {generate_difficulty_bar(pro_drums_diff)}"
     )
 
