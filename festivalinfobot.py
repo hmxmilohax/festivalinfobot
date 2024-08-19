@@ -5,7 +5,7 @@ import discord
 import json
 from configparser import ConfigParser
 from difflib import get_close_matches
-from datetime import datetime
+from datetime import datetime, timezone
 import string
 
 # Load configuration from config.ini
@@ -20,8 +20,7 @@ CHANNEL_IDS = config.get('discord', 'channel_ids', fallback="").split(',')
 CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
 
 API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
-# I am too lazy to authenticate and pull daily rotation myself, so im gonna cheat and steal it from these fine fellows
-SHORTNAMES_URL = 'https://raw.githubusercontent.com/FNFestival/fnfestival.github.io/main/data/jam_tracks.json'
+MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
 SONGS_FILE = 'known_songs.json'  # File to save known songs
 
 # Set up Discord bot with necessary intents
@@ -138,16 +137,45 @@ def fetch_available_jam_tracks():
         print(f'Error fetching available jam tracks: {e}')
         return None
 
-def fetch_shortnames_data():
+def fetch_daily_shortnames():
     try:
-        response = requests.get(SHORTNAMES_URL)
+        response = requests.get(MODES_SMART_URL)
         data = response.json()
-        return data
+
+        channels = data.get('channels', {})
+        client_events_data = channels.get('client-events', {})
+        states = client_events_data.get('states', [])
+        active_events = states[0].get('activeEvents', [])
+
+        # Current date with timezone awareness
+        current_date = datetime.now(timezone.utc)
+
+        daily_tracks = {}
+        for event in active_events:
+            event_type = event.get('eventType', '')
+            active_since = event.get('activeSince', '')
+            active_until = event.get('activeUntil', '')
+
+            # Convert dates to timezone-aware datetime objects
+            active_since_date = datetime.fromisoformat(active_since.replace('Z', '+00:00')) if active_since else None
+            active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00')) if active_until else None
+
+            if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
+                # Check if the current date falls within the active period
+                if active_since_date <= current_date <= active_until_date:
+                    shortname = event_type.replace('PilgrimSong.', '')
+                    daily_tracks[shortname] = {
+                        'activeSince': active_since,
+                        'activeUntil': active_until
+                    }
+
+        return daily_tracks
+
     except Exception as e:
-        print(f'Error fetching shortnames data: {e}')
+        print(f'Error fetching daily shortnames: {e}')
         return None
 
-def generate_tracks_embeds(tracks, title):
+def generate_tracks_embeds(tracks, title, daily_shortnames):
     embeds = []
     chunk_size = 5  # Limit the number of tracks per embed to 5 for readability
     
@@ -155,7 +183,15 @@ def generate_tracks_embeds(tracks, title):
         embed = discord.Embed(title=title, color=0x8927A1)
         chunk = tracks[i:i + chunk_size]
         for track in chunk:
-            embed.add_field(name=track['track']['tt'], value=f"{track['track']['an']}", inline=False)
+            shortname = track['track']['sn']
+            active_until = daily_shortnames.get(shortname)
+
+            if active_until:
+                active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00'))
+                human_readable_until = active_until_date.strftime("%B %d, %Y, %I:%M %p UTC")
+                embed.add_field(name=track['track']['tt'], value=f"*{track['track']['an']}* - Leaving {human_readable_until}", inline=False)
+            else:
+                embed.add_field(name=track['track']['tt'], value=f"*{track['track']['an']}*", inline=False)
         embeds.append(embed)
     
     return embeds
@@ -298,7 +334,7 @@ async def search(ctx, *, query: str):
         await ctx.send(embed=embed)
     else:
         # More than one match, prompt user to choose
-        options = [f"{i + 1}. **{track['track']['tt']}** by {track['track']['an']}" for i, track in enumerate(matched_tracks)]
+        options = [f"{i + 1}. **{track['track']['tt']}** by {track['track']['an']}**" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
         await ctx.send(f"I found multiple tracks matching your search. Please choose the correct one by typing the number:\n{options_message}")
         
@@ -321,19 +357,66 @@ async def search(ctx, *, query: str):
 @bot.command(name='daily')
 async def daily_tracks(ctx):
     tracks = fetch_available_jam_tracks()
-    shortnames_data = fetch_shortnames_data()
-    if not tracks or not shortnames_data:
-        await ctx.send('Could not fetch tracks or shortnames.')
+    daily_shortnames_data = fetch_daily_shortnames()
+
+    if not tracks or not daily_shortnames_data:
+        await ctx.send('Could not fetch tracks or daily shortnames.')
         return
     
-    daily_track_shortnames = shortnames_data.get('dailyTracks', [])
-    daily_tracks = [track for track in tracks.values() if track['track']['sn'] in daily_track_shortnames]
+    daily_tracks = []
+    for track in tracks.values():
+        shortname = track['track'].get('sn')
 
-    # Sort the daily tracks alphabetically by title (tt)
-    daily_tracks.sort(key=lambda x: x['track']['tt'].lower())
+        if shortname in daily_shortnames_data:
+            event_data = daily_shortnames_data[shortname]
+
+            # Extract both activeSince and activeUntil from the event_data dictionary
+            active_since_iso = event_data.get('activeSince', '')
+            active_until_iso = event_data.get('activeUntil', '')
+
+            # Convert to unix timestamps for Discord
+            active_until_ts = int(datetime.fromisoformat(active_until_iso.replace('Z', '+00:00')).timestamp()) if active_until_iso else None
+            active_since_ts = int(datetime.fromisoformat(active_since_iso.replace('Z', '+00:00')).timestamp()) if active_since_iso else None
+
+            title = track['track'].get('tt')
+            artist = track['track'].get('an')
+
+            daily_tracks.append({
+                'track': track,
+                'title': title,
+                'artist': artist,
+                'activeSince': active_since_ts,
+                'activeUntil': active_until_ts
+            })
+
+    # Sort the tracks first by 'Leaving' time (activeUntil), then alphabetically by title
+    daily_tracks.sort(key=lambda x: (x['activeUntil'] or float('inf'), x['title'].lower()))
 
     if daily_tracks:
-        embeds = generate_tracks_embeds(daily_tracks, "Daily Rotation Tracks")
+        embeds = []
+        chunk_size = 5  # Limit the number of tracks per embed to 5 for readability
+        
+        for i in range(0, len(daily_tracks), chunk_size):
+            embed = discord.Embed(title="Daily Rotation Tracks", color=0x8927A1)
+            chunk = daily_tracks[i:i + chunk_size]
+            for entry in chunk:
+                track = entry['track']
+                active_since_ts = entry['activeSince']
+                active_until_ts = entry['activeUntil']
+                title = entry['title']
+                artist = entry['artist']
+
+                # Format timestamps in Discord format
+                active_since_display = f"<t:{active_since_ts}:R>" if active_since_ts else "Unknown"
+                active_until_display = f"<t:{active_until_ts}:R>" if active_until_ts else "Unknown"
+
+                embed.add_field(
+                    name=title if title else 'Unknown Title',
+                    value=f"*{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
+                    inline=False
+                )
+            embeds.append(embed)
+
         view = PaginatorView(embeds, ctx.author.id)
         view.message = await ctx.send(embed=view.get_embed(), view=view)
     else:
@@ -357,6 +440,5 @@ async def count_tracks(ctx):
     embed.add_field(name="Source", value="[Fortnite Spark Tracks API](https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks)", inline=False)
     
     await ctx.send(embed=embed)
-
 
 bot.run(DISCORD_TOKEN)
