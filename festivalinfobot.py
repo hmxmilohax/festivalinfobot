@@ -9,6 +9,26 @@ from datetime import datetime, timezone
 import string
 from discord.ext.commands import DefaultHelpCommand
 
+# Load configuration from config.ini
+config = ConfigParser()
+config.read('config.ini')
+
+# Read the Discord bot token and channel IDs from the config file
+DISCORD_TOKEN = config.get('discord', 'token')
+CHANNEL_IDS = config.get('discord', 'channel_ids', fallback="").split(',')
+COMMAND_PREFIX = config.get('discord', 'prefix', fallback="!").split(',')
+
+# Convert channel IDs to integers and filter out any empty strings
+CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
+
+API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
+MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
+SONGS_FILE = 'known_songs.json'  # File to save known songs
+
+# Set up Discord bot with necessary intents
+intents = discord.Intents.default()
+intents.message_content = True  # Enable message content intent
+
 class CustomHelpCommand(DefaultHelpCommand):
     def __init__(self):
         super().__init__()
@@ -27,27 +47,27 @@ class CustomHelpCommand(DefaultHelpCommand):
                 name = cog.qualified_name
                 filtered = await self.filter_commands(commands, sort=True)
                 if filtered:
-                    value = '\n'.join([f"`!{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
+                    value = '\n'.join([f"`{COMMAND_PREFIX[0]}{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
                     embed.add_field(name=name, value=value, inline=False)
             else:
                 filtered = await self.filter_commands(commands, sort=True)
                 if filtered:
-                    value = '\n'.join([f"`!{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
+                    value = '\n'.join([f"`{COMMAND_PREFIX[0]}{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
                     embed.add_field(name=self.no_category, value=value, inline=False)
 
-        embed.set_footer(text="Type !help <command> for more details on a command.")
+        embed.set_footer(text=f"Type {COMMAND_PREFIX[0]}help <command> for more details on a command.")
         channel = self.get_destination()
         await channel.send(embed=embed)
 
     async def send_command_help(self, command):
         embed = discord.Embed(
-            title=f"Help with `!{command.name}`",
+            title=f"Help with `{COMMAND_PREFIX[0]}{command.name}`",
             description=command.help or "No description provided.",
             color=0x8927A1
         )
 
         # Properly format the usage with the command signature
-        usage = f"`!{command.qualified_name} {command.signature}`" if command.signature else f"`!{command.qualified_name}`"
+        usage = f"`{COMMAND_PREFIX[0]}{command.qualified_name} {command.signature}`" if command.signature else f"`{COMMAND_PREFIX[0]}{command.qualified_name}`"
         embed.add_field(name="Usage", value=usage, inline=False)
 
         if command.aliases:
@@ -56,27 +76,8 @@ class CustomHelpCommand(DefaultHelpCommand):
         channel = self.get_destination()
         await channel.send(embed=embed)
 
-# Load configuration from config.ini
-config = ConfigParser()
-config.read('config.ini')
-
-# Read the Discord bot token and channel IDs from the config file
-DISCORD_TOKEN = config.get('discord', 'token')
-CHANNEL_IDS = config.get('discord', 'channel_ids', fallback="").split(',')
-
-# Convert channel IDs to integers and filter out any empty strings
-CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
-
-API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
-MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
-SONGS_FILE = 'known_songs.json'  # File to save known songs
-
-# Set up Discord bot with necessary intents
-intents = discord.Intents.default()
-intents.message_content = True  # Enable message content intent
-
 bot = commands.Bot(
-    command_prefix='!', 
+    command_prefix=COMMAND_PREFIX, 
     intents=intents, 
     help_command=CustomHelpCommand()
 )
@@ -127,7 +128,7 @@ class NextButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("You did not trigger this list. Use the !daily to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"You did not trigger this list. Use the {COMMAND_PREFIX}daily to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page += 1
@@ -142,7 +143,7 @@ class PreviousButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("You did not trigger this list. Use the !daily to start your own session.", ephemeral=True)
+            await interaction.response.send_message(f"You did not trigger this list. Use the {COMMAND_PREFIX}daily to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page -= 1
