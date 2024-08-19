@@ -267,6 +267,7 @@ def generate_track_embed(track_data, is_new=False):
     embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
     
     # Add various fields to the embed
+    embed.add_field(name="\n", value="", inline=False)
     embed.add_field(name="Release Year", value=track['ry'], inline=True)
     embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
     embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)
