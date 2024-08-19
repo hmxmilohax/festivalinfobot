@@ -294,10 +294,10 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
             # Inline difficulty as boxes
             difficulty = track['difficulty']
             difficulty_str = (
-                f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
                 f"Lead: {generate_difficulty_bar(difficulty.get('guitar', 0))} "
                 f"Bass: {generate_difficulty_bar(difficulty.get('bass', 0))} "
                 f"Drums: {generate_difficulty_bar(difficulty.get('drums', 0))}"
+                f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
             )
 
             embed.add_field(
@@ -433,7 +433,6 @@ def fetch_shop_tracks():
                                     "difficulty": track.get("difficulty", {})
                                 }
 
-            print(f"Total unique tracks found: {len(available_tracks)}")
             if not available_tracks:
                 print('No tracks found in the shop.')
                 return None
