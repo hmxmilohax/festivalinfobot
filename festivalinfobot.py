@@ -5,6 +5,7 @@ import discord
 import json
 from configparser import ConfigParser
 from difflib import get_close_matches
+from datetime import datetime
 
 # Load configuration from config.ini
 config = ConfigParser()
@@ -146,7 +147,7 @@ def generate_tracks_embeds(tracks, title):
     chunk_size = 5  # Limit the number of tracks per embed to 5 for readability
     
     for i in range(0, len(tracks), chunk_size):
-        embed = discord.Embed(title=title, color=0x00ff00)
+        embed = discord.Embed(title=title, color=0x8927A1)
         chunk = tracks[i:i + chunk_size]
         for track in chunk:
             embed.add_field(name=track['track']['tt'], value=f"{track['track']['an']}", inline=False)
@@ -162,13 +163,22 @@ def generate_difficulty_bar(difficulty, max_blocks=7):
 def generate_track_embed(track_data, is_new=False):
     track = track_data['track']
     title = f"New song in API:\n{track['tt']}" if is_new else track['tt']
-    embed = discord.Embed(title=title, description=f"By {track['an']}", color=0x00ff00)
+    placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
+    embed = discord.Embed(title=title, description=f"By {track['an']}", color=0x8927A1)
     
     # Add various fields to the embed
     embed.add_field(name="Release Year", value=track['ry'], inline=True)
     embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
     embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)
     embed.add_field(name="Duration", value=f"{track['dn'] // 60}m {track['dn'] % 60}s", inline=True)
+    embed.add_field(name="Shortname", value=track['sn'], inline=True)
+    embed.add_field(name="Song ID", value=f"{placeholder_id}", inline=True)
+    
+    # Add Last Modified field if it exists and format it to be more human-readable
+    if 'lastModified' in track_data:
+        last_modified = datetime.fromisoformat(track_data['lastModified'].replace('Z', '+00:00'))
+        human_readable_date = last_modified.strftime("%B %d, %Y, %I:%M %p")
+        embed.add_field(name="Last Modified", value=human_readable_date, inline=True)
     
     # Difficulty bars
     vocals_diff = track['in'].get('vl', 0)
@@ -208,8 +218,6 @@ def load_known_songs_from_disk():
         with open(SONGS_FILE, 'r') as file:
             return set(json.load(file))
     return set()
-
-CHANNEL_IDS = [1131046106067902464, 1250804344194859220]  # Replace with your channel IDs
 
 @tasks.loop(minutes=1)
 async def check_for_new_songs():
