@@ -38,7 +38,7 @@ class CustomHelpCommand(DefaultHelpCommand):
     async def send_bot_help(self, mapping):
         embed = discord.Embed(
             title="Festival Tracker Help",
-            description="A simple bot to probe fortnite spark-tracks api for song data.",
+            description="A simple bot to probe fortnite spark-tracks api for song data. [Source](https://github.com/hmxmilohax/festivalinfobot)",
             color=0x8927A1
         )
 
@@ -262,7 +262,7 @@ def generate_difficulty_bar(difficulty, max_blocks=7):
 
 def generate_track_embed(track_data, is_new=False):
     track = track_data['track']
-    title = f"New song in API:\n{track['tt']}" if is_new else track['tt']
+    title = f"New song found:\n{track['tt']}" if is_new else track['tt']
     placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
     embed = discord.Embed(title=title, description=f"*{track['an']}*", color=0x8927A1)
     
@@ -481,7 +481,7 @@ async def daily_tracks(ctx):
     else:
         await ctx.send("No daily tracks found.")
 
-@bot.command(name='count', help='Show the total number of available tracks in the API.')
+@bot.command(name='count', help='Show the total number of available tracks in Fortnite Festival.')
 async def count_tracks(ctx):
     tracks = fetch_available_jam_tracks()
     if not tracks:
@@ -491,13 +491,10 @@ async def count_tracks(ctx):
     total_tracks = len(tracks)
     embed = discord.Embed(
         title="Total Available Songs",
-        description=f"There are currently **{total_tracks}** available songs in the API.",
+        description=f"There are currently **{total_tracks}** available songs available in Fortnite Festival.",
         color=0x8927A1
     )
-    
-    # Add additional info if needed
-    embed.add_field(name="Source", value="[Fortnite Spark Tracks API](https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks)", inline=False)
-    
+
     await ctx.send(embed=embed)
 
 bot.run(DISCORD_TOKEN)
