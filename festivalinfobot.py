@@ -218,7 +218,7 @@ def generate_track_embed(track_data, is_new=False):
     # Add Last Modified field if it exists and format it to be more human-readable
     if 'lastModified' in track_data:
         last_modified = datetime.fromisoformat(track_data['lastModified'].replace('Z', '+00:00'))
-        human_readable_date = last_modified.strftime("%B %d, %Y, %I:%M %p")
+        human_readable_date = last_modified.strftime("%B %d, %Y")
         embed.add_field(name="Last Modified", value=human_readable_date, inline=True)
     
     # Add Song Rating
