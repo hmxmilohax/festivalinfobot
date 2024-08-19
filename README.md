@@ -38,10 +38,12 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
     [discord]
     token = YOUR_DISCORD_BOT_TOKEN_HERE
     channel_ids = 123456789012345678, 234567890123456789
+    prefix = !
     ```
 
    - Replace `YOUR_DISCORD_BOT_TOKEN` with your actual Discord bot token.
    - Replace the `channel_ids` with the IDs of the channels where you want the bot to report new songs.
+   - Replace the `prefix` with the specific prefix desired for Discord.
 
 4. Run the bot:
 
@@ -53,6 +55,7 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
 
 - `!daily` - Displays the current daily rotation tracks.
 - `!search <query>` - Searches for tracks by title or artist name.
+- `!count` - Counts the total number of songs in Fortnite Festival.
 
 ## License
 
