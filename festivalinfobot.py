@@ -717,6 +717,7 @@ async def shop_tracks(ctx):
         return
     
     # Sort the tracks alphabetically by title
+    tracks = list(tracks.values())
     tracks.sort(key=lambda x: x['title'].lower())
 
     if not tracks:
