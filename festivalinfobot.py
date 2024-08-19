@@ -128,7 +128,13 @@ def fetch_available_jam_tracks():
 
         # Ensure that the data is a dictionary and filter tracks that have the "track" property
         if isinstance(data, dict):
-            available_tracks = {k: v for k, v in data.items() if isinstance(v, dict) and 'track' in v}
+            available_tracks = {}
+            for k, v in data.items():
+                if isinstance(v, dict) and 'track' in v:
+                    # Remove trailing spaces from relevant fields
+                    v['track']['an'] = v['track']['an'].strip()
+                    v['track']['tt'] = v['track']['tt'].strip()
+                    available_tracks[k] = v
             return available_tracks
         else:
             print('Unexpected data format')
@@ -334,7 +340,7 @@ async def search(ctx, *, query: str):
         await ctx.send(embed=embed)
     else:
         # More than one match, prompt user to choose
-        options = [f"{i + 1}. **{track['track']['tt']}** by {track['track']['an']}**" for i, track in enumerate(matched_tracks)]
+        options = [f"{i + 1}. **{track['track']['tt']}** by *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
         await ctx.send(f"I found multiple tracks matching your search. Please choose the correct one by typing the number:\n{options_message}")
         
