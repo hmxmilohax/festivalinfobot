@@ -328,4 +328,24 @@ async def daily_tracks(ctx):
     else:
         await ctx.send("No daily tracks found.")
 
+@bot.command(name='count')
+async def count_tracks(ctx):
+    tracks = fetch_available_jam_tracks()
+    if not tracks:
+        await ctx.send('Could not fetch tracks.')
+        return
+    
+    total_tracks = len(tracks)
+    embed = discord.Embed(
+        title="Total Available Songs",
+        description=f"There are currently **{total_tracks}** available songs in the API.",
+        color=0x8927A1
+    )
+    
+    # Add additional info if needed
+    embed.add_field(name="Source", value="[Fortnite Spark Tracks API](https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks)", inline=False)
+    
+    await ctx.send(embed=embed)
+
+
 bot.run(DISCORD_TOKEN)
