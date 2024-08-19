@@ -6,6 +6,7 @@ import json
 from configparser import ConfigParser
 from difflib import get_close_matches
 from datetime import datetime
+import string
 
 # Load configuration from config.ini
 config = ConfigParser()
@@ -98,14 +99,18 @@ class PreviousButton(discord.ui.Button):
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
 
+def remove_punctuation(text):
+    return text.translate(str.maketrans('', '', string.punctuation))
+
 def fuzzy_search_tracks(tracks, search_term):
-    search_term = search_term.lower()  # Case-insensitive search
+    # Remove punctuation from the search term
+    search_term = remove_punctuation(search_term.lower())  # Case-insensitive search
     exact_matches = []
     fuzzy_matches = []
     
     for track in tracks.values():
-        title = track['track']['tt'].lower()
-        artist = track['track']['an'].lower()
+        title = remove_punctuation(track['track']['tt'].lower())
+        artist = remove_punctuation(track['track']['an'].lower())
         
         # Check for exact matches first
         if search_term in title or search_term in artist:
