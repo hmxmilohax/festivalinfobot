@@ -249,10 +249,20 @@ def fetch_daily_shortnames():
         channels = data.get('channels', {})
         client_events_data = channels.get('client-events', {})
         states = client_events_data.get('states', [])
-        active_events = states[0].get('activeEvents', [])
 
         # Current date with timezone awareness
-        current_date = datetime.now(timezone.utc)
+        current_time = datetime.now(timezone.utc)
+        
+        # Filter and sort the states by validFrom date
+        valid_states = [state for state in states if datetime.fromisoformat(state['validFrom'].replace('Z', '+00:00')) <= current_time]
+        valid_states.sort(key=lambda x: datetime.fromisoformat(x['validFrom'].replace('Z', '+00:00')), reverse=True)
+
+        if not valid_states:
+            print("No valid states found")
+            return None
+
+        # Get the activeEvents from the most recent valid state
+        active_events = valid_states[0].get('activeEvents', [])
 
         daily_tracks = {}
         for event in active_events:
@@ -266,7 +276,7 @@ def fetch_daily_shortnames():
 
             if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
                 # Check if the current date falls within the active period
-                if active_since_date <= current_date <= active_until_date:
+                if active_since_date <= current_time <= active_until_date:
                     shortname = event_type.replace('PilgrimSong.', '')
                     daily_tracks[shortname] = {
                         'activeSince': active_since,
