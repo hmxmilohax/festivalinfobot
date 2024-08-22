@@ -888,7 +888,7 @@ async def shop_tracks(ctx):
     view.message = await ctx.send(embed=view.get_embed(), view=view)
 
 @bot.command(name='leaderboard', 
-             help="""View the leaderboard of a specific song, and specific leaderboard entries. (Not updated instantly.)\nAccepts a shortname, instrument, and optionally, a rank, username or Epic account ID.
+             help="""View the leaderboard of a specific song, and specific leaderboard entries. Updated roughly every 24 hours.\nAccepts a shortname, instrument, and optionally, a rank, username or Epic account ID.
 Instruments:
 
 - `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: Pro Lead
