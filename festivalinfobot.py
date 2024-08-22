@@ -25,6 +25,7 @@ API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/p
 MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
 SHOP_API_URL = 'https://fortnite-api.com/v2/shop'
 SONGS_FILE = 'known_songs.json'  # File to save known songs
+LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
 
 # Set up Discord bot with necessary intents
 intents = discord.Intents.default()
@@ -196,6 +197,43 @@ class LastButton(discord.ui.Button):
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
 
+def get_instrument(query):
+    query = query.lower()
+    if query in ['plasticguitar', 'prolead', 'pl', 'proguitar', 'pg']:
+        return ['Solo_PeripheralGuitar', 'Pro Lead']
+    elif query in ['plasticbass', 'probass', 'pb']:
+        return ['Solo_PeripheralBass', 'Pro Bass']
+    elif query in ['vocals', 'vl', 'v']:
+        return ['Solo_Vocals', 'Vocals']
+    elif query in ['guitar', 'gr', 'lead', 'ld', 'g', 'l']:
+        return ['Solo_Guitar', 'Lead']
+    elif query in ['bass', 'ba', 'b']:
+        return ['Solo_Bass', 'Bass']
+    elif query in ['drums', 'ds', 'd']:
+        return ['Solo_Drums', 'Drums']
+    return None
+
+def fetch_leaderboard_of_track(shortname, instrument):
+    season_number_request = requests.get(f'{LEADERBOARD_DB_URL}meta.json')
+    current_season_number = season_number_request.json()['season']
+    song_url = f'{LEADERBOARD_DB_URL}leaderboards/season{current_season_number}/{shortname}/'
+
+    fetched_entries = []
+    fetched_pages = 0
+    while (fetched_pages < 5):
+        json_url = f'{song_url}{instrument}_{fetched_pages}.json'
+        try:
+            response = requests.get(json_url)
+            response.raise_for_status()
+            data = response.json()
+            fetched_entries.extend(data['entries'])
+            fetched_pages += 1
+        except Exception as e: # No more jsons
+            print(f'There aren\'t enough entries to fetch: {e}')
+            return fetched_entries
+    else:
+        return fetched_entries
+
 def remove_punctuation(text):
     return text.translate(str.maketrans('', '', string.punctuation))
 
@@ -204,6 +242,9 @@ def fuzzy_search_tracks(tracks, search_term):
     search_term = remove_punctuation(search_term.lower())  # Case-insensitive search
     exact_matches = []
     fuzzy_matches = []
+
+    # Prioritize shortname searching
+    exact_matches.extend([track for track in tracks.values() if track['track']['sn'].lower() == search_term])
     
     for track in tracks.values():
         title = remove_punctuation(track['track']['tt'].lower())
@@ -217,7 +258,108 @@ def fuzzy_search_tracks(tracks, search_term):
             fuzzy_matches.append(track)
     
     # Prioritize exact matches over fuzzy matches
-    return exact_matches if exact_matches else fuzzy_matches
+    result = exact_matches if exact_matches else fuzzy_matches
+    result_unique = []
+    for track in result:
+        # Check for duplicates
+        if track not in result_unique: result_unique.append(track) 
+    return result_unique
+
+def set_fixed_size(string:str, intended_length: int = 30, right_to_left = False):
+    if len(string) > intended_length:
+        return string[:intended_length - 4] + '... '
+    else:
+        if right_to_left:
+            return (' ' * (intended_length - len(string))) + string
+        return string + (' ' * (intended_length - len(string)))
+    
+def format_stars(stars:int = 6):
+    if stars > 5:
+        stars = 5
+        return '✪' * stars
+    else:
+        return '' + ('★' * stars) + ('☆' * (5-stars))
+
+def generate_leaderboard_entry_embeds(entries, title, chunk_size=5):
+    embeds = []
+
+    for i in range(0, len(entries), chunk_size):
+        embed = discord.Embed(title=title, color=0x8927A1)
+        chunk = entries[i:i + chunk_size]
+        field_text = '```'
+        for entry in chunk:
+            try:
+                field_text += set_fixed_size(f"#{entry['rank']}", 5)
+                field_text += set_fixed_size(entry['userName'] if entry['userName'] else '[Unknown]', 18)
+                field_text += set_fixed_size(['E', 'M', 'H', 'X'][entry['best_run']['difficulty']], 2, right_to_left=True)
+                field_text += set_fixed_size(f"{entry['best_run']['accuracy']}%", 5, right_to_left=True)
+                field_text += set_fixed_size("FC" if entry['best_run']['fullcombo'] else "", 3, right_to_left=True)
+                field_text += set_fixed_size(format_stars(entry['best_run']['stars']), 7, right_to_left=True)
+                field_text += set_fixed_size(f"{entry['best_run']['score']}", 8, right_to_left=True)
+            except Exception as e:
+                pass
+            field_text += '\n'
+        field_text += '```'
+
+        embed.add_field(name="", value=field_text, inline=False)
+        embeds.append(embed)
+
+    return embeds
+
+def generate_leaderboard_embed(track_data, entry_data, instrument, is_new=False):
+    track = track_data['track']
+    title = track['tt']
+    embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
+    
+    field_text = '```'
+    field_text += set_fixed_size('[' + ['Easy', 'Medium', 'Hard', 'Expert'][entry_data['best_run']['difficulty']] + ']', 18)
+    field_text += set_fixed_size(f"{entry_data['best_run']['accuracy']}%", 7, right_to_left=True)
+    field_text += set_fixed_size("FC" if entry_data['best_run']['fullcombo'] else "", 3, right_to_left=True)
+    field_text += set_fixed_size(format_stars(entry_data['best_run']['stars']), 7, right_to_left=True)
+    field_text += set_fixed_size(f"{entry_data['best_run']['score']}", 8, right_to_left=True)
+    field_text += '```'
+
+    # Add various fields to the embed
+    embed.add_field(name="Player", value=entry_data['userName'] if entry_data['userName'] else '[Unknown]', inline=True)
+    embed.add_field(name="Rank", value=f"#{entry_data['rank']}", inline=True)
+    embed.add_field(name="Instrument", value=instrument, inline=True)
+    embed.add_field(name="Best Run", value=field_text, inline=False)
+
+    embed.add_field(name="Sessions", value="\n", inline=False)
+
+    for session in entry_data['sessions']:
+        date = session['time']
+        session_field_text = '```'
+
+        is_solo = len(session['stats']['players']) == 1
+        for player in session['stats']['players']:
+            try:
+                session_field_text += set_fixed_size(entry_data['userName'] if player['is_valid_entry'] else '[Band Member]', 18)
+                session_field_text += set_fixed_size(['E', 'M', 'H', 'X'][player['difficulty']], 2, right_to_left=True)
+                session_field_text += set_fixed_size(f"{player['accuracy']}%", 5, right_to_left=True)
+                session_field_text += set_fixed_size("FC" if player['fullcombo'] else "", 3, right_to_left=True)
+                session_field_text += set_fixed_size(format_stars(player['stars']), 7, right_to_left=True)
+                session_field_text += set_fixed_size(f"{player['score']}", 8, right_to_left=True)
+            except Exception as e:
+                print(e)
+            session_field_text += '\n'
+
+        # Add Band Score to the embed
+        if not is_solo:
+            band = session['stats']['band']
+            session_field_text += set_fixed_size('[Band Score]', 18)
+            session_field_text += set_fixed_size(f"{band['accuracy']}%", 7, right_to_left=True)
+            session_field_text += set_fixed_size("FC" if band['fullcombo'] else "", 3, right_to_left=True)
+            session_field_text += set_fixed_size(format_stars(band['stars']), 7, right_to_left=True)
+            session_field_text += set_fixed_size(f"{band['scores']['total']}", 8, right_to_left=True)
+            session_field_text += '\n'
+
+        session_field_text += '```'
+
+        # Create a Discord timestamp
+        embed.add_field(name=f"<t:{int(date)}:R>", value=session_field_text, inline=False)
+    
+    return embed
 
 def fetch_available_jam_tracks():
     try:
@@ -744,6 +886,81 @@ async def shop_tracks(ctx):
     # Initialize the paginator view
     view = PaginatorView(embeds, ctx.author.id)
     view.message = await ctx.send(embed=view.get_embed(), view=view)
+
+@bot.command(name='leaderboard', 
+             help="""View the leaderboard of a specific song, and specific leaderboard entries. Updated roughly every 24 hours.\nAccepts a shortname, instrument, and optionally, a rank, username or Epic account ID.
+Instruments:
+
+- `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: Pro Lead
+- `plasticbass`, `probass`, `pb`: Pro Bass
+- `vocals`, `vl`, `v`: Vocals
+- `guitar`, `gr`, `lead`, `ld`, `g`, `l`: Lead
+- `bass`, `ba`, `b`: Bass
+- `drums`, `ds`, `d`:  Drums
+If the third argument is not present, a list of entries will be shown instead.""", 
+             aliases=['lb'],
+             usage="[shortname] [instrument] [rank/username/accountid]")
+async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_or_account = None):
+    if shortname is None:
+        await ctx.send("Please provide a shortname.")
+        return
+    if instrument is None:
+        await ctx.send("Please provide an instrument.")
+        return
+    
+    # Fetch the tracks from the jam API
+    tracks = fetch_available_jam_tracks()
+    if not tracks:
+        await ctx.send('Could not fetch tracks.')
+        return
+    
+    matched_tracks = fuzzy_search_tracks(tracks, shortname)
+
+    if not matched_tracks:
+        await ctx.send('No tracks found matching your search.')
+        return
+    
+    if len(matched_tracks) > 0:
+        matched_track = matched_tracks[0]
+        
+        instrument_codename = get_instrument(instrument)
+        if not instrument_codename:
+            await ctx.send('Unknown instrument.')
+            return
+
+        leaderboard_entries = fetch_leaderboard_of_track(shortname, instrument_codename[0])
+
+        if len(leaderboard_entries) > 0:
+            # View all the entries
+            if not rank_or_account:
+                title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_codename[1]})"
+
+                # Generate paginated embeds with 10 entries per embed
+                embeds = generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
+                
+                # Initialize the paginator view
+                view = PaginatorView(embeds, ctx.author.id)
+                view.message = await ctx.send(embed=view.get_embed(), view=view)
+            else:
+                try:
+                    rank = int(rank_or_account)
+                    if rank:
+                        entries = [entry for entry in leaderboard_entries if entry['rank'] == rank]
+                        if len(entries) > 0:
+                            await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                        else:
+                            await ctx.send('No entries found.')
+                except ValueError:
+                    if type(rank_or_account) == str:
+                        entries = [entry for entry in leaderboard_entries if entry['userName'] == rank_or_account or entry['teamId'] == rank_or_account]
+                        if len(entries) > 0:
+                            await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                        else:
+                            await ctx.send('Player not found in leaderboard.')
+                    else:
+                        await ctx.send('Invalid rank or account.')
+        else:
+            await ctx.send('No entries in leaderboard.')
 
 bot.run(DISCORD_TOKEN)
 
