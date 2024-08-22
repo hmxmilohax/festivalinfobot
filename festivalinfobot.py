@@ -888,9 +888,18 @@ async def shop_tracks(ctx):
     view.message = await ctx.send(embed=view.get_embed(), view=view)
 
 @bot.command(name='leaderboard', 
-             help='View the leaderboard of a specific song, and specific leaderboard entries. (Not updated instantly.)', 
+             help="""View the leaderboard of a specific song, and specific leaderboard entries. (Not updated instantly.)\nAccepts a shortname, instrument, and optionally, a rank, username or Epic account ID.
+Instruments:
+
+- `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: Pro Lead
+- `plasticbass`, `probass`, `pb`: Pro Bass
+- `vocals`, `vl`, `v`: Vocals
+- `guitar`, `gr`, `lead`, `ld`, `g`, `l`: Lead
+- `bass`, `ba`, `b`: Bass
+- `drums`, `ds`, `d`:  Drums
+If the third argument is not present, a list of entries will be shown instead.""", 
              aliases=['lb'],
-             usage="[shortname] [instrument] [rank/username/accountid - optional, view more details of an entry]")
+             usage="[shortname] [instrument] [rank/username/accountid]")
 async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_or_account = None):
     if shortname is None:
         await ctx.send("Please provide a shortname.")
