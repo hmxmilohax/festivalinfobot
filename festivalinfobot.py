@@ -897,7 +897,8 @@ Instruments:
 - `guitar`, `gr`, `lead`, `ld`, `g`, `l`: Lead
 - `bass`, `ba`, `b`: Bass
 - `drums`, `ds`, `d`:  Drums
-If the third argument is not present, a list of entries will be shown instead.""", 
+If the third argument is not present, a list of entries will be shown instead.
+Only the first 500 entries of every leaderboard are available.""", 
              aliases=['lb'],
              usage="[shortname] [instrument] [rank/username/accountid]")
 async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_or_account = None):
