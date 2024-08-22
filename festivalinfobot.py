@@ -334,7 +334,7 @@ def generate_leaderboard_embed(track_data, entry_data, instrument, is_new=False)
         is_solo = len(session['stats']['players']) == 1
         for player in session['stats']['players']:
             try:
-                session_field_text += set_fixed_size(entry_data['userName'] if player['is_valid_entry'] else '[Band Member]', 18)
+                session_field_text += set_fixed_size(entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['L', 'B', 'V', 'D', 'PL', 'PB'][player['instrument']]}", 18)
                 session_field_text += set_fixed_size(['E', 'M', 'H', 'X'][player['difficulty']], 2, right_to_left=True)
                 session_field_text += set_fixed_size(f"{player['accuracy']}%", 5, right_to_left=True)
                 session_field_text += set_fixed_size("FC" if player['fullcombo'] else "", 3, right_to_left=True)
@@ -897,7 +897,8 @@ Instruments:
 - `guitar`, `gr`, `lead`, `ld`, `g`, `l`: Lead
 - `bass`, `ba`, `b`: Bass
 - `drums`, `ds`, `d`:  Drums
-If the third argument is not present, a list of entries will be shown instead.""", 
+If the third argument is not present, a list of entries will be shown instead.
+Only the first 500 entries of every leaderboard are available.""", 
              aliases=['lb'],
              usage="[shortname] [instrument] [rank/username/accountid]")
 async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_or_account = None):
