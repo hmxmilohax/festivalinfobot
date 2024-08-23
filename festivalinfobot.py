@@ -624,15 +624,19 @@ async def check_for_new_songs():
         print('Could not fetch tracks.')
         return
 
-    # Load known songs from disk (moved here to ensure the latest known songs are loaded)
-    known_songs = load_known_songs_from_disk()
+    # Load known songs from disk if the file exists, otherwise initialize an empty set
+    if os.path.exists('known_songs.json'):
+        known_songs = load_known_songs_from_disk()
+    else:
+        print("known_songs.json does not exist; skipping message sending.")
+        known_songs = set()
 
     current_songs = {track['track']['sn'] for track in tracks.values()}  # Get shortnames of current songs
 
     # Find new songs
     new_songs = current_songs - known_songs
 
-    if new_songs:
+    if new_songs and known_songs:  # Only send messages if known_songs is not empty
         print(f"New songs detected: {new_songs}")
         for new_song_sn in new_songs:
             track_data = next((track for track in tracks.values() if track['track']['sn'] == new_song_sn), None)
