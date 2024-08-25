@@ -459,11 +459,10 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
                 f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
             )
 
-            embed.add_field(name="", value="\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\n", inline=False)
             embed.add_field(
                 name="",
                 value=(
-                    f"{track['title']} *{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
+                    f"**\\- {track['title']}**\n*{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
                     f"Added {in_date_display} - Leaving {out_date_display}\n"
                     f"`{difficulty_str}`"
                 ),
@@ -804,10 +803,9 @@ async def daily_tracks(ctx):
                 # Format timestamps in Discord format
                 active_since_display = f"<t:{active_since_ts}:R>" if active_since_ts else "Unknown"
                 active_until_display = f"<t:{active_until_ts}:R>" if active_until_ts else "Unknown"
-                embed.add_field(name="", value="\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\n", inline=False)
                 embed.add_field(
                     name="",
-                    value=f"{title if title else 'Unknown Title'} - *{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
+                    value=f"**\\- {title if title else 'Unknown Title'}**\n*{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
                     inline=False
                 )
             embeds.append(embed)
