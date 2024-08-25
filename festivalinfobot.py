@@ -804,10 +804,9 @@ async def daily_tracks(ctx):
                 # Format timestamps in Discord format
                 active_since_display = f"<t:{active_since_ts}:R>" if active_since_ts else "Unknown"
                 active_until_display = f"<t:{active_until_ts}:R>" if active_until_ts else "Unknown"
-                embed.add_field(name="", value="\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\n", inline=False)
                 embed.add_field(
-                    name="",
-                    value=f"{title if title else 'Unknown Title'} - *{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
+                    name=f"**- {title if title else 'Unknown Title'}**",
+                    value=f"*{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
                     inline=False
                 )
             embeds.append(embed)
