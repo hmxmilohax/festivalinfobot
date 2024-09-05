@@ -507,10 +507,11 @@ def generate_track_embed(track_data, is_new=False):
     
     # Add various fields to the embed
     embed.add_field(name="\n", value="", inline=False)
-    embed.add_field(name="Release Year", value=track['ry'], inline=True)
+    embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
     embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
     embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)
-    embed.add_field(name="Duration", value=f"{track['dn'] // 60}m {track['dn'] % 60}s", inline=True)
+    duration = track.get('dn', 0)
+    embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
     embed.add_field(name="Shortname", value=track['sn'], inline=True)
     embed.add_field(name="Song ID", value=f"{placeholder_id}", inline=True)
     
