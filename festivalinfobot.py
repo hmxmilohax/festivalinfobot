@@ -24,7 +24,8 @@ CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
 API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
 MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
 SHOP_API_URL = 'https://fortnite-api.com/v2/shop'
-SONGS_FILE = 'known_songs.json'  # File to save known songs
+SONGS_FILE = 'known_tracks.json'  # File to save known songs
+SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
 
 # Set up Discord bot with necessary intents
@@ -334,7 +335,8 @@ def generate_leaderboard_embed(track_data, entry_data, instrument, is_new=False)
         is_solo = len(session['stats']['players']) == 1
         for player in session['stats']['players']:
             try:
-                session_field_text += set_fixed_size(entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['L', 'B', 'V', 'D', 'PL', 'PB'][player['instrument']]}", 18)
+                username = entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['L', 'B', 'V', 'D', 'PL', 'PB'][player['instrument']]}"
+                session_field_text += set_fixed_size(username if username else '[Unknown]', 18)
                 session_field_text += set_fixed_size(['E', 'M', 'H', 'X'][player['difficulty']], 2, right_to_left=True)
                 session_field_text += set_fixed_size(f"{player['accuracy']}%", 5, right_to_left=True)
                 session_field_text += set_fixed_size("FC" if player['fullcombo'] else "", 3, right_to_left=True)
@@ -378,6 +380,25 @@ def fetch_available_jam_tracks():
             return available_tracks
         else:
             print('Unexpected data format')
+            return None
+    except Exception as e:
+        print(f'Error fetching available jam tracks: {e}')
+        return None
+    
+def fetch_jam_tracks_file():
+    try:
+        response = requests.get(API_URL)
+        data = response.json()
+
+        # Return a better formatted spark-tracks file
+        if isinstance(data, dict):
+            available_tracks = []
+            for k, v in data.items():
+                if isinstance(v, dict) and 'track' in v:
+                    available_tracks.append(v)
+            return available_tracks
+        else:
+            print(f'Unexpected data format: {data}')
             return None
     except Exception as e:
         print(f'Error fetching available jam tracks: {e}')
@@ -499,6 +520,63 @@ def generate_difficulty_bar(difficulty, max_blocks=7):
     empty_blocks = '□' * (max_blocks - scaled_difficulty)
     return filled_blocks + empty_blocks
 
+def generate_modified_track_embed(old, new):
+    old_track_data = old['track']
+    new_track_data = new['track']
+    title = f"Track Modified:\n{new_track_data['tt']}"
+    embed = discord.Embed(title="", description=f"**{title}** - *{new_track_data['an']}*", color=0x8927A1)
+
+    simple_comparisons = {
+        'tt': 'Title',
+        'an': 'Artist',
+        'ab': 'Album',
+        'sn': 'Shortname',
+        'ry': 'Release Year',
+        'jc': 'Join Code',
+        'ti': 'Placeholder ID',
+        'mm': 'Scale',
+        'mk': 'Key',
+        'su': 'Event ID',
+        'isrc': 'ISRC Code',
+        'ar': 'ESRB Rating',
+        'au': 'Album Art',
+        'siv': 'Vocals Instrument',
+        'sib': 'Bass Instrument',
+        'sid': 'Drums Instrument',
+        'sig': 'Guitar Instrument',
+        'mt': 'BPM',
+        'ld': 'Lipsync',
+        'mu': 'Chart URL',
+        'ge': 'Genres',
+        'gt': 'Gameplay Tags'
+    }
+
+    difficulty_comparisons = {
+        'pb': 'Pro Bass',
+        'pd': 'Pro Drums',
+        'pg': 'Pro Lead',
+        'vl': 'Vocals',
+        'gr': 'Lead',
+        'ds': 'Drums',
+        'ba': 'Bass'
+    }
+
+    for value, name in simple_comparisons.items():
+        if old_track_data.get(value, '[N/A]') != new_track_data.get(value, '[N/A]'):
+            embed.add_field(name=f"{name} changed", value=f"```Old: \"{old_track_data[value]}\"\nNew: \"{new_track_data[value]}\"```", inline=False)
+
+    for value, name in difficulty_comparisons.items():
+        if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
+            embed.add_field(name=f"{name} difficulty changed", value=f"```Old: \"{generate_difficulty_bar(old_track_data['in'][value])}\"\nNew: \"{generate_difficulty_bar(new_track_data['in'][value])}\"```", inline=False)
+
+    # check for mismatched difficulty properties
+    for key in new_track_data['in'].keys():
+        if not (key in difficulty_comparisons.keys()):
+            if key != '_type':
+                embed.add_field(name=f"{key} (*Mismatched Difficulty*)", value=f"```Found: {generate_difficulty_bar(new_track_data['in'][key])}```", inline=False)
+
+    return embed
+
 def generate_track_embed(track_data, is_new=False):
     track = track_data['track']
     title = f"New song found:\n{track['tt']}" if is_new else track['tt']
@@ -561,15 +639,16 @@ def generate_track_embed(track_data, is_new=False):
     
     return embed
 
-def save_known_songs_to_disk(songs):
-    with open(SONGS_FILE, 'w') as file:
-        json.dump(list(songs), file)
+def save_known_songs_to_disk(songs, shortnames:bool = False):
+    with open(SONGS_FILE if not shortnames else SHORTNAME_FILE, 'w') as file:
+        json.dump(songs, file)
 
-def load_known_songs_from_disk():
-    if os.path.exists(SONGS_FILE):
-        with open(SONGS_FILE, 'r') as file:
-            return set(json.load(file))
-    return set()
+def load_known_songs_from_disk(shortnames:bool = False):
+    path = SONGS_FILE if not shortnames else SHORTNAME_FILE
+    if os.path.exists(path):
+        with open(path, 'r') as file:
+            return json.load(file)
+    return list()
 
 def fetch_shop_tracks():
     try:
@@ -612,36 +691,48 @@ def fetch_shop_tracks():
         print(f'Error fetching shop tracks: {e}')
         return None
 
-@tasks.loop(minutes=15)
-async def check_for_new_songs():
+@tasks.loop(minutes=7)
+async def check_for_new_songs():    
     if not CHANNEL_IDS:
-        print("No channel IDs provided; skipping the 1-minute probe.")
+        print("No channel IDs provided; skipping the 7-minute probe.")
         return
+    
+    print("Checking for new songs...")
 
-    tracks = fetch_available_jam_tracks()
+    tracks = fetch_jam_tracks_file()
 
     if not tracks:
         print('Could not fetch tracks.')
         return
 
-    # Load known songs from disk if the file exists, otherwise initialize an empty set
-    if os.path.exists('known_songs.json'):
-        known_songs = load_known_songs_from_disk()
+    # Load known songs from disk if the file exists, otherwise initialize an empty list
+    if os.path.exists(SONGS_FILE):
+        known_tracks = load_known_songs_from_disk()
+        known_shortnames = load_known_songs_from_disk(shortnames=True)
     else:
-        print("known_songs.json does not exist; skipping message sending.")
-        known_songs = set()
+        print(f"{SONGS_FILE} does not exist; skipping message sending.")
+        known_tracks = list()
+        known_shortnames = list()
 
-    current_songs = {track['track']['sn'] for track in tracks.values()}  # Get shortnames of current songs
+    known_songs = known_tracks
+    current_songs = tracks  # Get shortnames of current songs
+    current_shortnames = [sn['track']['sn'] for sn in current_songs]
 
     # Find new songs
-    new_songs = current_songs - known_songs
+    new_songs = [song for song in current_songs if song not in known_songs]
+    print(new_songs)
 
-    if new_songs and known_songs:  # Only send messages if known_songs is not empty
-        print(f"New songs detected: {new_songs}")
-        for new_song_sn in new_songs:
-            track_data = next((track for track in tracks.values() if track['track']['sn'] == new_song_sn), None)
+    if new_songs and known_songs and known_shortnames:  # Only send messages if known_songs is not empty
+        print(f"New/Updated songs detected!")
+        for new_song in new_songs:
+            is_modified = new_song['track']['sn'] in known_shortnames
+            track_data = new_song
             if track_data:
-                embed = generate_track_embed(track_data, is_new=True)
+                if is_modified:
+                    old_track_data = [track for track in known_songs if track['track']['sn'] == new_song['track']['sn']][0]
+                    embed = generate_modified_track_embed(old=old_track_data, new=track_data)
+                else:
+                    embed = generate_track_embed(track_data, is_new=True)
                 for channel_id in CHANNEL_IDS:
                     channel = bot.get_channel(channel_id)
                     if channel:
@@ -649,6 +740,7 @@ async def check_for_new_songs():
 
     # Save the current songs to disk
     save_known_songs_to_disk(current_songs)
+    save_known_songs_to_disk(current_shortnames, shortnames=True)
 
 @bot.event
 async def on_ready():
@@ -967,4 +1059,3 @@ async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_o
             await ctx.send('No entries in leaderboard.')
 
 bot.run(DISCORD_TOKEN)
-
