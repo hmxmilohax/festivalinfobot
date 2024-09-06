@@ -563,7 +563,7 @@ def generate_modified_track_embed(old, new):
 
     for value, name in simple_comparisons.items():
         if old_track_data.get(value, '[N/A]') != new_track_data.get(value, '[N/A]'):
-            embed.add_field(name=f"{name} changed", value=f"```Old: \"{old_track_data[value]}\"\nNew: \"{new_track_data[value]}\"```", inline=False)
+            embed.add_field(name=f"{name} changed", value=f"```Old: \"{old_track_data.get(value, '[N/A]')}\"\nNew: \"{new_track_data.get(value, '[N/A]')}\"```", inline=False)
 
     for value, name in difficulty_comparisons.items():
         if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
