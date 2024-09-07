@@ -8,6 +8,8 @@ from difflib import get_close_matches
 from datetime import datetime, timezone
 import string
 from discord.ext.commands import DefaultHelpCommand
+import subprocess
+import mido
 
 # Load configuration from config.ini
 config = ConfigParser()
@@ -27,6 +29,8 @@ SHOP_API_URL = 'https://fortnite-api.com/v2/shop'
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
+
+TEMP_FOLDER = "out"
 
 # Set up Discord bot with necessary intents
 intents = discord.Intents.default()
@@ -215,6 +219,10 @@ def get_instrument(query):
     return None
 
 def fetch_leaderboard_of_track(shortname, instrument):
+    # Special case for i_kendrick, we use "i" in the leaderboard URL
+    if shortname == 'i_kendrick':
+        shortname = 'i'
+    
     season_number_request = requests.get(f'{LEADERBOARD_DB_URL}meta.json')
     current_season_number = season_number_request.json()['season']
     song_url = f'{LEADERBOARD_DB_URL}leaderboards/season{current_season_number}/{shortname}/'
@@ -236,11 +244,18 @@ def fetch_leaderboard_of_track(shortname, instrument):
         return fetched_entries
 
 def remove_punctuation(text):
-    return text.translate(str.maketrans('', '', string.punctuation))
+    return text.translate(str.maketrans('', '', string.punctuation.replace('_', '')))
 
 def fuzzy_search_tracks(tracks, search_term):
     # Remove punctuation from the search term
     search_term = remove_punctuation(search_term.lower())  # Case-insensitive search
+
+    # Special case for 'i' or 'i_kendrick'
+    if search_term == 'i':
+        exact_matches = [track for track in tracks.values() if track['track']['tt'].lower() == 'i']
+        if exact_matches:
+            return exact_matches
+
     exact_matches = []
     fuzzy_matches = []
 
@@ -534,7 +549,7 @@ def generate_modified_track_embed(old, new):
         'ry': 'Release Year',
         'jc': 'Join Code',
         'ti': 'Placeholder ID',
-        'mm': 'Scale',
+        'mm': 'Mode',
         'mk': 'Key',
         'su': 'Event ID',
         'isrc': 'ISRC Code',
@@ -577,22 +592,118 @@ def generate_modified_track_embed(old, new):
 
     return embed
 
+def decrypt_dat_file(dat_url, output_file):
+    try:
+        # Download the .dat file
+        response = requests.get(dat_url)
+        if response.status_code == 200:
+            dat_file_path = os.path.join(TEMP_FOLDER, output_file)
+            with open(dat_file_path, "wb") as file:
+                file.write(response.content)
+
+            # Call fnf-midcrypt.py to decrypt the .dat file to .midi
+            decrypted_midi_path = os.path.join(TEMP_FOLDER, output_file.replace('.dat', '.mid'))
+            subprocess.run(['python', 'fnf-midcrypt.py', '-d', dat_file_path])
+
+            return decrypted_midi_path
+        else:
+            print(f"Failed to download .dat file from {dat_url}")
+            return None
+    except Exception as e:
+        print(f"Error decrypting .dat file: {e}")
+        return None
+
+async def process_chart_url_change(old_url, new_url, channel, track_name, song_title, artist_name):
+    if not os.path.exists(TEMP_FOLDER):
+        os.makedirs(TEMP_FOLDER)
+
+    # Decrypt old .dat to .midi
+    old_midi_file = decrypt_dat_file(old_url, "base.dat")
+
+    # Decrypt new .dat to .midi
+    new_midi_file = decrypt_dat_file(new_url, "base_update.dat")
+
+    if old_midi_file and new_midi_file:
+        print(f"Decrypted MIDI files ready for comparison:\nOld: {old_midi_file}\nNew: {new_midi_file}")
+
+        # Run the comparison script with the two MIDI files
+        comparison_command = ['python', 'compare_midi.py', old_midi_file, new_midi_file]
+
+        try:
+            result = subprocess.run(comparison_command, check=True, capture_output=True, text=True)
+            print(result.stdout)
+
+            print(f"Looking for images in folder: {TEMP_FOLDER}")
+
+            # Loop through the result to find the changed tracks
+            for line in result.stdout.splitlines():
+                if "Differences found in track" in line:
+                    track_name = line.split("'")[1]  # Extract track name from the line
+                    image_filename = f"{track_name}_changes.png".replace(' ', '_')  # Replace spaces with underscores
+                    image_path = os.path.join(TEMP_FOLDER, image_filename)
+                    
+                    print(f"Looking for file: {image_path}")
+
+                    if os.path.exists(image_path):
+                        if channel:
+                            # Send the image inside an embed with track details to the Discord channel
+                            embed = discord.Embed(
+                                title=f"Track Modified: {song_title} - {artist_name}",
+                                description=f"Changes detected in the track: {track_name}",
+                                color=0x8927A1
+                            )
+                            # Attach the image and set it as the main image in the embed
+                            file = discord.File(image_path, filename=image_filename)
+                            embed.set_image(url=f"attachment://{image_filename}")  # Embed the image in the message
+                            await channel.send(embed=embed, file=file)
+                            print(f"Image sent: {image_filename}")
+                        else:
+                            print(f"Channel not found, but image generated: {image_filename}")
+                    else:
+                        print(f"Expected image {image_filename} not found in {TEMP_FOLDER}.")
+            
+            # Clear the out folder after processing
+            clear_out_folder(TEMP_FOLDER)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error running comparison script: {e}")
+    else:
+        print("Failed to decrypt one or both .dat files.")
+
 def generate_track_embed(track_data, is_new=False):
     track = track_data['track']
     title = f"New song found:\n{track['tt']}" if is_new else track['tt']
     placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
     embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
-    
+
     # Add various fields to the embed
     embed.add_field(name="\n", value="", inline=False)
     embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
+
+    # Add Key and BPM to the embed
+    key = track.get('mk', 'Unknown')  # Get the key
+    mode = track.get('mm', 'Unknown')  # Get the mode
+
+    # If mode is minor, append (Minor), else append (Major)
+    if mode == 'Minor':
+        key = f"{key} (Minor)"
+    elif mode == 'Major':
+        key = f"{key} (Major)"
+    else:
+        key = f"{key} ({mode})"
+
+    embed.add_field(name="Key", value=key, inline=True)
+    embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
+
+
     embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
-    embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)
+    embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)    
+
     duration = track.get('dn', 0)
     embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
     embed.add_field(name="Shortname", value=track['sn'], inline=True)
     embed.add_field(name="Song ID", value=f"{placeholder_id}", inline=True)
-    
+
     # Add Last Modified field if it exists and format it to be more human-readable
     if 'lastModified' in track_data:
         last_modified = datetime.fromisoformat(track_data['lastModified'].replace('Z', '+00:00'))
@@ -692,61 +803,97 @@ def fetch_shop_tracks():
         return None
 
 @tasks.loop(minutes=7)
-async def check_for_new_songs():    
+async def check_for_new_songs():
     if not CHANNEL_IDS:
         print("No channel IDs provided; skipping the 7-minute probe.")
         return
-    
+
     print("Checking for new songs...")
 
+    # Fetch current jam tracks
     tracks = fetch_jam_tracks_file()
 
     if not tracks:
         print('Could not fetch tracks.')
         return
 
-    # Load known songs from disk if the file exists, otherwise initialize an empty list
-    if os.path.exists(SONGS_FILE):
-        known_tracks = load_known_songs_from_disk()
-        known_shortnames = load_known_songs_from_disk(shortnames=True)
-    else:
-        print(f"{SONGS_FILE} does not exist; skipping message sending.")
-        known_tracks = list()
-        known_shortnames = list()
+    # Dynamically reload known tracks and shortnames from disk each time the task runs
+    known_tracks = load_known_songs_from_disk()  # Reload known_tracks.json
+    known_shortnames = load_known_songs_from_disk(shortnames=True)  # Reload known_songs.json
 
-    known_songs = known_tracks
-    current_songs = tracks  # Get shortnames of current songs
-    current_shortnames = [sn['track']['sn'] for sn in current_songs]
+    # If known_songs.json doesn't exist, just save the current tracks and exit without sending any messages
+    if not known_tracks:
+        print("First run detected. Saving the current tracks as the initial known songs.")
+        save_known_songs_to_disk(tracks)
+        save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
+        return
 
-    # Find new songs
-    new_songs = [song for song in current_songs if song not in known_songs]
-    print(new_songs)
+    current_tracks_dict = {track['track']['sn']: track for track in tracks}
+    known_tracks_dict = {track['track']['sn']: track for track in known_tracks}
 
-    if new_songs and known_songs and known_shortnames:  # Only send messages if known_songs is not empty
-        print(f"New/Updated songs detected!")
-        for new_song in new_songs:
-            is_modified = new_song['track']['sn'] in known_shortnames
-            track_data = new_song
-            if track_data:
-                if is_modified:
-                    old_track_data = [track for track in known_songs if track['track']['sn'] == new_song['track']['sn']][0]
-                    embed = generate_modified_track_embed(old=old_track_data, new=track_data)
-                else:
-                    embed = generate_track_embed(track_data, is_new=True)
-                for channel_id in CHANNEL_IDS:
-                    channel = bot.get_channel(channel_id)
-                    if channel:
-                        await channel.send(embed=embed)
+    new_songs = []
+    modified_songs = []
 
-    # Save the current songs to disk
-    save_known_songs_to_disk(current_songs)
-    save_known_songs_to_disk(current_shortnames, shortnames=True)
+    for shortname, current_track in current_tracks_dict.items():
+        if shortname not in known_tracks_dict:
+            new_songs.append(current_track)
+        else:
+            known_track = known_tracks_dict[shortname]
+            if current_track != known_track:
+                modified_songs.append((known_track, current_track))
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name}')
-    if CHANNEL_IDS:
-        check_for_new_songs.start()  # Start the song check loop only if there are channel IDs
+    for channel_id in CHANNEL_IDS:
+        channel = bot.get_channel(channel_id)
+        if not channel:
+            print(f"Channel with ID {channel_id} not found.")
+            continue
+
+        if new_songs:
+            print(f"New songs detected!")
+            for new_song in new_songs:
+                embed = generate_track_embed(new_song, is_new=True)
+                await channel.send(embed=embed)
+            save_known_songs_to_disk(tracks)
+            save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
+
+        if modified_songs:
+            print(f"Modified songs detected!")
+            for old_song, new_song in modified_songs:
+                old_url = old_song['track'].get('mu', '')
+                new_url = new_song['track'].get('mu', '')
+                track_name = new_song['track']['tt']  # Get track name for the embed
+                artist_name = new_song['track']['an']  # Get track name for the embed
+
+                if old_url != new_url:
+                    print(f"Chart URL changed:")
+                    print(f"Old: {old_url}")
+                    print(f"New: {new_url}")
+
+                    # Pass the track name to the process_chart_url_change function
+                    await process_chart_url_change(old_url, new_url, channel, track_name, track_name, artist_name)
+
+                embed = generate_modified_track_embed(old=old_song, new=new_song)
+                await channel.send(embed=embed)
+            save_known_songs_to_disk(tracks)
+            save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
+
+def clear_out_folder(folder_path):
+    try:
+        # Check if the folder exists
+        if os.path.exists(folder_path):
+            # List all files in the folder
+            for file_name in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, file_name)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                elif os.path.isdir(file_path):
+                    # Recursively delete subfolders and files (optional)
+                    clear_out_folder(file_path)
+            print(f"Cleared all files in the folder: {folder_path}")
+        else:
+            print(f"Folder {folder_path} does not exist.")
+    except Exception as e:
+        print(f"Error clearing folder {folder_path}: {e}")
 
 @bot.event
 async def on_ready():
@@ -760,6 +907,16 @@ async def search(ctx, *, query: str = None):
         await ctx.send("Please provide a search term.")
         return
     
+    # Check if the search matches "I'm A Cat"
+    if query.lower() == "i'm a cat" or query.lower() == "im a cat" or query.lower() == "imacat":
+        # Load imacat.json for special handling
+        with open('imacat.json', 'r') as imacat_file:
+            imacat_data = json.load(imacat_file)
+        embed = generate_track_embed(imacat_data)  # Use the local data from imacat.json
+        embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
+        await ctx.send(embed=embed)
+        return
+
     # Fetch the tracks from the jam API
     tracks = fetch_available_jam_tracks()
     if not tracks:
@@ -996,7 +1153,7 @@ If the third argument is not present, a list of entries will be shown instead.
 Only the first 500 entries of every leaderboard are available.""", 
              aliases=['lb'],
              usage="[shortname] [instrument] [rank/username/accountid]")
-async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_or_account = None):
+async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_or_account = None):
     if shortname is None:
         await ctx.send("Please provide a shortname.")
         return
@@ -1010,52 +1167,211 @@ async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_o
         await ctx.send('Could not fetch tracks.')
         return
     
+    # Use fuzzy search on the tracks to find a match for the shortname
     matched_tracks = fuzzy_search_tracks(tracks, shortname)
 
     if not matched_tracks:
         await ctx.send('No tracks found matching your search.')
         return
     
-    if len(matched_tracks) > 0:
-        matched_track = matched_tracks[0]
-        
-        instrument_codename = get_instrument(instrument)
-        if not instrument_codename:
-            await ctx.send('Unknown instrument.')
+    # Use the first matched track
+    matched_track = matched_tracks[0]
+    instrument_codename = get_instrument(instrument)
+    if not instrument_codename:
+        await ctx.send('Unknown instrument.')
+        return
+
+    leaderboard_entries = fetch_leaderboard_of_track(matched_track['track']['sn'], instrument_codename[0])
+
+    if len(leaderboard_entries) > 0:
+        if not rank_or_account:
+            title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_codename[1]})"
+            embeds = generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
+            view = PaginatorView(embeds, ctx.author.id)
+            view.message = await ctx.send(embed=view.get_embed(), view=view)
+        else:
+            # Handle rank or account search
+            try:
+                rank = int(rank_or_account)
+                entries = [entry for entry in leaderboard_entries if entry['rank'] == rank]
+                if entries:
+                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                else:
+                    await ctx.send('No entries found.')
+            except ValueError:
+                entries = [entry for entry in leaderboard_entries if entry['userName'] == rank_or_account or entry['teamId'] == rank_or_account]
+                if entries:
+                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                else:
+                    await ctx.send('Player not found in leaderboard.')
+    else:
+        await ctx.send('No entries in leaderboard.')
+
+# Define instrument alias mapping for chopt.exe
+INSTRUMENT_MAP = {
+    'plasticguitar': 'guitar',
+    'prolead': 'guitar',
+    'proguitar': 'guitar',
+    'pl': 'guitar',
+    'pg': 'guitar',
+    'guitar': 'guitar',
+    'lead': 'guitar',
+    'gr': 'guitar',
+    'bass': 'bass',
+    'plasticbass': 'bass',
+    'probass': 'bass',
+    'pb': 'bass',
+    'drums': 'drums',
+    'vocals': 'vocals',
+}
+
+
+# Helper function to modify the MIDI file for Pro Lead and Pro Bass
+def modify_midi_file(midi_file: str, instrument: str) -> str:
+    try:
+        print(f"Loading MIDI file: {midi_file}")
+        mid = mido.MidiFile(midi_file)
+        track_names_to_delete = []
+        track_names_to_rename = {}
+
+        # Check for Pro Lead or Pro Bass
+        if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl']:
+            track_names_to_delete.append('PART GUITAR')
+            track_names_to_rename['PLASTIC GUITAR'] = 'PART GUITAR'
+        elif instrument in ['probass', 'plasticbass', 'pb']:
+            track_names_to_delete.append('PART BASS')
+            track_names_to_rename['PLASTIC BASS'] = 'PART BASS'
+
+        # Logging track modification intent
+        print(f"Track names to delete: {track_names_to_delete}")
+        print(f"Track names to rename: {track_names_to_rename}")
+
+        # Modify the tracks
+        new_tracks = []
+        for track in mid.tracks:
+            modified_track = mido.MidiTrack()  # Create a new track object
+            for msg in track:
+                if msg.type == 'track_name':
+                    print(f"Processing track: {msg.name}")
+                    if msg.name in track_names_to_delete:
+                        print(f"Deleting track: {msg.name}")
+                        continue  # Skip tracks we want to delete
+                    elif msg.name in track_names_to_rename:
+                        print(f"Renaming track {msg.name} to {track_names_to_rename[msg.name]}")
+                        msg.name = track_names_to_rename[msg.name]  # Rename the track
+                modified_track.append(msg)  # Append the message to the new track
+            new_tracks.append(modified_track)
+
+        # Assign modified tracks back to the MIDI file
+        mid.tracks = new_tracks
+
+        # Save the modified MIDI to a new file
+        modified_midi_file = midi_file.replace('.mid', '_modified.mid')
+        print(f"Saving modified MIDI to: {modified_midi_file}")
+        mid.save(modified_midi_file)
+        print(f"Modified MIDI saved successfully.")
+        return modified_midi_file
+
+    except Exception as e:
+        print(f"Error modifying MIDI for {instrument}: {e}")
+        return None
+
+# Function to call chopt.exe and capture its output
+def run_chopt(midi_file: str, command_instrument: str, output_image: str):
+    chopt_command = [
+        'chopt.exe', 
+        '-f', midi_file, 
+        '--engine', 'fnf', 
+        '--squeeze', '100', 
+        '--early-whammy', '0', 
+        '--no-pro-drums', 
+        '-i', command_instrument, 
+        '-o', output_image
+    ]
+    result = subprocess.run(chopt_command, text=True, capture_output=True)
+    
+    if result.returncode != 0:
+        return None, result.stderr
+
+    return result.stdout.strip(), None
+
+@bot.command(name='path', help='Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.')
+async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
+    try:
+        # Map the provided instrument alias to the valid instrument for chopt
+        instrument = instrument.lower()
+        if instrument in INSTRUMENT_MAP:
+            command_instrument = INSTRUMENT_MAP[instrument]
+        else:
+            await ctx.send(f"Unsupported instrument: {instrument}")
             return
 
-        leaderboard_entries = fetch_leaderboard_of_track(shortname, instrument_codename[0])
+        # Step 1: Fetch song data from the API
+        tracks = fetch_available_jam_tracks()
+        if not tracks:
+            await ctx.send('Could not fetch tracks.')
+            return
 
-        if len(leaderboard_entries) > 0:
-            # View all the entries
-            if not rank_or_account:
-                title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_codename[1]})"
+        # Perform fuzzy search to find the matching song
+        matched_tracks = fuzzy_search_tracks(tracks, songname)
+        if not matched_tracks:
+            await ctx.send(f"No tracks found for '{songname}'.")
+            return
 
-                # Generate paginated embeds with 10 entries per embed
-                embeds = generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
-                
-                # Initialize the paginator view
-                view = PaginatorView(embeds, ctx.author.id)
-                view.message = await ctx.send(embed=view.get_embed(), view=view)
-            else:
-                try:
-                    rank = int(rank_or_account)
-                    if rank:
-                        entries = [entry for entry in leaderboard_entries if entry['rank'] == rank]
-                        if len(entries) > 0:
-                            await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
-                        else:
-                            await ctx.send('No entries found.')
-                except ValueError:
-                    if type(rank_or_account) == str:
-                        entries = [entry for entry in leaderboard_entries if entry['userName'] == rank_or_account or entry['teamId'] == rank_or_account]
-                        if len(entries) > 0:
-                            await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
-                        else:
-                            await ctx.send('Player not found in leaderboard.')
-                    else:
-                        await ctx.send('Invalid rank or account.')
+        # Use the first matched track
+        song_data = matched_tracks[0]
+        song_url = song_data['track'].get('mu')
+
+        # Step 2: Decrypt the .dat file into a .mid file
+        dat_file = f"{songname}.dat"
+        midi_file = decrypt_dat_file(song_url, dat_file)
+        if not midi_file:
+            await ctx.send(f"Failed to decrypt the .dat file for '{songname}'.")
+            return
+
+        # Step 3: Modify the MIDI file if necessary (Pro Lead or Pro Bass)
+        modified_midi_file = None
+        if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl', 'probass', 'plasticbass', 'pb']:
+            modified_midi_file = modify_midi_file(midi_file, instrument)
+            if not modified_midi_file:
+                await ctx.send(f"Failed to modify MIDI for '{instrument}'.")
+                return
+            midi_file = modified_midi_file  # Use the modified MIDI file for chopt
+
+        # Step 4: Generate the path image using chopt.exe
+        output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
+        chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image)
+
+        if chopt_error:
+            await ctx.send(f"An error occurred while running chopt: {chopt_error}")
+            return
+
+        # Step 5: Filter out "Optimising, please wait..." message from chopt output
+        filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
+
+        # Step 6: Send the generated image and filtered chopt output to the Discord channel
+        if os.path.exists(output_image):
+            # Attach the image
+            file = discord.File(output_image, filename=output_image)
+            # Embed the image in the message
+            embed = discord.Embed(title=f"Path for {songname} ({instrument})")
+            embed.add_field(name="Chopt Output", value=f"```{filtered_output}```", inline=False)
+            # Attach the image with the same filename used in the File object
+            embed.set_image(url=f"attachment://{output_image}")
+
+            # Send the message with the embed and the file
+            await ctx.send(embed=embed, file=file)
+
+            # Clean up the image file after sending
+            os.remove(output_image)
         else:
-            await ctx.send('No entries in leaderboard.')
+            await ctx.send(f"Failed to generate the path image for '{songname}'.")
+
+        # Step 7: Clean up the generated MIDI and .dat files
+        os.remove(midi_file)  # Clean up the original or modified MIDI file
+        os.remove(os.path.join(TEMP_FOLDER, dat_file))    # Clean up the .dat file
+
+    except Exception as e:
+        await ctx.send(f"An error occurred: {str(e)}")
 
 bot.run(DISCORD_TOKEN)
