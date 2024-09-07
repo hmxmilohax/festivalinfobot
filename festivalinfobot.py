@@ -239,11 +239,18 @@ def fetch_leaderboard_of_track(shortname, instrument):
         return fetched_entries
 
 def remove_punctuation(text):
-    return text.translate(str.maketrans('', '', string.punctuation))
+    return text.translate(str.maketrans('', '', string.punctuation.replace('_', '')))
 
 def fuzzy_search_tracks(tracks, search_term):
     # Remove punctuation from the search term
     search_term = remove_punctuation(search_term.lower())  # Case-insensitive search
+
+    # Special case for 'i' or 'i_kendrick'
+    if search_term == 'i':
+        exact_matches = [track for track in tracks.values() if track['track']['tt'].lower() == 'i']
+        if exact_matches:
+            return exact_matches
+
     exact_matches = []
     fuzzy_matches = []
 
