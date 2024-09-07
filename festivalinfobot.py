@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import string
 from discord.ext.commands import DefaultHelpCommand
 import subprocess
+import mido
 
 # Load configuration from config.ini
 config = ConfigParser()
@@ -638,7 +639,7 @@ async def process_chart_url_change(old_url, new_url, channel, track_name, song_t
             for line in result.stdout.splitlines():
                 if "Differences found in track" in line:
                     track_name = line.split("'")[1]  # Extract track name from the line
-                    image_filename = f"{track_name}_changes.png"  # Construct the expected image filename
+                    image_filename = f"{track_name}_changes.png".replace(' ', '_')  # Replace spaces with underscores
                     image_path = os.path.join(TEMP_FOLDER, image_filename)
                     
                     print(f"Looking for file: {image_path}")
@@ -1213,5 +1214,172 @@ async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_o
                         await ctx.send('Invalid rank or account.')
         else:
             await ctx.send('No entries in leaderboard.')
+
+# Define instrument alias mapping for chopt.exe
+INSTRUMENT_MAP = {
+    'plasticguitar': 'guitar',
+    'prolead': 'guitar',
+    'proguitar': 'guitar',
+    'pl': 'guitar',
+    'pg': 'guitar',
+    'guitar': 'guitar',
+    'lead': 'guitar',
+    'gr': 'guitar',
+    'bass': 'bass',
+    'plasticbass': 'bass',
+    'probass': 'bass',
+    'pb': 'bass',
+    'drums': 'drums',
+    'vocals': 'vocals',
+}
+
+
+# Helper function to modify the MIDI file for Pro Lead and Pro Bass
+def modify_midi_file(midi_file: str, instrument: str) -> str:
+    try:
+        print(f"Loading MIDI file: {midi_file}")
+        mid = mido.MidiFile(midi_file)
+        track_names_to_delete = []
+        track_names_to_rename = {}
+
+        # Check for Pro Lead or Pro Bass
+        if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl']:
+            track_names_to_delete.append('PART GUITAR')
+            track_names_to_rename['PLASTIC GUITAR'] = 'PART GUITAR'
+        elif instrument in ['probass', 'plasticbass', 'pb']:
+            track_names_to_delete.append('PART BASS')
+            track_names_to_rename['PLASTIC BASS'] = 'PART BASS'
+
+        # Logging track modification intent
+        print(f"Track names to delete: {track_names_to_delete}")
+        print(f"Track names to rename: {track_names_to_rename}")
+
+        # Modify the tracks
+        new_tracks = []
+        for track in mid.tracks:
+            modified_track = mido.MidiTrack()  # Create a new track object
+            for msg in track:
+                if msg.type == 'track_name':
+                    print(f"Processing track: {msg.name}")
+                    if msg.name in track_names_to_delete:
+                        print(f"Deleting track: {msg.name}")
+                        continue  # Skip tracks we want to delete
+                    elif msg.name in track_names_to_rename:
+                        print(f"Renaming track {msg.name} to {track_names_to_rename[msg.name]}")
+                        msg.name = track_names_to_rename[msg.name]  # Rename the track
+                modified_track.append(msg)  # Append the message to the new track
+            new_tracks.append(modified_track)
+
+        # Assign modified tracks back to the MIDI file
+        mid.tracks = new_tracks
+
+        # Save the modified MIDI to a new file
+        modified_midi_file = midi_file.replace('.mid', '_modified.mid')
+        print(f"Saving modified MIDI to: {modified_midi_file}")
+        mid.save(modified_midi_file)
+        print(f"Modified MIDI saved successfully.")
+        return modified_midi_file
+
+    except Exception as e:
+        print(f"Error modifying MIDI for {instrument}: {e}")
+        return None
+
+# Function to call chopt.exe and capture its output
+def run_chopt(midi_file: str, command_instrument: str, output_image: str):
+    chopt_command = [
+        'chopt.exe', 
+        '-f', midi_file, 
+        '--engine', 'fnf', 
+        '--squeeze', '85', 
+        '--early-whammy', '50', 
+        '--no-pro-drums', 
+        '-i', command_instrument, 
+        '-o', output_image
+    ]
+    result = subprocess.run(chopt_command, text=True, capture_output=True)
+    
+    if result.returncode != 0:
+        return None, result.stderr
+
+    return result.stdout.strip(), None
+
+@bot.command(name='path', help='Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.')
+async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
+    try:
+        # Map the provided instrument alias to the valid instrument for chopt
+        instrument = instrument.lower()
+        if instrument in INSTRUMENT_MAP:
+            command_instrument = INSTRUMENT_MAP[instrument]
+        else:
+            await ctx.send(f"Unsupported instrument: {instrument}")
+            return
+
+        # Step 1: Fetch song data from the API
+        tracks = fetch_available_jam_tracks()
+        if not tracks:
+            await ctx.send('Could not fetch tracks.')
+            return
+
+        # Perform fuzzy search to find the matching song
+        matched_tracks = fuzzy_search_tracks(tracks, songname)
+        if not matched_tracks:
+            await ctx.send(f"No tracks found for '{songname}'.")
+            return
+
+        # Use the first matched track
+        song_data = matched_tracks[0]
+        song_url = song_data['track'].get('mu')
+
+        # Step 2: Decrypt the .dat file into a .mid file
+        dat_file = f"{songname}.dat"
+        midi_file = decrypt_dat_file(song_url, dat_file)
+        if not midi_file:
+            await ctx.send(f"Failed to decrypt the .dat file for '{songname}'.")
+            return
+
+        # Step 3: Modify the MIDI file if necessary (Pro Lead or Pro Bass)
+        modified_midi_file = None
+        if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl', 'probass', 'plasticbass', 'pb']:
+            modified_midi_file = modify_midi_file(midi_file, instrument)
+            if not modified_midi_file:
+                await ctx.send(f"Failed to modify MIDI for '{instrument}'.")
+                return
+            midi_file = modified_midi_file  # Use the modified MIDI file for chopt
+
+        # Step 4: Generate the path image using chopt.exe
+        output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
+        chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image)
+
+        if chopt_error:
+            await ctx.send(f"An error occurred while running chopt: {chopt_error}")
+            return
+
+        # Step 5: Filter out "Optimising, please wait..." message from chopt output
+        filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
+
+        # Step 6: Send the generated image and filtered chopt output to the Discord channel
+        if os.path.exists(output_image):
+            # Attach the image
+            file = discord.File(output_image, filename=output_image)
+            # Embed the image in the message
+            embed = discord.Embed(title=f"Path for {songname} ({instrument})")
+            embed.add_field(name="Chopt Output", value=f"```{filtered_output}```", inline=False)
+            # Attach the image with the same filename used in the File object
+            embed.set_image(url=f"attachment://{output_image}")
+
+            # Send the message with the embed and the file
+            await ctx.send(embed=embed, file=file)
+
+            # Clean up the image file after sending
+            os.remove(output_image)
+        else:
+            await ctx.send(f"Failed to generate the path image for '{songname}'.")
+
+        # Step 7: Clean up the generated MIDI and .dat files
+        os.remove(midi_file)  # Clean up the original or modified MIDI file
+        os.remove(os.path.join(TEMP_FOLDER, dat_file))    # Clean up the .dat file
+
+    except Exception as e:
+        await ctx.send(f"An error occurred: {str(e)}")
 
 bot.run(DISCORD_TOKEN)
