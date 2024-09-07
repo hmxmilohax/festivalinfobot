@@ -898,6 +898,16 @@ async def search(ctx, *, query: str = None):
         await ctx.send("Please provide a search term.")
         return
     
+    # Check if the search matches "I'm A Cat"
+    if query.lower() == "i'm a cat" or query.lower() == "im a cat" or query.lower() == "imacat":
+        # Load imacat.json for special handling
+        with open('imacat.json', 'r') as imacat_file:
+            imacat_data = json.load(imacat_file)
+        embed = generate_track_embed(imacat_data)  # Use the local data from imacat.json
+        embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
+        await ctx.send(embed=embed)
+        return
+
     # Fetch the tracks from the jam API
     tracks = fetch_available_jam_tracks()
     if not tracks:
