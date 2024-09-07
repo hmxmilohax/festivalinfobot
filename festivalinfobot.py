@@ -668,8 +668,19 @@ def generate_track_embed(track_data, is_new=False):
     embed.add_field(name="\n", value="", inline=False)
     embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
 
-    embed.add_field(name="Key", value=track.get('mk', 'Unknown'), inline=True)
+    # Add Key and BPM to the embed
+    key = track.get('mk', 'Unknown')  # Get the key
+    mode = track.get('mm', 'Unknown')  # Get the mode
+
+    # If mode is minor, append (Minor), else append (Major)
+    if mode == 'Minor':
+        key = f"{key} (Minor)"
+    elif mode == 'Major':
+        key = f"{key} (Major)"
+
+    embed.add_field(name="Key", value=key, inline=True)
     embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
+
 
     embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
     embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)    
