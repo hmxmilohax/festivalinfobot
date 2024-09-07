@@ -537,7 +537,7 @@ def generate_modified_track_embed(old, new):
         'ry': 'Release Year',
         'jc': 'Join Code',
         'ti': 'Placeholder ID',
-        'mm': 'Scale',
+        'mm': 'Mode',
         'mk': 'Key',
         'su': 'Event ID',
         'isrc': 'ISRC Code',
@@ -607,6 +607,7 @@ async def process_chart_url_change(old_url, new_url, channel, track_name, song_t
 
     # Decrypt old .dat to .midi
     old_midi_file = decrypt_dat_file(old_url, "base.dat")
+
     # Decrypt new .dat to .midi
     new_midi_file = decrypt_dat_file(new_url, "base_update.dat")
 
@@ -662,17 +663,22 @@ def generate_track_embed(track_data, is_new=False):
     title = f"New song found:\n{track['tt']}" if is_new else track['tt']
     placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
     embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
-    
+
     # Add various fields to the embed
     embed.add_field(name="\n", value="", inline=False)
     embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
+
+    embed.add_field(name="Key", value=track.get('mk', 'Unknown'), inline=True)
+    embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
+
     embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
-    embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)
+    embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)    
+
     duration = track.get('dn', 0)
     embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
     embed.add_field(name="Shortname", value=track['sn'], inline=True)
     embed.add_field(name="Song ID", value=f"{placeholder_id}", inline=True)
-    
+
     # Add Last Modified field if it exists and format it to be more human-readable
     if 'lastModified' in track_data:
         last_modified = datetime.fromisoformat(track_data['lastModified'].replace('Z', '+00:00'))
