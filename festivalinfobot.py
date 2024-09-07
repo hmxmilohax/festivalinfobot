@@ -820,6 +820,13 @@ async def check_for_new_songs():
     known_tracks = load_known_songs_from_disk()  # Reload known_tracks.json
     known_shortnames = load_known_songs_from_disk(shortnames=True)  # Reload known_songs.json
 
+    # If known_songs.json doesn't exist, just save the current tracks and exit without sending any messages
+    if not known_tracks:
+        print("First run detected. Saving the current tracks as the initial known songs.")
+        save_known_songs_to_disk(tracks)
+        save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
+        return
+
     current_tracks_dict = {track['track']['sn']: track for track in tracks}
     known_tracks_dict = {track['track']['sn']: track for track in known_tracks}
 
@@ -863,7 +870,6 @@ async def check_for_new_songs():
 
                     # Pass the track name to the process_chart_url_change function
                     await process_chart_url_change(old_url, new_url, channel, track_name, track_name, artist_name)
-
 
                 embed = generate_modified_track_embed(old=old_song, new=new_song)
                 await channel.send(embed=embed)
