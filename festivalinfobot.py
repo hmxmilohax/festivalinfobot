@@ -1153,7 +1153,7 @@ If the third argument is not present, a list of entries will be shown instead.
 Only the first 500 entries of every leaderboard are available.""", 
              aliases=['lb'],
              usage="[shortname] [instrument] [rank/username/accountid]")
-async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_or_account = None):
+async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_or_account = None):
     if shortname is None:
         await ctx.send("Please provide a shortname.")
         return
@@ -1167,53 +1167,45 @@ async def leaderboard(ctx, shortname :str = None, instrument :str = None, rank_o
         await ctx.send('Could not fetch tracks.')
         return
     
+    # Use fuzzy search on the tracks to find a match for the shortname
     matched_tracks = fuzzy_search_tracks(tracks, shortname)
 
     if not matched_tracks:
         await ctx.send('No tracks found matching your search.')
         return
     
-    if len(matched_tracks) > 0:
-        matched_track = matched_tracks[0]
-        
-        instrument_codename = get_instrument(instrument)
-        if not instrument_codename:
-            await ctx.send('Unknown instrument.')
-            return
+    # Use the first matched track
+    matched_track = matched_tracks[0]
+    instrument_codename = get_instrument(instrument)
+    if not instrument_codename:
+        await ctx.send('Unknown instrument.')
+        return
 
-        leaderboard_entries = fetch_leaderboard_of_track(shortname, instrument_codename[0])
+    leaderboard_entries = fetch_leaderboard_of_track(matched_track['track']['sn'], instrument_codename[0])
 
-        if len(leaderboard_entries) > 0:
-            # View all the entries
-            if not rank_or_account:
-                title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_codename[1]})"
-
-                # Generate paginated embeds with 10 entries per embed
-                embeds = generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
-                
-                # Initialize the paginator view
-                view = PaginatorView(embeds, ctx.author.id)
-                view.message = await ctx.send(embed=view.get_embed(), view=view)
-            else:
-                try:
-                    rank = int(rank_or_account)
-                    if rank:
-                        entries = [entry for entry in leaderboard_entries if entry['rank'] == rank]
-                        if len(entries) > 0:
-                            await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
-                        else:
-                            await ctx.send('No entries found.')
-                except ValueError:
-                    if type(rank_or_account) == str:
-                        entries = [entry for entry in leaderboard_entries if entry['userName'] == rank_or_account or entry['teamId'] == rank_or_account]
-                        if len(entries) > 0:
-                            await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
-                        else:
-                            await ctx.send('Player not found in leaderboard.')
-                    else:
-                        await ctx.send('Invalid rank or account.')
+    if len(leaderboard_entries) > 0:
+        if not rank_or_account:
+            title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_codename[1]})"
+            embeds = generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
+            view = PaginatorView(embeds, ctx.author.id)
+            view.message = await ctx.send(embed=view.get_embed(), view=view)
         else:
-            await ctx.send('No entries in leaderboard.')
+            # Handle rank or account search
+            try:
+                rank = int(rank_or_account)
+                entries = [entry for entry in leaderboard_entries if entry['rank'] == rank]
+                if entries:
+                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                else:
+                    await ctx.send('No entries found.')
+            except ValueError:
+                entries = [entry for entry in leaderboard_entries if entry['userName'] == rank_or_account or entry['teamId'] == rank_or_account]
+                if entries:
+                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                else:
+                    await ctx.send('Player not found in leaderboard.')
+    else:
+        await ctx.send('No entries in leaderboard.')
 
 # Define instrument alias mapping for chopt.exe
 INSTRUMENT_MAP = {
