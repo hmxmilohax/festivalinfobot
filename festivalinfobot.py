@@ -1316,7 +1316,23 @@ def get_instrument_display_name(instrument):
     return instrument.capitalize()  # Fallback for unknown instruments
 
 # Modify the path generation function
-@bot.command(name='path', help='Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.')
+@bot.command(
+    name='path',
+    help="""
+Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.
+
+- `[instrument]` must be one of the supported instruments:
+  * `guitar` (or `lead`, `g`, `l`): for regular guitar parts
+  * `bass` (or `b`): for regular bass parts
+  * `drums` (or `d`): for regular drum parts
+  * `vocals` (or `v`): for regular vocal parts
+  * `prolead` (or `proguitar`, `plasticguitar`, `pl`, `pg`): for Pro Lead/Guitar
+  * `probass` (or `plasticbass`, `pb`): for Pro Bass
+
+The command will return a generated path image along with text notation from CHOpt. To understand how to read paths, consult the [Documentation](https://github.com/GenericMadScientist/CHOpt/blob/main/misc/How-to-read-paths.md).
+""",
+    usage="[songname] [instrument]"
+)
 async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
     try:
         # Map the provided instrument alias to the valid instrument for chopt
