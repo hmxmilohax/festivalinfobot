@@ -218,6 +218,10 @@ def get_instrument(query):
     return None
 
 def fetch_leaderboard_of_track(shortname, instrument):
+    # Special case for i_kendrick, we use "i" in the leaderboard URL
+    if shortname == 'i_kendrick':
+        shortname = 'i'
+    
     season_number_request = requests.get(f'{LEADERBOARD_DB_URL}meta.json')
     current_season_number = season_number_request.json()['season']
     song_url = f'{LEADERBOARD_DB_URL}leaderboards/season{current_season_number}/{shortname}/'
