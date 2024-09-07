@@ -1220,9 +1220,12 @@ INSTRUMENT_MAP = {
     'bass': 'bass',
     'plasticbass': 'bass',
     'probass': 'bass',
+    'b': 'bass',
     'pb': 'bass',
     'drums': 'drums',
+    'd': 'drums',
     'vocals': 'vocals',
+    'v': 'vocals',
 }
 
 
@@ -1295,7 +1298,41 @@ def run_chopt(midi_file: str, command_instrument: str, output_image: str):
 
     return result.stdout.strip(), None
 
-@bot.command(name='path', help='Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.')
+# Function to map instrument aliases to user-friendly names
+def get_instrument_display_name(instrument):
+    instrument = instrument.lower()
+    if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl']:
+        return 'Pro Lead'
+    elif instrument in ['probass', 'plasticbass', 'pb']:
+        return 'Pro Bass'
+    elif instrument in ['guitar', 'lead', 'g', 'l']:
+        return 'Lead'
+    elif instrument in ['bass', 'b']:
+        return 'Bass'
+    elif instrument in ['drums', 'd']:
+        return 'Drums'
+    elif instrument in ['vocals', 'v']:
+        return 'Vocals'
+    return instrument.capitalize()  # Fallback for unknown instruments
+
+# Modify the path generation function
+@bot.command(
+    name='path',
+    help="""
+Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.
+
+- `[instrument]` must be one of the supported instruments:
+  * `guitar` (or `lead`, `g`, `l`): for regular guitar parts
+  * `bass` (or `b`): for regular bass parts
+  * `drums` (or `d`): for regular drum parts
+  * `vocals` (or `v`): for regular vocal parts
+  * `prolead` (or `proguitar`, `plasticguitar`, `pl`, `pg`): for Pro Lead/Guitar
+  * `probass` (or `plasticbass`, `pb`): for Pro Bass
+
+The command will return a generated path image along with text notation from CHOpt. To understand how to read paths, consult the [Documentation](https://github.com/GenericMadScientist/CHOpt/blob/main/misc/How-to-read-paths.md).
+""",
+    usage="[songname] [instrument]"
+)
 async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
     try:
         # Map the provided instrument alias to the valid instrument for chopt
@@ -1306,21 +1343,31 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
             await ctx.send(f"Unsupported instrument: {instrument}")
             return
 
-        # Step 1: Fetch song data from the API
-        tracks = fetch_available_jam_tracks()
-        if not tracks:
-            await ctx.send('Could not fetch tracks.')
-            return
+        if songname.lower() == "i'm a cat" or songname.lower() == "im a cat" or songname.lower() == "imacat":
+            # Load imacat.json for special handling
+            with open('imacat.json', 'r') as imacat_file:
+                imacat_data = json.load(imacat_file)
+                song_data = imacat_data
+        else:
+            # Step 1: Fetch song data from the API
+            tracks = fetch_available_jam_tracks()
+            if not tracks:
+                await ctx.send('Could not fetch tracks.')
+                return
 
-        # Perform fuzzy search to find the matching song
-        matched_tracks = fuzzy_search_tracks(tracks, songname)
-        if not matched_tracks:
-            await ctx.send(f"No tracks found for '{songname}'.")
-            return
-
-        # Use the first matched track
-        song_data = matched_tracks[0]
+            # Perform fuzzy search to find the matching song
+            matched_tracks = fuzzy_search_tracks(tracks, songname)
+            if not matched_tracks:
+                await ctx.send(f"No tracks found for '{songname}'.")
+                return
+            # Use the first matched track
+            song_data = matched_tracks[0]
+        
         song_url = song_data['track'].get('mu')
+        album_art_url = song_data['track'].get('au')  # Fetch album art URL
+        track_title = song_data['track'].get('tt')  # Get the actual track title
+        artist_title = song_data['track'].get('an')  # Get the actual artist title
+        display_instrument = get_instrument_display_name(instrument)  # Get user-friendly instrument name
 
         # Step 2: Decrypt the .dat file into a .mid file
         dat_file = f"{songname}.dat"
@@ -1354,10 +1401,13 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
             # Attach the image
             file = discord.File(output_image, filename=output_image)
             # Embed the image in the message
-            embed = discord.Embed(title=f"Path for {songname} ({instrument})")
-            embed.add_field(name="Chopt Output", value=f"```{filtered_output}```", inline=False)
-            # Attach the image with the same filename used in the File object
+            embed = discord.Embed(title=f"", color=0x8927A1)
+            embed.add_field(name="", value=f"**{track_title}** - *{artist_title}*", inline=False)
+            embed.add_field(name="", value=f"{display_instrument} path generated via [CHOpt](https://github.com/GenericMadScientist/CHOpt)```{filtered_output}```", inline=False)
             embed.set_image(url=f"attachment://{output_image}")
+            
+            # Set the album art as the thumbnail
+            embed.set_thumbnail(url=album_art_url)
 
             # Send the message with the embed and the file
             await ctx.send(embed=embed, file=file)
@@ -1365,7 +1415,7 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
             # Clean up the image file after sending
             os.remove(output_image)
         else:
-            await ctx.send(f"Failed to generate the path image for '{songname}'.")
+            await ctx.send(f"Failed to generate the path image for '{track_title}'.")
 
         # Step 7: Clean up the generated MIDI and .dat files
         os.remove(midi_file)  # Clean up the original or modified MIDI file
