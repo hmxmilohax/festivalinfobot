@@ -688,6 +688,8 @@ def generate_track_embed(track_data, is_new=False):
         key = f"{key} (Minor)"
     elif mode == 'Major':
         key = f"{key} (Major)"
+    else:
+        key = f"{key} ({mode})"
 
     embed.add_field(name="Key", value=key, inline=True)
     embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
