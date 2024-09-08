@@ -404,6 +404,8 @@ def visualize_midi_changes(differences, note_name_map, track_name, output_folder
     ax.set_yticklabels(unique_notes)  # Set the note names as labels
     ax.grid(True, linestyle='--', alpha=0.7)
     
+    track_name = track_name.replace(' ', '_')
+
     # Save the plot to the output folder
     image_path = os.path.join(output_folder, f"{track_name}_changes.png")
     plt.savefig(image_path)

@@ -114,7 +114,7 @@ class CustomHelpCommand(DefaultHelpCommand):
 
         embed.set_footer(text=f"Type {COMMAND_PREFIX[0]}help <command> for more details on a command.")
         channel = self.get_destination()
-        await channel.send(embed=embed)
+        await send_auto_publish_message(channel, embed)
 
     async def send_command_help(self, command):
         embed = discord.Embed(
@@ -131,7 +131,7 @@ class CustomHelpCommand(DefaultHelpCommand):
             embed.add_field(name="Aliases", value=", ".join(command.aliases), inline=False)
 
         channel = self.get_destination()
-        await channel.send(embed=embed)
+        await send_auto_publish_message(channel, embed)
 
 bot = commands.Bot(
     command_prefix=COMMAND_PREFIX, 
@@ -251,6 +251,19 @@ class LastButton(discord.ui.Button):
         embed = view.get_embed()
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
+
+async def send_auto_publish_message(channel, embed):
+    try:
+        # Send the message with the embed
+        message = await send_auto_publish_message(channel, embed)
+
+        # Check if the channel is an announcement (news) channel
+        if channel.is_news():
+            # Auto-publish the message
+            await message.publish()
+            print(f"Published message in announcement channel: {channel.name}")
+    except Exception as e:
+        print(f"Error sending or publishing message: {e}")
 
 def is_running_in_command_channel(channel_id):
     if USE_COMMAND_CHANNELS:
@@ -915,7 +928,7 @@ async def check_for_new_songs():
             print(f"New songs detected!")
             for new_song in new_songs:
                 embed = generate_track_embed(new_song, is_new=True)
-                await channel.send(embed=embed)
+                await send_auto_publish_message(channel, embed)
             save_known_songs_to_disk(tracks)
             save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
 
@@ -936,7 +949,7 @@ async def check_for_new_songs():
                     await process_chart_url_change(old_url, new_url, channel, track_name, track_name, artist_name)
 
                 embed = generate_modified_track_embed(old=old_song, new=new_song)
-                await channel.send(embed=embed)
+                await send_auto_publish_message(channel, embed)
             save_known_songs_to_disk(tracks)
             save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
 
