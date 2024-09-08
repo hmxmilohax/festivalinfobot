@@ -1434,7 +1434,7 @@ def run_chopt(midi_file: str, command_instrument: str, output_image: str):
         'chopt.exe', 
         '-f', midi_file, 
         '--engine', 'fnf', 
-        '--squeeze', '100', 
+        '--squeeze', '20', 
         '--early-whammy', '0', 
         '--no-pro-drums', 
         '-i', command_instrument, 
