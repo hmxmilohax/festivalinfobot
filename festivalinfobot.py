@@ -18,19 +18,66 @@ config.read('config.ini')
 # Read the Discord bot token and channel IDs from the config file
 DISCORD_TOKEN = config.get('discord', 'token')
 CHANNEL_IDS = config.get('discord', 'channel_ids', fallback="").split(',')
+COMMAND_CHANNEL_IDS = config.get('discord', 'command_channel_ids', fallback="").split(',')
+USE_COMMAND_CHANNELS = config.getboolean('discord', 'use_command_channels', fallback=False)
 COMMAND_PREFIX = config.get('discord', 'prefix', fallback="!").split(',')
 
 # Convert channel IDs to integers and filter out any empty strings
 CHANNEL_IDS = [int(id.strip()) for id in CHANNEL_IDS if id.strip()]
+COMMAND_CHANNEL_IDS = [int(id.strip()) for id in COMMAND_CHANNEL_IDS if id.strip()]
 
+# Bot configuration properties
+CHECK_FOR_SONGS_INTERVAL = config.getint('bot', 'check_new_songs_interval', fallback=7)
+CHECK_FOR_NEW_SONGS = config.getboolean('bot', 'check_for_new_songs', fallback=True)
+DECRYPTION_ALLOWED = config.getboolean('bot', 'decryption', fallback=True)
+PATHING_ALLOWED = config.getboolean('bot', 'pathing', fallback=True)
+CHART_COMPARING_ALLOWED = config.getboolean('bot', 'chart_comparing', fallback=True)
+
+# APIs which the bot uses to source its information
 API_URL = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
 MODES_SMART_URL = 'https://api.nitestats.com/v1/epic/modes-smart'
 SHOP_API_URL = 'https://fortnite-api.com/v2/shop'
-SONGS_FILE = 'known_tracks.json'  # File to save known songs
-SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
 
+# Files used to track songs
+SONGS_FILE = 'known_tracks.json'  # File to save known songs
+SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
+
+# Folder the bot uses to save temporary files
 TEMP_FOLDER = "out"
+
+# Define instrument alias mapping for CHOpt.exe
+INSTRUMENT_MAP = {
+    # Pro Lead
+    'plasticguitar': 'guitar',
+    'prolead': 'guitar',
+    'pl': 'guitar',
+    'proguitar': 'guitar',
+    'pg': 'guitar',
+    # Pro Bass
+    'plasticbass': 'bass',
+    'probass': 'bass',
+    'pb': 'bass',
+    # Lead
+    'guitar': 'guitar',
+    'gr': 'guitar',
+    'lead': 'guitar',
+    'ld': 'guitar',
+    'g': 'guitar',
+    'l': 'guitar',
+    # Bass
+    'bass': 'bass',
+    'ba': 'bass',
+    'b': 'bass',
+    # Drums
+    'drums': 'drums',
+    'ds': 'drums',
+    'd': 'drums',
+    # Vocals
+    'vocals': 'vocals',
+    'vl': 'vocals',
+    'v': 'vocals',
+}
 
 # Set up Discord bot with necessary intents
 intents = discord.Intents.default()
@@ -45,7 +92,7 @@ class CustomHelpCommand(DefaultHelpCommand):
     async def send_bot_help(self, mapping):
         embed = discord.Embed(
             title="Festival Tracker Help",
-            description="A simple bot to check Fortnite Festival song data. [Source](https://github.com/hmxmilohax/festivalinfobot)",
+            description="A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)",
             color=0x8927A1
         )
 
@@ -144,7 +191,7 @@ class FirstButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page = 0
@@ -159,7 +206,7 @@ class PreviousButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page -= 1
@@ -179,7 +226,7 @@ class NextButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page += 1
@@ -194,7 +241,7 @@ class LastButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(f"This is not your session. Please use the {COMMAND_PREFIX[0]}tracklist command to start your own session.", ephemeral=True)
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
         view.current_page = view.total_pages - 1
@@ -202,27 +249,31 @@ class LastButton(discord.ui.Button):
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
 
-def get_instrument(query):
-    query = query.lower()
-    if query in ['plasticguitar', 'prolead', 'pl', 'proguitar', 'pg']:
-        return ['Solo_PeripheralGuitar', 'Pro Lead']
-    elif query in ['plasticbass', 'probass', 'pb']:
-        return ['Solo_PeripheralBass', 'Pro Bass']
-    elif query in ['vocals', 'vl', 'v']:
-        return ['Solo_Vocals', 'Vocals']
-    elif query in ['guitar', 'gr', 'lead', 'ld', 'g', 'l']:
-        return ['Solo_Guitar', 'Lead']
-    elif query in ['bass', 'ba', 'b']:
-        return ['Solo_Bass', 'Bass']
-    elif query in ['drums', 'ds', 'd']:
-        return ['Solo_Drums', 'Drums']
-    return None
+def is_running_in_command_channel(channel_id):
+    if USE_COMMAND_CHANNELS:
+        return channel_id in COMMAND_CHANNEL_IDS
+    else:
+        return True
+
+# Function to map instrument aliases to user-friendly names
+# Remember to update this if you change INSTRUMENT_MAP
+def get_instrument_from_query(instrument):
+    instrument = instrument.lower()
+    if instrument in ['plasticguitar', 'prolead', 'pl', 'proguitar', 'pg']:
+        return ('Pro Lead', 'Solo_PeripheralGuitar')
+    elif instrument in ['plasticbass', 'probass', 'pb']:
+        return ('Pro Bass', 'Solo_PeripheralBass')
+    elif instrument in ['guitar', 'gr', 'lead', 'ld', 'g', 'l']:
+        return ('Lead', 'Solo_Guitar')
+    elif instrument in ['bass', 'ba', 'b']:
+        return ('Bass', 'Solo_Bass')
+    elif instrument in ['drums', 'ds', 'd']:
+        return ('Drums', 'Solo_Drums')
+    elif instrument in ['vocals', 'vl', 'v']:
+        return ('Vocals', 'Solo_Vocals')
+    return (instrument.capitalize(), None)  # Fallback for unknown instruments
 
 def fetch_leaderboard_of_track(shortname, instrument):
-    # Special case for i_kendrick, we use "i" in the leaderboard URL
-    if shortname == 'i_kendrick':
-        shortname = 'i'
-    
     season_number_request = requests.get(f'{LEADERBOARD_DB_URL}meta.json')
     current_season_number = season_number_request.json()['season']
     song_url = f'{LEADERBOARD_DB_URL}leaderboards/season{current_season_number}/{shortname}/'
@@ -237,10 +288,10 @@ def fetch_leaderboard_of_track(shortname, instrument):
             data = response.json()
             fetched_entries.extend(data['entries'])
             fetched_pages += 1
-        except Exception as e: # No more jsons
+        except Exception as e: # No more entries, the leaderboard isn't full yet
             print(f'There aren\'t enough entries to fetch: {e}')
             return fetched_entries
-    else:
+    else: # 5 pages have been fetched
         return fetched_entries
 
 def remove_punctuation(text):
@@ -250,7 +301,7 @@ def fuzzy_search_tracks(tracks, search_term):
     # Remove punctuation from the search term
     search_term = remove_punctuation(search_term.lower())  # Case-insensitive search
 
-    # Special case for 'i' or 'i_kendrick'
+    # Special case for 'i'
     if search_term == 'i':
         exact_matches = [track for track in tracks.values() if track['track']['tt'].lower() == 'i']
         if exact_matches:
@@ -591,7 +642,7 @@ def generate_modified_track_embed(old, new):
 
     for value, name in difficulty_comparisons.items():
         if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
-            embed.add_field(name=f"{name} difficulty changed", value=f"```Old: \"{generate_difficulty_bar(old_track_data['in'][value])}\"\nNew: \"{generate_difficulty_bar(new_track_data['in'][value])}\"```", inline=False)
+            embed.add_field(name=f"{name} difficulty changed", value=f"```Old: \"{generate_difficulty_bar(old_track_data['in'].get(value, 0))}\"\nNew: \"{generate_difficulty_bar(new_track_data['in'].get(value, 0))}\"```", inline=False)
 
     # check for mismatched difficulty properties
     for key in new_track_data['in'].keys():
@@ -811,10 +862,10 @@ def fetch_shop_tracks():
         print(f'Error fetching shop tracks: {e}')
         return None
 
-@tasks.loop(minutes=7)
+@tasks.loop(minutes=CHECK_FOR_SONGS_INTERVAL)
 async def check_for_new_songs():
     if not CHANNEL_IDS:
-        print("No channel IDs provided; skipping the 7-minute probe.")
+        print(f"No channel IDs provided; skipping the {CHECK_FOR_SONGS_INTERVAL}-minute probe.")
         return
 
     print("Checking for new songs...")
@@ -873,7 +924,7 @@ async def check_for_new_songs():
                 track_name = new_song['track']['tt']  # Get track name for the embed
                 artist_name = new_song['track']['an']  # Get track name for the embed
 
-                if old_url != new_url:
+                if (old_url != new_url) and DECRYPTION_ALLOWED and CHART_COMPARING_ALLOWED:
                     print(f"Chart URL changed:")
                     print(f"Old: {old_url}")
                     print(f"New: {new_url}")
@@ -885,6 +936,8 @@ async def check_for_new_songs():
                 await channel.send(embed=embed)
             save_known_songs_to_disk(tracks)
             save_known_songs_to_disk([track['track']['sn'] for track in tracks], shortnames=True)
+
+    print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}")
 
 def clear_out_folder(folder_path):
     try:
@@ -908,10 +961,14 @@ def clear_out_folder(folder_path):
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     # Start the song check loop
-    check_for_new_songs.start()
+    if CHECK_FOR_NEW_SONGS:
+        check_for_new_songs.start()
 
 @bot.command(name='search', help='Search for a track by name or artist.')
 async def search(ctx, *, query: str = None):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+    
     if query is None:
         await ctx.send("Please provide a search term.")
         return
@@ -1009,6 +1066,9 @@ async def search(ctx, *, query: str = None):
 
 @bot.command(name='daily', help='Display the tracks currently in daily rotation.')
 async def daily_tracks(ctx):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+    
     tracks = fetch_available_jam_tracks()
     daily_shortnames_data = fetch_daily_shortnames()
 
@@ -1094,6 +1154,9 @@ async def daily_tracks(ctx):
 
 @bot.command(name='count', help='Show the total number of available tracks in Fortnite Festival.')
 async def count_tracks(ctx):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+    
     tracks = fetch_available_jam_tracks()
     if not tracks:
         await ctx.send('Could not fetch tracks.')
@@ -1110,6 +1173,9 @@ async def count_tracks(ctx):
 
 @bot.command(name='tracklist', help='Browse through the full list of available tracks.')
 async def tracklist(ctx):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+
     tracks = fetch_available_jam_tracks()
     if not tracks:
         await ctx.send('Could not fetch tracks.')
@@ -1142,6 +1208,9 @@ async def tracklist(ctx):
 
 @bot.command(name='shop', help='Browse through the tracks currently available in the shop.')
 async def shop_tracks(ctx):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+
     tracks = fetch_shop_tracks()  # Data from shop API
     track_data = fetch_available_jam_tracks()  # Data from jam API
 
@@ -1224,19 +1293,24 @@ async def shop_tracks(ctx):
 
 @bot.command(name='leaderboard', 
              help="""View the leaderboard of a specific song, and specific leaderboard entries. Updated roughly every 12 hours.\nAccepts a shortname, instrument, and optionally, a rank, username or Epic account ID.
-Instruments:
+To type a search query, enclose it in quotes (`"`)
 
-- `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: Pro Lead
-- `plasticbass`, `probass`, `pb`: Pro Bass
-- `vocals`, `vl`, `v`: Vocals
-- `guitar`, `gr`, `lead`, `ld`, `g`, `l`: Lead
-- `bass`, `ba`, `b`: Bass
-- `drums`, `ds`, `d`:  Drums
-If the third argument is not present, a list of entries will be shown instead.
+[instrument] must be one of the supported instruments:
+  * `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: Pro Lead
+  * `plasticbass`, `probass`, `pb`: Pro Bass
+  * `vocals`, `vl`, `v`: Vocals
+  * `guitar`, `gr`, `lead`, `ld`, `g`, `l`: Lead
+  * `bass`, `ba`, `b`: Bass
+  * `drums`, `ds`, `d`:  Drums
+If a rank or account isn't given, a list of entries will be shown instead.
 Only the first 500 entries of every leaderboard are available.""", 
+             brief="View the leaderboard of a specific song, and leaderboard entries.",
              aliases=['lb'],
              usage="[shortname] [instrument] [rank/username/accountid]")
 async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_or_account = None):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+
     if shortname is None:
         await ctx.send("Please provide a shortname.")
         return
@@ -1259,16 +1333,16 @@ async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_o
     
     # Use the first matched track
     matched_track = matched_tracks[0]
-    instrument_codename = get_instrument(instrument)
+    instrument_display_name, instrument_codename = get_instrument_from_query(instrument)
     if not instrument_codename:
         await ctx.send('Unknown instrument.')
         return
 
-    leaderboard_entries = fetch_leaderboard_of_track(matched_track['track']['sn'], instrument_codename[0])
+    leaderboard_entries = fetch_leaderboard_of_track(matched_track['track']['sn'], instrument_codename)
 
     if len(leaderboard_entries) > 0:
         if not rank_or_account:
-            title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_codename[1]})"
+            title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({instrument_display_name})"
             embeds = generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
             view = PaginatorView(embeds, ctx.author.id)
             view.message = await ctx.send(embed=view.get_embed(), view=view)
@@ -1278,39 +1352,17 @@ async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_o
                 rank = int(rank_or_account)
                 entries = [entry for entry in leaderboard_entries if entry['rank'] == rank]
                 if entries:
-                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_display_name))
                 else:
                     await ctx.send('No entries found.')
             except ValueError:
                 entries = [entry for entry in leaderboard_entries if entry['userName'] == rank_or_account or entry['teamId'] == rank_or_account]
                 if entries:
-                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_codename[1]))
+                    await ctx.send(embed=generate_leaderboard_embed(matched_track, entries[0], instrument_display_name))
                 else:
                     await ctx.send('Player not found in leaderboard.')
     else:
         await ctx.send('No entries in leaderboard.')
-
-# Define instrument alias mapping for chopt.exe
-INSTRUMENT_MAP = {
-    'plasticguitar': 'guitar',
-    'prolead': 'guitar',
-    'proguitar': 'guitar',
-    'pl': 'guitar',
-    'pg': 'guitar',
-    'guitar': 'guitar',
-    'lead': 'guitar',
-    'gr': 'guitar',
-    'bass': 'bass',
-    'plasticbass': 'bass',
-    'probass': 'bass',
-    'b': 'bass',
-    'pb': 'bass',
-    'drums': 'drums',
-    'd': 'drums',
-    'vocals': 'vocals',
-    'v': 'vocals',
-}
-
 
 # Helper function to modify the MIDI file for Pro Lead and Pro Bass
 def modify_midi_file(midi_file: str, instrument: str) -> str:
@@ -1321,10 +1373,10 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         track_names_to_rename = {}
 
         # Check for Pro Lead or Pro Bass
-        if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl']:
+        if instrument in ['plasticguitar', 'prolead', 'pl', 'proguitar', 'pg']:
             track_names_to_delete.append('PART GUITAR')
             track_names_to_rename['PLASTIC GUITAR'] = 'PART GUITAR'
-        elif instrument in ['probass', 'plasticbass', 'pb']:
+        elif instrument in ['plasticbass', 'probass', 'pb']:
             track_names_to_delete.append('PART BASS')
             track_names_to_rename['PLASTIC BASS'] = 'PART BASS'
 
@@ -1381,130 +1433,116 @@ def run_chopt(midi_file: str, command_instrument: str, output_image: str):
 
     return result.stdout.strip(), None
 
-# Function to map instrument aliases to user-friendly names
-def get_instrument_display_name(instrument):
-    instrument = instrument.lower()
-    if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl']:
-        return 'Pro Lead'
-    elif instrument in ['probass', 'plasticbass', 'pb']:
-        return 'Pro Bass'
-    elif instrument in ['guitar', 'lead', 'g', 'l']:
-        return 'Lead'
-    elif instrument in ['bass', 'b']:
-        return 'Bass'
-    elif instrument in ['drums', 'd']:
-        return 'Drums'
-    elif instrument in ['vocals', 'v']:
-        return 'Vocals'
-    return instrument.capitalize()  # Fallback for unknown instruments
-
 # Modify the path generation function
-@bot.command(
-    name='path',
-    help="""
-Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.
+if PATHING_ALLOWED and DECRYPTION_ALLOWED:
+    @bot.command(
+        name='path',
+        help="""
+    Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.
+    To type a search query, enclose it in quotes (`"`)
 
-- `[instrument]` must be one of the supported instruments:
-  * `guitar` (or `lead`, `g`, `l`): for regular guitar parts
-  * `bass` (or `b`): for regular bass parts
-  * `drums` (or `d`): for regular drum parts
-  * `vocals` (or `v`): for regular vocal parts
-  * `prolead` (or `proguitar`, `plasticguitar`, `pl`, `pg`): for Pro Lead/Guitar
-  * `probass` (or `plasticbass`, `pb`): for Pro Bass
+    - `[instrument]` must be one of the supported instruments:
+    * `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: for Pro Lead/Guitar
+    * `plasticbass`, `probass`, `pb`: for Pro Bass
+    * `vocals`, `vl`, `v`: for regular vocal parts
+    * `guitar`, `gr`, `lead`, `ld`, `g`, `l`: for regular guitar parts
+    * `bass`, `ba`, `b`: for regular bass parts
+    * `drums`, `ds`, `d`:  for regular drum parts
 
-The command will return a generated path image along with text notation from CHOpt. To understand how to read paths, consult the [Documentation](https://github.com/GenericMadScientist/CHOpt/blob/main/misc/How-to-read-paths.md).
-""",
-    usage="[songname] [instrument]"
-)
-async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
-    try:
-        # Map the provided instrument alias to the valid instrument for chopt
-        instrument = instrument.lower()
-        if instrument in INSTRUMENT_MAP:
-            command_instrument = INSTRUMENT_MAP[instrument]
-        else:
-            await ctx.send(f"Unsupported instrument: {instrument}")
-            return
-
-        if songname.lower() == "i'm a cat" or songname.lower() == "im a cat" or songname.lower() == "imacat":
-            # Load imacat.json for special handling
-            with open('imacat.json', 'r') as imacat_file:
-                imacat_data = json.load(imacat_file)
-                song_data = imacat_data
-        else:
-            # Step 1: Fetch song data from the API
-            tracks = fetch_available_jam_tracks()
-            if not tracks:
-                await ctx.send('Could not fetch tracks.')
+    The command will return a generated path image along with text notation from CHOpt. To understand how to read paths, consult the [Documentation](https://github.com/GenericMadScientist/CHOpt/blob/main/misc/How-to-read-paths.md).
+    """,
+        brief="Generate a path for a given song and instrument.",
+        usage="[shortname] [instrument]"
+    )
+    async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
+        try:
+            # Map the provided instrument alias to the valid instrument for chopt
+            instrument = instrument.lower()
+            if instrument in INSTRUMENT_MAP:
+                command_instrument = INSTRUMENT_MAP[instrument]
+            else:
+                await ctx.send(f"Unsupported instrument: {instrument}")
                 return
 
-            # Perform fuzzy search to find the matching song
-            matched_tracks = fuzzy_search_tracks(tracks, songname)
-            if not matched_tracks:
-                await ctx.send(f"No tracks found for '{songname}'.")
-                return
-            # Use the first matched track
-            song_data = matched_tracks[0]
-        
-        song_url = song_data['track'].get('mu')
-        album_art_url = song_data['track'].get('au')  # Fetch album art URL
-        track_title = song_data['track'].get('tt')  # Get the actual track title
-        artist_title = song_data['track'].get('an')  # Get the actual artist title
-        display_instrument = get_instrument_display_name(instrument)  # Get user-friendly instrument name
+            if songname.lower() == "i'm a cat" or songname.lower() == "im a cat" or songname.lower() == "imacat":
+                # Load imacat.json for special handling
+                with open('imacat.json', 'r') as imacat_file:
+                    imacat_data = json.load(imacat_file)
+                    song_data = imacat_data
+            else:
+                # Step 1: Fetch song data from the API
+                tracks = fetch_available_jam_tracks()
+                if not tracks:
+                    await ctx.send('Could not fetch tracks.')
+                    return
 
-        # Step 2: Decrypt the .dat file into a .mid file
-        dat_file = f"{songname}.dat"
-        midi_file = decrypt_dat_file(song_url, dat_file)
-        if not midi_file:
-            await ctx.send(f"Failed to decrypt the .dat file for '{songname}'.")
-            return
-
-        # Step 3: Modify the MIDI file if necessary (Pro Lead or Pro Bass)
-        modified_midi_file = None
-        if instrument in ['prolead', 'plasticguitar', 'proguitar', 'pg', 'pl', 'probass', 'plasticbass', 'pb']:
-            modified_midi_file = modify_midi_file(midi_file, instrument)
-            if not modified_midi_file:
-                await ctx.send(f"Failed to modify MIDI for '{instrument}'.")
-                return
-            midi_file = modified_midi_file  # Use the modified MIDI file for chopt
-
-        # Step 4: Generate the path image using chopt.exe
-        output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
-        chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image)
-
-        if chopt_error:
-            await ctx.send(f"An error occurred while running chopt: {chopt_error}")
-            return
-
-        # Step 5: Filter out "Optimising, please wait..." message from chopt output
-        filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
-
-        # Step 6: Send the generated image and filtered chopt output to the Discord channel
-        if os.path.exists(output_image):
-            # Attach the image
-            file = discord.File(output_image, filename=output_image)
-            # Embed the image in the message
-            embed = discord.Embed(title=f"", color=0x8927A1)
-            embed.add_field(name="", value=f"**{track_title}** - *{artist_title}*", inline=False)
-            embed.add_field(name="", value=f"{display_instrument} path generated via [CHOpt](https://github.com/GenericMadScientist/CHOpt)```{filtered_output}```", inline=False)
-            embed.set_image(url=f"attachment://{output_image}")
+                # Perform fuzzy search to find the matching song
+                matched_tracks = fuzzy_search_tracks(tracks, songname)
+                if not matched_tracks:
+                    await ctx.send(f"No tracks found for '{songname}'.")
+                    return
+                # Use the first matched track
+                song_data = matched_tracks[0]
             
-            # Set the album art as the thumbnail
-            embed.set_thumbnail(url=album_art_url)
+            song_url = song_data['track'].get('mu')
+            album_art_url = song_data['track'].get('au')  # Fetch album art URL
+            track_title = song_data['track'].get('tt')  # Get the actual track title
+            artist_title = song_data['track'].get('an')  # Get the actual artist title
+            display_instrument, instrument_codename = get_instrument_from_query(instrument)  # Get user-friendly instrument name
 
-            # Send the message with the embed and the file
-            await ctx.send(embed=embed, file=file)
+            # Step 2: Decrypt the .dat file into a .mid file
+            dat_file = f"{songname}.dat"
+            midi_file = decrypt_dat_file(song_url, dat_file)
+            if not midi_file:
+                await ctx.send(f"Failed to decrypt the .dat file for '{songname}'.")
+                return
 
-            # Clean up the image file after sending
-            os.remove(output_image)
-        else:
-            await ctx.send(f"Failed to generate the path image for '{track_title}'.")
+            # Step 3: Modify the MIDI file if necessary (Pro parts)
+            modified_midi_file = None
+            if 'Peripheral' in instrument_codename:
+                modified_midi_file = modify_midi_file(midi_file, instrument)
+                if not modified_midi_file:
+                    await ctx.send(f"Failed to modify MIDI for '{instrument}'.")
+                    return
+                midi_file = modified_midi_file  # Use the modified MIDI file for chopt
 
-        # Step 7: Clean up the generated MIDI and .dat files
-        os.remove(midi_file)  # Clean up the original or modified MIDI file
-        os.remove(os.path.join(TEMP_FOLDER, dat_file))    # Clean up the .dat file
+            # Step 4: Generate the path image using chopt.exe
+            output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
+            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image)
 
-    except Exception as e:
-        await ctx.send(f"An error occurred: {str(e)}")
+            if chopt_error:
+                await ctx.send(f"An error occurred while running chopt: {chopt_error}")
+                return
+
+            # Step 5: Filter out "Optimising, please wait..." message from chopt output
+            filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
+
+            # Step 6: Send the generated image and filtered chopt output to the Discord channel
+            if os.path.exists(output_image):
+                # Attach the image
+                file = discord.File(output_image, filename=output_image)
+                # Embed the image in the message
+                embed = discord.Embed(title=f"", color=0x8927A1)
+                embed.add_field(name="", value=f"**{track_title}** - *{artist_title}*", inline=False)
+                embed.add_field(name="", value=f"{display_instrument} path generated via [CHOpt](https://github.com/GenericMadScientist/CHOpt)```{filtered_output}```", inline=False)
+                embed.set_image(url=f"attachment://{output_image}")
+                
+                # Set the album art as the thumbnail
+                embed.set_thumbnail(url=album_art_url)
+
+                # Send the message with the embed and the file
+                await ctx.send(embed=embed, file=file)
+
+                # Clean up the image file after sending
+                os.remove(output_image)
+            else:
+                await ctx.send(f"Failed to generate the path image for '{track_title}'.")
+
+            # Step 7: Clean up the generated MIDI and .dat files
+            os.remove(midi_file)  # Clean up the original or modified MIDI file
+            os.remove(os.path.join(TEMP_FOLDER, dat_file))    # Clean up the .dat file
+
+        except Exception as e:
+            await ctx.send(f"An error occurred: {str(e)}")
 
 bot.run(DISCORD_TOKEN)
