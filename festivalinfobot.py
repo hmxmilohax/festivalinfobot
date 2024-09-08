@@ -2,10 +2,11 @@ import os
 import requests
 from discord.ext import commands, tasks
 import discord
+import time
 import json
 from configparser import ConfigParser
 from difflib import get_close_matches
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import string
 from discord.ext.commands import DefaultHelpCommand
 import subprocess
@@ -14,6 +15,8 @@ import mido
 # Load configuration from config.ini
 config = ConfigParser()
 config.read('config.ini')
+
+start_time = time.time()
 
 # Read the Discord bot token and channel IDs from the config file
 DISCORD_TOKEN = config.get('discord', 'token')
@@ -1545,4 +1548,101 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
         except Exception as e:
             await ctx.send(f"An error occurred: {str(e)}")
 
+# Function to calculate bot uptime
+def get_uptime():
+    current_time = time.time()
+    uptime_seconds = int(current_time - start_time)
+    uptime = str(timedelta(seconds=uptime_seconds))
+    return uptime
+
+# Function to get the current local commit hash
+def get_local_commit_hash():
+    try:
+        # Run git command to get the latest commit hash
+        commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('utf-8')
+        return commit_hash
+    except Exception as e:
+        print(f"Error getting local commit hash: {e}")
+        return "Unknown"
+
+# Function to fetch the latest commit hash from the GitHub repository
+def fetch_latest_github_commit_hash():
+    repo_url = "https://api.github.com/repos/hmxmilohax/festivalinfobot/commits"
+    response = requests.get(repo_url)
+    if response.status_code == 200:
+        latest_commit = response.json()[0]
+        commit_hash = latest_commit['sha']
+        commit_time = latest_commit['commit']['author']['date']
+        return commit_hash, commit_time
+    return "Unknown", "Unknown"
+
+
+# Convert uptime to a more human-readable format
+def format_uptime(seconds):
+    uptime_str = []
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours > 0:
+        uptime_str.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes > 0:
+        uptime_str.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds > 0 or not uptime_str:
+        uptime_str.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+    return ', '.join(uptime_str)
+
+# Check if the local commit hash is up-to-date, behind, or ahead
+def compare_commit_hashes(local_hash, remote_hash):
+    if local_hash == remote_hash:
+        return "Up-to-date"
+    else:
+        return "Out of sync"
+
+# Convert ISO 8601 date to Unix timestamp for Discord's <t> formatting
+def iso_to_unix_timestamp(iso_time_str):
+    try:
+        dt = datetime.fromisoformat(iso_time_str.replace('Z', '+00:00'))
+        return int(dt.timestamp())
+    except ValueError:
+        return None
+
+@bot.command(name='stats', help='Displays Festival Tracker statistics.')
+async def bot_stats(ctx):
+    # Get the number of servers the bot is in
+    server_count = len(bot.guilds)
+    
+    # Get the bot uptime
+    current_time = time.time()
+    uptime_seconds = int(current_time - start_time)
+    uptime = format_uptime(uptime_seconds)
+    
+    # Get the last GitHub update and latest commit hash
+    latest_commit_hash, last_update = fetch_latest_github_commit_hash()
+    
+    # Get the current local commit hash
+    local_commit_hash = get_local_commit_hash()
+
+    # Check if the local commit hash is up-to-date
+    commit_status = compare_commit_hashes(local_commit_hash, latest_commit_hash)
+
+    # Convert the last update time to a Unix timestamp
+    last_update_timestamp = iso_to_unix_timestamp(last_update)
+    if last_update_timestamp:
+        last_update_formatted = f"<t:{last_update_timestamp}:R>"  # Use Discord's relative time format
+    else:
+        last_update_formatted = "Unknown"
+
+    # Create an embed to display the statistics
+    embed = discord.Embed(
+        title="Festival Tracker Statistics",
+        description="",
+        color=0x8927A1
+    )
+    embed.add_field(name="Servers", value=f"{server_count} servers", inline=False)
+    embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
+    embed.add_field(name="Last GitHub Update", value=f"{last_update_formatted}", inline=False)
+    embed.add_field(name="Latest Commit Hash", value=f"{latest_commit_hash}", inline=False)
+    embed.add_field(name="Current Local Commit Hash", value=f"{local_commit_hash} ({commit_status})", inline=False)
+
+    # Send the statistics embed
+    await ctx.send(embed=embed)
 bot.run(DISCORD_TOKEN)
