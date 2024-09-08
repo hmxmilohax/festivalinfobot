@@ -1439,13 +1439,14 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         return None
 
 # Function to call chopt.exe and capture its output
-def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: str = None):
+def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: str = None, difficulty: str = 'expert'):
     chopt_command = [
         'chopt.exe', 
         '-f', midi_file, 
         '--engine', 'fnf', 
         '--squeeze', str(squeeze_percent),
-        '--early-whammy', '0'
+        '--early-whammy', '0',
+        '--diff', difficulty
     ]
 
     # Only add --no-pro-drums flag if it's NOT Pro Drums
@@ -1456,9 +1457,6 @@ def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeez
         '-i', command_instrument, 
         '-o', output_image
     ])
-
-    # Print the final command to debug any issues
-    print(f"Running chopt with command: {' '.join(chopt_command)}")
 
     result = subprocess.run(chopt_command, text=True, capture_output=True)
     
@@ -1484,14 +1482,31 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
         * `bass`, `ba`, `b`: for regular bass parts
         * `drums`, `ds`, `d`: for regular drum parts
 
-        Optional argument:
+        Optional arguments:
         * `squeeze_percent`: A value between 0-100 to customize squeeze percent (default: 20).
+        * `difficulty`: One of `easy`, `medium`, `hard`, or `expert`.
         """,
         brief="Generate a path for a given song and instrument.",
-        usage="[shortname] [instrument] [squeeze_percent]"
+        usage="[shortname] [instrument] [squeeze_percent] [difficulty]"
     )
-    async def generate_path(ctx, songname: str, instrument: str = 'guitar', squeeze_percent: int = 20):
+    async def generate_path(ctx, songname: str, instrument: str = 'guitar', *args):
         try:
+            squeeze_percent = 20  # Default squeeze percent
+            difficulty = 'expert'  # Default difficulty
+
+            # Handle arguments for difficulty and squeeze_percent
+            for arg in args:
+                if arg.isdigit():  # If the argument is a number, assume it's the squeeze percent
+                    squeeze_percent = int(arg)
+                    if squeeze_percent < 0 or squeeze_percent > 100:
+                        await ctx.send("Squeeze percent must be between 0 and 100.")
+                        return
+                elif arg.lower() in ['easy', 'medium', 'hard', 'expert']:  # If it's a valid difficulty
+                    difficulty = arg.lower()
+                else:
+                    await ctx.send(f"Invalid argument: {arg}. Expected difficulty (easy, medium, hard, expert) or a squeeze percent (0-100).")
+                    return
+
             # Map the provided instrument alias to the valid instrument for chopt
             instrument = instrument.lower()
             if instrument in INSTRUMENT_MAP:
@@ -1542,6 +1557,12 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
                     return
                 midi_file = modified_midi_file  # Use the modified MIDI file for chopt
 
+            # Validate difficulty
+            difficulty = difficulty.lower()
+            if difficulty not in ['easy', 'medium', 'hard', 'expert']:
+                await ctx.send("Difficulty must be one of: easy, medium, hard, expert.")
+                return
+
             # Ensure squeeze_percent is within 0-100
             if squeeze_percent < 0 or squeeze_percent > 100:
                 await ctx.send("Squeeze percent must be between 0 and 100.")
@@ -1549,7 +1570,7 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
 
             # Step 4: Generate the path image using chopt.exe
             output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
-            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument)
+            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument, difficulty)
 
             if chopt_error:
                 await ctx.send(f"An error occurred while running chopt: {chopt_error}")
@@ -1565,7 +1586,10 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
                 # Embed the image in the message
                 embed = discord.Embed(title=f"", color=0x8927A1)
                 embed.add_field(name="", value=f"**{track_title}** - *{artist_title}*", inline=False)
-                embed.add_field(name="", value=f"{display_instrument} path generated via [CHOpt](https://github.com/GenericMadScientist/CHOpt)```{filtered_output}```", inline=False)
+                embed.add_field(name="", value=f"`Instrument:` **{display_instrument}**", inline=False)
+                embed.add_field(name="", value=f"`Difficulty:` **{difficulty.capitalize()}**", inline=False)
+                embed.add_field(name="", value=f"`Squeeze Percent:` **{squeeze_percent}%**", inline=False)
+                embed.add_field(name="", value=f"```{filtered_output}```", inline=True)
                 embed.set_image(url=f"attachment://{output_image}")
                 
                 # Set the album art as the thumbnail
