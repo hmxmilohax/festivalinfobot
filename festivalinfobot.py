@@ -545,13 +545,22 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
                 f"Drums: {generate_difficulty_bar(difficulty.get('drums', 0))} "
                 f"Vocals: {generate_difficulty_bar(difficulty.get('vocals', 0))} "
             )
+            # Construct the difficulty string using generate_difficulty_bar
+            difficulty_str = (
+                f"Lead:      {generate_difficulty_bar(difficulty.get('guitar', 0))} "
+                f"Bass:      {generate_difficulty_bar(difficulty.get('bass', 0))} "
+                f"Drums:     {generate_difficulty_bar(difficulty.get('drums', 0))}\n"
+                f"Pro Lead:  {generate_difficulty_bar(difficulty.get('proguitar', 0))} "
+                f"Pro Bass:  {generate_difficulty_bar(difficulty.get('proguitar', 0))} "
+                f"Vocals:    {generate_difficulty_bar(difficulty.get('vocals', 0))}"
+            )
 
             embed.add_field(
                 name="",
                 value=(
-                    f"**\\- {track['title']}**\n*{track['artist']}*, {track['releaseYear']} - {duration_str}\n"
-                    f"Added {in_date_display} - Leaving {out_date_display}\n"
+                    f"**\\• {track['title']}** - *{track['artist']}*\n"
                     f"`{difficulty_str}`"
+                    f"\nAdded {in_date_display} - Leaving {out_date_display}\n"
                 ),
                 inline=False
             )
@@ -572,9 +581,9 @@ def generate_tracks_embeds(tracks, title, daily_shortnames, chunk_size=5):
             if active_until:
                 active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00'))
                 human_readable_until = active_until_date.strftime("%B %d, %Y, %I:%M %p UTC")
-                embed.add_field(name="", value=f"{track['track']['tt']} - *{track['track']['an']}*\nLeaving {human_readable_until}", inline=False)
+                embed.add_field(name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}*\nLeaving {human_readable_until}", inline=False)
             else:
-                embed.add_field(name="", value=f"{track['track']['tt']} - *{track['track']['an']}*", inline=False)
+                embed.add_field(name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}*", inline=False)
         embeds.append(embed)
     
     return embeds
@@ -1085,10 +1094,25 @@ async def daily_tracks(ctx):
             title = track['track'].get('tt')
             artist = track['track'].get('an')
 
+            # Fetch difficulty data
+            difficulty_data = track['track'].get('in', {})  # Assuming difficulties are stored under 'in'
+
+            # Construct the difficulty string using generate_difficulty_bar
+            difficulty_str = (
+                f"Lead:      {generate_difficulty_bar(difficulty_data.get('gr', 0))} "
+                f"Bass:      {generate_difficulty_bar(difficulty_data.get('ba', 0))} "
+                f"Drums:     {generate_difficulty_bar(difficulty_data.get('ds', 0))}\n"
+                f"Pro Lead:  {generate_difficulty_bar(difficulty_data.get('pg', 0))} "
+                f"Pro Bass:  {generate_difficulty_bar(difficulty_data.get('pb', 0))} "
+                f"Vocals:    {generate_difficulty_bar(difficulty_data.get('vl', 0))}"
+            )
+
+
             daily_tracks.append({
                 'track': track,
                 'title': title,
                 'artist': artist,
+                'difficulty': difficulty_str,
                 'activeSince': active_since_ts,
                 'activeUntil': active_until_ts
             })
@@ -1098,7 +1122,7 @@ async def daily_tracks(ctx):
 
     if daily_tracks:
         embeds = []
-        chunk_size = 10  # Limit the number of tracks per embed to 5 for readability
+        chunk_size = 10  # Limit the number of tracks per embed to 10 for readability
         
         for i in range(0, len(daily_tracks), chunk_size):
             embed = discord.Embed(title="Daily Rotation Tracks", color=0x8927A1)
@@ -1109,13 +1133,16 @@ async def daily_tracks(ctx):
                 active_until_ts = entry['activeUntil']
                 title = entry['title']
                 artist = entry['artist']
+                difficulty = entry['difficulty']
 
                 # Format timestamps in Discord format
                 active_since_display = f"<t:{active_since_ts}:R>" if active_since_ts else "Unknown"
                 active_until_display = f"<t:{active_until_ts}:R>" if active_until_ts else "Unknown"
                 embed.add_field(
                     name="",
-                    value=f"**\\- {title if title else 'Unknown Title'}**\n*{artist if artist else 'Unknown Artist'}*\nAdded: {active_since_display} - Leaving: {active_until_display}",
+                    value=f"**\\• {title if title else 'Unknown Title'}** - *{artist if artist else 'Unknown Artist'}*\n"
+                          f"`Added:` {active_since_display} - `Leaving:` {active_until_display}"
+                          f"```{difficulty}```\n",
                     inline=False
                 )
             embeds.append(embed)
@@ -1184,14 +1211,16 @@ async def shop_tracks(ctx):
     if not is_running_in_command_channel(ctx.channel.id):
         return
 
-    tracks = fetch_shop_tracks()
+    tracks = fetch_shop_tracks()  # Data from shop API
+    track_data = fetch_available_jam_tracks()  # Data from jam API
+
     if not tracks:
         await ctx.send('Could not fetch shop tracks.')
         return
-    
+
     # Sort the tracks alphabetically by title
     tracks = list(tracks.values())
-    tracks.sort(key=lambda x: x['title'].lower())
+    tracks.sort(key=lambda x: x['title'].lower() if x.get('title') else 'Unknown')
 
     if not tracks:
         await ctx.send('No tracks available in the shop.')
@@ -1202,8 +1231,62 @@ async def shop_tracks(ctx):
     title = f"Shop Tracks (Total: {total_tracks})"
 
     # Generate paginated embeds with 7 tracks per embed
-    embeds = generate_shop_tracks_embeds(tracks, title, chunk_size=7)
-    
+    embeds = []
+    chunk_size = 7
+    for i in range(0, len(tracks), chunk_size):
+        embed = discord.Embed(title=title, color=0x8927A1)
+        chunk = tracks[i:i + chunk_size]
+
+        for shop_track in chunk:
+            # Convert duration from seconds to a more readable format
+            duration_minutes = shop_track['duration'] // 60
+            duration_seconds = shop_track['duration'] % 60
+            duration_str = f"{duration_minutes}m {duration_seconds}s"
+
+            # Convert inDate and outDate to Discord timestamp format
+            in_date_ts = int(datetime.fromisoformat(shop_track['inDate'].replace('Z', '+00:00')).timestamp()) if shop_track.get('inDate') else None
+            out_date_ts = int(datetime.fromisoformat(shop_track['outDate'].replace('Z', '+00:00')).timestamp()) if shop_track.get('outDate') else None
+
+            in_date_display = f"<t:{in_date_ts}:R>" if in_date_ts else "Unknown"
+            out_date_display = f"<t:{out_date_ts}:R>" if out_date_ts else "Unknown"
+
+            # Match the shop track by shortname ('sn') for better mapping
+            shortname = shop_track.get('devName')  # Adjust this if your shortname is stored differently
+            jam_track = next((track for track in track_data.values() if track['track'].get('sn') == shortname), None)
+            
+            if jam_track:
+                title = jam_track['track'].get('tt', 'Unknown Title')
+                artist = jam_track['track'].get('an', 'Unknown Artist')
+
+                # Fetch difficulty data from jam track
+                difficulty_data = jam_track['track'].get('in', {})  # Assuming difficulties are stored under 'in'
+
+                # Construct the difficulty string using generate_difficulty_bar
+                difficulty_str = (
+                    f"Lead:      {generate_difficulty_bar(difficulty_data.get('gr', 0))} "
+                    f"Bass:      {generate_difficulty_bar(difficulty_data.get('ba', 0))} "
+                    f"Drums:     {generate_difficulty_bar(difficulty_data.get('ds', 0))}\n"
+                    f"Pro Lead:  {generate_difficulty_bar(difficulty_data.get('pg', 0))} "
+                    f"Pro Bass:  {generate_difficulty_bar(difficulty_data.get('pb', 0))} "
+                    f"Vocals:    {generate_difficulty_bar(difficulty_data.get('vl', 0))}"
+                )
+            else:
+                title = shop_track.get('title', 'Unknown Title')
+                artist = shop_track.get('artist', 'Unknown Artist')
+                difficulty_str = "No difficulty data available"
+
+            embed.add_field(
+                name="",
+                value=(
+                    f"**\\• {title}** - *{artist}*\n"
+                    f"`Added:` {in_date_display} - `Leaving:` {out_date_display}\n"
+                    f"```{difficulty_str}```"
+                ),
+                inline=False
+            )
+
+        embeds.append(embed)
+
     # Initialize the paginator view
     view = PaginatorView(embeds, ctx.author.id)
     view.message = await ctx.send(embed=view.get_embed(), view=view)
