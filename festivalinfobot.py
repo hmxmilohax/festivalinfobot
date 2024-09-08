@@ -61,6 +61,11 @@ INSTRUMENT_MAP = {
     'plasticbass': 'bass',
     'probass': 'bass',
     'pb': 'bass',
+    # Pro Drums
+    'plasticdrums': 'drums',
+    'prodrums': 'drums',
+    'prodrum': 'drums',
+    'pd': 'drums', 
     # Lead
     'guitar': 'guitar',
     'gr': 'guitar',
@@ -277,6 +282,8 @@ def get_instrument_from_query(instrument):
         return ('Pro Lead', 'Solo_PeripheralGuitar')
     elif instrument in ['plasticbass', 'probass', 'pb']:
         return ('Pro Bass', 'Solo_PeripheralBass')
+    elif instrument in ['plasticdrums', 'prodrums', 'prodrum', 'pd']:
+        return ('Pro Drums', 'Solo_PeripheralDrum')
     elif instrument in ['guitar', 'gr', 'lead', 'ld', 'g', 'l']:
         return ('Lead', 'Solo_Guitar')
     elif instrument in ['bass', 'ba', 'b']:
@@ -565,7 +572,7 @@ def generate_shop_tracks_embeds(tracks, title, chunk_size=5):
                 f"Bass:      {generate_difficulty_bar(difficulty.get('bass', 0))} "
                 f"Drums:     {generate_difficulty_bar(difficulty.get('drums', 0))}\n"
                 f"Pro Lead:  {generate_difficulty_bar(difficulty.get('proguitar', 0))} "
-                f"Pro Bass:  {generate_difficulty_bar(difficulty.get('proguitar', 0))} "
+                f"Pro Bass:  {generate_difficulty_bar(difficulty.get('probass', 0))} "
                 f"Vocals:    {generate_difficulty_bar(difficulty.get('vocals', 0))}"
             )
 
@@ -1378,7 +1385,7 @@ async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_o
     else:
         await ctx.send('No entries in leaderboard.')
 
-# Helper function to modify the MIDI file for Pro Lead and Pro Bass
+# Helper function to modify the MIDI file for Pro Lead and Pro Bass and Pro Drum
 def modify_midi_file(midi_file: str, instrument: str) -> str:
     try:
         print(f"Loading MIDI file: {midi_file}")
@@ -1386,13 +1393,16 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         track_names_to_delete = []
         track_names_to_rename = {}
 
-        # Check for Pro Lead or Pro Bass
+        # Check for Pro Lead, Pro Bass, or Pro Drums
         if instrument in ['plasticguitar', 'prolead', 'pl', 'proguitar', 'pg']:
             track_names_to_delete.append('PART GUITAR')
             track_names_to_rename['PLASTIC GUITAR'] = 'PART GUITAR'
         elif instrument in ['plasticbass', 'probass', 'pb']:
             track_names_to_delete.append('PART BASS')
             track_names_to_rename['PLASTIC BASS'] = 'PART BASS'
+        elif instrument in ['plasticdrums', 'prodrums', 'prodrum', 'pd']:
+            track_names_to_delete.append('PART DRUMS')
+            track_names_to_rename['PLASTIC DRUMS'] = 'PART DRUMS'
 
         # Logging track modification intent
         print(f"Track names to delete: {track_names_to_delete}")
@@ -1429,17 +1439,27 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         return None
 
 # Function to call chopt.exe and capture its output
-def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20):
+def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: str = None):
     chopt_command = [
         'chopt.exe', 
         '-f', midi_file, 
         '--engine', 'fnf', 
         '--squeeze', str(squeeze_percent),
-        '--early-whammy', '0', 
-        '--no-pro-drums', 
+        '--early-whammy', '0'
+    ]
+
+    # Only add --no-pro-drums flag if it's NOT Pro Drums
+    if instrument not in ['plasticdrums', 'prodrums', 'prodrum', 'pd']:
+        chopt_command.append('--no-pro-drums')
+
+    chopt_command.extend([
         '-i', command_instrument, 
         '-o', output_image
-    ]
+    ])
+
+    # Print the final command to debug any issues
+    print(f"Running chopt with command: {' '.join(chopt_command)}")
+
     result = subprocess.run(chopt_command, text=True, capture_output=True)
     
     if result.returncode != 0:
@@ -1458,6 +1478,7 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
         - `[instrument]` must be one of the supported instruments:
         * `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: for Pro Lead/Guitar
         * `plasticbass`, `probass`, `pb`: for Pro Bass
+        * `plasticdrums`, `prodrums`, `prodrum`, `pd`: for Pro Drums
         * `vocals`, `vl`, `v`: for regular vocal parts
         * `guitar`, `gr`, `lead`, `ld`, `g`, `l`: for regular guitar parts
         * `bass`, `ba`, `b`: for regular bass parts
@@ -1528,7 +1549,7 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
 
             # Step 4: Generate the path image using chopt.exe
             output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
-            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent)
+            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument)
 
             if chopt_error:
                 await ctx.send(f"An error occurred while running chopt: {chopt_error}")
