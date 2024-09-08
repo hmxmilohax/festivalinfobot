@@ -1,7 +1,7 @@
 
 # Terms of Service
 
-_Last Updated: [Insert Date]_
+_Last Updated: 09.07.2024
 
 1. **Acceptance of Terms**  
    By using this Discord bot, you agree to comply with and be bound by the following terms. If you do not agree to these terms, please do not use the bot.
@@ -19,4 +19,4 @@ _Last Updated: [Insert Date]_
    The bot is provided "as is" and "as available." The bot owner makes no representations or warranties regarding the operation of the bot or the information provided. The bot owner will not be held liable for any damage or loss arising from your use of the bot.
 
 6. **Governing Law**  
-   These terms are governed by and construed in accordance with the laws of [Insert Jurisdiction].
+   These terms are governed by and construed in accordance with the laws of The United States of America.
