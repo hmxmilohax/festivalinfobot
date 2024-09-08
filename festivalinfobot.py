@@ -1640,8 +1640,8 @@ async def bot_stats(ctx):
     embed.add_field(name="Servers", value=f"{server_count} servers", inline=False)
     embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
     embed.add_field(name="Last GitHub Update", value=f"{last_update_formatted}", inline=False)
-    embed.add_field(name="Latest Commit Hash", value=f"{latest_commit_hash}", inline=False)
-    embed.add_field(name="Current Local Commit Hash", value=f"{local_commit_hash} ({commit_status})", inline=False)
+    embed.add_field(name="Latest Commit Hash", value=f"`{latest_commit_hash}`", inline=False)
+    embed.add_field(name="Current Local Commit Hash", value=f"`{local_commit_hash}` ({commit_status})", inline=False)
 
     # Send the statistics embed
     await ctx.send(embed=embed)
