@@ -254,11 +254,9 @@ class LastButton(discord.ui.Button):
 
 async def send_auto_publish_message(channel, embed):
     try:
-        # Correct the function call to send the message instead of calling itself
         message = await channel.send(embed=embed)
-
-        # Check if the channel is an announcement (news) channel
-        if channel.is_news():
+        # Check if the channel is a TextChannel and if it's a news channel
+        if isinstance(channel, discord.TextChannel) and channel.is_news():
             # Auto-publish the message
             await message.publish()
             print(f"Published message in announcement channel: {channel.name}")
