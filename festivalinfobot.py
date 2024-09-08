@@ -254,8 +254,8 @@ class LastButton(discord.ui.Button):
 
 async def send_auto_publish_message(channel, embed):
     try:
-        # Send the message with the embed
-        message = await send_auto_publish_message(channel, embed)
+        # Correct the function call to send the message instead of calling itself
+        message = await channel.send(embed=embed)
 
         # Check if the channel is an announcement (news) channel
         if channel.is_news():
