@@ -1429,12 +1429,12 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         return None
 
 # Function to call chopt.exe and capture its output
-def run_chopt(midi_file: str, command_instrument: str, output_image: str):
+def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20):
     chopt_command = [
         'chopt.exe', 
         '-f', midi_file, 
         '--engine', 'fnf', 
-        '--squeeze', '20', 
+        '--squeeze', str(squeeze_percent),
         '--early-whammy', '0', 
         '--no-pro-drums', 
         '-i', command_instrument, 
@@ -1452,23 +1452,24 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
     @bot.command(
         name='path',
         help="""
-    Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.
-    To type a search query, enclose it in quotes (`"`)
+        Generate a path using [CHOpt](https://github.com/GenericMadScientist/CHOpt) for a given song and instrument.
+        To type a search query, enclose it in quotes (`"`)
 
-    - `[instrument]` must be one of the supported instruments:
-    * `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: for Pro Lead/Guitar
-    * `plasticbass`, `probass`, `pb`: for Pro Bass
-    * `vocals`, `vl`, `v`: for regular vocal parts
-    * `guitar`, `gr`, `lead`, `ld`, `g`, `l`: for regular guitar parts
-    * `bass`, `ba`, `b`: for regular bass parts
-    * `drums`, `ds`, `d`:  for regular drum parts
+        - `[instrument]` must be one of the supported instruments:
+        * `plasticguitar`, `prolead`, `pl`, `proguitar`, `pg`: for Pro Lead/Guitar
+        * `plasticbass`, `probass`, `pb`: for Pro Bass
+        * `vocals`, `vl`, `v`: for regular vocal parts
+        * `guitar`, `gr`, `lead`, `ld`, `g`, `l`: for regular guitar parts
+        * `bass`, `ba`, `b`: for regular bass parts
+        * `drums`, `ds`, `d`: for regular drum parts
 
-    The command will return a generated path image along with text notation from CHOpt. To understand how to read paths, consult the [Documentation](https://github.com/GenericMadScientist/CHOpt/blob/main/misc/How-to-read-paths.md).
-    """,
+        Optional argument:
+        * `squeeze_percent`: A value between 0-100 to customize squeeze percent (default: 20).
+        """,
         brief="Generate a path for a given song and instrument.",
-        usage="[shortname] [instrument]"
+        usage="[shortname] [instrument] [squeeze_percent]"
     )
-    async def generate_path(ctx, songname: str, instrument: str = 'guitar'):
+    async def generate_path(ctx, songname: str, instrument: str = 'guitar', squeeze_percent: int = 20):
         try:
             # Map the provided instrument alias to the valid instrument for chopt
             instrument = instrument.lower()
@@ -1520,9 +1521,14 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
                     return
                 midi_file = modified_midi_file  # Use the modified MIDI file for chopt
 
+            # Ensure squeeze_percent is within 0-100
+            if squeeze_percent < 0 or squeeze_percent > 100:
+                await ctx.send("Squeeze percent must be between 0 and 100.")
+                return
+
             # Step 4: Generate the path image using chopt.exe
             output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
-            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image)
+            chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent)
 
             if chopt_error:
                 await ctx.send(f"An error occurred while running chopt: {chopt_error}")
@@ -1656,4 +1662,5 @@ async def bot_stats(ctx):
 
     # Send the statistics embed
     await ctx.send(embed=embed)
+
 bot.run(DISCORD_TOKEN)
