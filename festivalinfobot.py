@@ -1789,15 +1789,6 @@ async def history(ctx, *, song_name: str = None):
         await ctx.send("Please provide a song name.")
         return
 
-    # Send the "thinking" message to show the user the bot is working
-    thinking_message = await ctx.send("Processing the history of the song...")
-
-    # Step 1: Fetch the revision history of the spark-tracks.json file
-    commit_history = fetch_revision_history()
-    if not commit_history:
-        await ctx.send("Unable to fetch revision history.")
-        return
-
     # Step 2: Fetch the current track data from the jam API to perform fuzzy search
     tracks = fetch_available_jam_tracks()
     if not tracks:
@@ -1810,11 +1801,19 @@ async def history(ctx, *, song_name: str = None):
         await ctx.send(f"No tracks found for '{song_name}'.")
         return
 
-    # Use the first matched track to get the song's shortname, title, and artist
     track_data = matched_tracks[0]
     shortname = track_data['track'].get('sn')
     actual_title = track_data['track'].get('tt', 'Unknown Title')
     actual_artist = track_data['track'].get('an', 'Unknown Artist')
+
+    # Send the "thinking" message to show the user the bot is working
+    thinking_message = await ctx.send(f"Processing the history of **{actual_title}** - *{actual_artist}*\nPlease wait...")
+
+    # Step 1: Fetch the revision history of the spark-tracks.json file
+    commit_history = fetch_revision_history()
+    if not commit_history:
+        await ctx.send("Unable to fetch revision history.")
+        return
 
     # Step 3: Track changes in MIDI file over all commits
     midi_file_changes = []
@@ -1844,7 +1843,7 @@ async def history(ctx, *, song_name: str = None):
 
     # Handle the case where only one version exists
     if len(midi_file_changes) <= 1:
-        await ctx.send(f"No changes detected for the song **{actual_title}** - *{actual_artist}*. Only one version of the MIDI file exists.")
+        await ctx.send(f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
         await thinking_message.delete()  # Clean up the thinking message
         return
 
