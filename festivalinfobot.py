@@ -141,7 +141,7 @@ class CustomHelpCommand(DefaultHelpCommand):
         await send_auto_publish_message(channel, embed)
 
     async def send_command_help(self, command):
-        prefix = COMMAND_PREFIX[0]
+        prefix = self.context.prefix
         embed = discord.Embed(
             title=f"Help with `{prefix}{command.name}`",
             description=command.help or "No description provided.",
@@ -1778,7 +1778,7 @@ def fetch_file_from_commit(commit_sha):
         return None
 
 @bot.command(
-    name='history', help="Check the history of a song's midi file and compare versions.",
+    name='history', help="Check the history of a song's midi file and visually compare versions.\nThis may take a bit to generate while it searches a song's history.\nMay not include every single midi revision that has ever existed.",
     usage="[songname]"
 )
 async def history(ctx, *, song_name: str = None):
