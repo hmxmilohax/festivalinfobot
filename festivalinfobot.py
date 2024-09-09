@@ -1913,8 +1913,4 @@ async def on_command_error(ctx, error):
         await ctx.send("You do not have the necessary permissions to run this command. Only admins can use this command.")
         await ctx.message.add_reaction('❌')  # React with an 'X' emoji to indicate the bot lacks permissions
 
-    # Handle other errors
-    else:
-        await ctx.send(f"An error occurred: {str(error)}")
-
 bot.run(DISCORD_TOKEN)
