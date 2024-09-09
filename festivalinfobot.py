@@ -1708,4 +1708,156 @@ async def bot_stats(ctx):
     # Send the statistics embed
     await ctx.send(embed=embed)
 
+def fetch_revision_history():
+    repo_commits_url = "https://api.github.com/repos/FNLookup/data/commits?path=festival/spark-tracks.json"
+    commits = []
+    page = 1
+
+    while True:
+        try:
+            # Request the commits, paginating through all pages (max 100 per page)
+            response = requests.get(f"{repo_commits_url}&per_page=100&page={page}")
+            response.raise_for_status()
+            data = response.json()
+            
+            # If no more commits are returned, we've reached the end of the history
+            if not data:
+                break
+            
+            commits.extend(data)
+            page += 1  # Move to the next page of results
+            
+        except requests.RequestException as e:
+            print(f"Error fetching commit history: {e}")
+            return None
+
+    return commits
+
+def fetch_file_from_commit(commit_sha):
+    # Fetch the spark-tracks.json file from a specific commit
+    file_url = f"https://raw.githubusercontent.com/FNLookup/data/{commit_sha}/festival/spark-tracks.json"
+    
+    try:
+        response = requests.get(file_url)
+        response.raise_for_status()
+        return response.json()  # Return the file's content as JSON
+    except requests.RequestException as e:
+        print(f"Error fetching file from commit {commit_sha}: {e}")
+        return None
+
+@bot.command(
+    name='history', help="Check the history of a song's midi file and compare versions.",
+    usage="[songname]"
+)
+async def history(ctx, *, song_name: str = None):
+    if not is_running_in_command_channel(ctx.channel.id):
+        return
+
+    if not song_name:
+        await ctx.send("Please provide a song name.")
+        return
+
+    # Send the "thinking" message to show the user the bot is working
+    thinking_message = await ctx.send("Processing the history of the song...")
+
+    # Step 1: Fetch the revision history of the spark-tracks.json file
+    commit_history = fetch_revision_history()
+    if not commit_history:
+        await ctx.send("Unable to fetch revision history.")
+        return
+
+    # Step 2: Fetch the current track data from the jam API to perform fuzzy search
+    tracks = fetch_available_jam_tracks()
+    if not tracks:
+        await ctx.send('Could not fetch tracks.')
+        return
+
+    # Perform fuzzy search to find the matching song
+    matched_tracks = fuzzy_search_tracks(tracks, song_name)
+    if not matched_tracks:
+        await ctx.send(f"No tracks found for '{song_name}'.")
+        return
+
+    # Use the first matched track to get the song's shortname, title, and artist
+    track_data = matched_tracks[0]
+    shortname = track_data['track'].get('sn')
+    actual_title = track_data['track'].get('tt', 'Unknown Title')
+    actual_artist = track_data['track'].get('an', 'Unknown Artist')
+
+    # Step 3: Track changes in MIDI file over all commits
+    midi_file_changes = []
+    seen_midi_files = set()
+
+    for commit in commit_history:
+        commit_sha = commit['sha']
+        file_content = fetch_file_from_commit(commit_sha)
+        if not file_content:
+            continue
+        
+        # Check for the song in this commit's spark-tracks.json
+        song_data = file_content.get(shortname)
+        if song_data and 'track' in song_data:
+            midi_file_from_commit = song_data['track'].get('mu', None)
+            last_modified = song_data.get('lastModified', None)
+
+            # If it's a new version of the MIDI file, store it
+            if midi_file_from_commit and midi_file_from_commit not in seen_midi_files:
+                if last_modified:
+                    last_modified_date = datetime.fromisoformat(last_modified.replace('Z', '+00:00')).strftime("%B %d, %Y")
+                else:
+                    last_modified_date = "Unknown"
+
+                midi_file_changes.append((last_modified_date, midi_file_from_commit))
+                seen_midi_files.add(midi_file_from_commit)
+
+    # Handle the case where only one version exists
+    if len(midi_file_changes) <= 1:
+        await ctx.send(f"No changes detected for the song **{actual_title}** - *{actual_artist}*. Only one version of the MIDI file exists.")
+        await thinking_message.delete()  # Clean up the thinking message
+        return
+
+    # Step 4: Reverse and Compare MIDI Files from Oldest to Newest
+    midi_file_changes.reverse()
+
+    for i in range(1, len(midi_file_changes)):
+        old_midi_url = midi_file_changes[i - 1][1]
+        new_midi_url = midi_file_changes[i][1]
+        old_midi_date = midi_file_changes[i - 1][0]
+        new_midi_date = midi_file_changes[i][0]
+
+        old_midi_file = decrypt_dat_file(old_midi_url, f"version_{i - 1}.dat")
+        new_midi_file = decrypt_dat_file(new_midi_url, f"version_{i}.dat")
+
+        if old_midi_file and new_midi_file:
+            # Add debug logging to confirm comparison command runs properly
+            comparison_command = ['python', 'compare_midi.py', old_midi_file, new_midi_file]
+            result = subprocess.run(comparison_command, capture_output=True, text=True)
+            print(result.stdout)  # Log output of comparison script
+            print(result.stderr)  # Log any errors
+
+            # Assuming your comparison script generates images in the TEMP_FOLDER
+            comparison_images = [f for f in os.listdir(TEMP_FOLDER) if f.endswith('.png')]
+            
+            if comparison_images:
+                for image in comparison_images:
+                    image_path = os.path.join(TEMP_FOLDER, image)
+                    if os.path.getsize(image_path) > 0:  # Check if the image is non-empty
+                        file = discord.File(image_path, filename=image)
+                        embed = discord.Embed(
+                            title=f"MIDI Comparison for {actual_title} - {actual_artist}",
+                            description=f"Comparing MIDI from {old_midi_date} to {new_midi_date}"
+                        )
+                        embed.set_image(url=f"attachment://{image}")
+                        await ctx.send(embed=embed, file=file)
+            else:
+                await ctx.send(f"Comparison between {old_midi_date} and {new_midi_date} failed to generate any images. Notes were likely unchanged.")
+            
+            # Clean up generated images
+            clear_out_folder(TEMP_FOLDER)
+        else:
+            await ctx.send(f"Failed to decrypt one or both MIDI files for comparison between {old_midi_date} and {new_midi_date}.")
+
+    # Step 5: Clean up the "thinking" message
+    await thinking_message.delete()
+
 bot.run(DISCORD_TOKEN)
