@@ -91,6 +91,24 @@ INSTRUMENT_MAP = {
 intents = discord.Intents.default()
 intents.message_content = True  # Enable message content intent
 
+# Load prefixes from a JSON file
+def load_prefixes():
+    if os.path.exists("prefixes.json"):
+        with open("prefixes.json", "r") as f:
+            return json.load(f)
+    return {}
+
+# Save prefixes to a JSON file
+def save_prefixes(prefixes):
+    with open("prefixes.json", "w") as f:
+        json.dump(prefixes, f, indent=4)
+
+# Define the command prefix function that checks for a custom prefix per guild
+def get_prefix(bot, message):
+    prefixes = load_prefixes()
+    guild_id = str(message.guild.id) if message.guild else None
+    return prefixes.get(guild_id, COMMAND_PREFIX[0])  # Default to the global prefix if not found
+
 class CustomHelpCommand(DefaultHelpCommand):
     def __init__(self):
         super().__init__()
@@ -98,9 +116,11 @@ class CustomHelpCommand(DefaultHelpCommand):
         self.command_attrs['help'] = 'Shows this help message'
 
     async def send_bot_help(self, mapping):
+        ctx = self.context
+        prefix = self.context.prefix  # Get the actual prefix being used in this context
         embed = discord.Embed(
             title="Festival Tracker Help",
-            description="A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)",
+            description=f"A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)\nUse `{prefix}help <command>` to get more information on a specific command.",
             color=0x8927A1
         )
 
@@ -109,27 +129,27 @@ class CustomHelpCommand(DefaultHelpCommand):
                 name = cog.qualified_name
                 filtered = await self.filter_commands(commands, sort=True)
                 if filtered:
-                    value = '\n'.join([f"`{COMMAND_PREFIX[0]}{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
+                    value = '\n'.join([f"`{prefix}{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
                     embed.add_field(name=name, value=value, inline=False)
             else:
                 filtered = await self.filter_commands(commands, sort=True)
                 if filtered:
-                    value = '\n'.join([f"`{COMMAND_PREFIX[0]}{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
+                    value = '\n'.join([f"`{prefix}{cmd.name}`: {cmd.short_doc}" for cmd in filtered])
                     embed.add_field(name=self.no_category, value=value, inline=False)
 
-        embed.set_footer(text=f"Type {COMMAND_PREFIX[0]}help <command> for more details on a command.")
         channel = self.get_destination()
         await send_auto_publish_message(channel, embed)
 
     async def send_command_help(self, command):
+        prefix = COMMAND_PREFIX[0]
         embed = discord.Embed(
-            title=f"Help with `{COMMAND_PREFIX[0]}{command.name}`",
+            title=f"Help with `{prefix}{command.name}`",
             description=command.help or "No description provided.",
             color=0x8927A1
         )
 
         # Properly format the usage with the command signature
-        usage = f"`{COMMAND_PREFIX[0]}{command.qualified_name} {command.signature}`" if command.signature else f"`{COMMAND_PREFIX[0]}{command.qualified_name}`"
+        usage = f"`{prefix}{command.qualified_name} {command.signature}`" if command.signature else f"`{prefix}{command.qualified_name}`"
         embed.add_field(name="Usage", value=usage, inline=False)
 
         if command.aliases:
@@ -138,11 +158,13 @@ class CustomHelpCommand(DefaultHelpCommand):
         channel = self.get_destination()
         await send_auto_publish_message(channel, embed)
 
+
 bot = commands.Bot(
-    command_prefix=COMMAND_PREFIX, 
-    intents=intents, 
+    command_prefix=get_prefix,
+    intents=intents,
     help_command=CustomHelpCommand()
 )
+
 
 class PaginatorView(discord.ui.View):
     def __init__(self, embeds, user_id):
@@ -981,6 +1003,16 @@ def clear_out_folder(folder_path):
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
+    
+    # Set up the rich presence activity without an image
+    activity = discord.Activity(
+        type=discord.ActivityType.playing, 
+        name=f"!help"
+    )
+
+    # Apply the activity
+    await bot.change_presence(activity=activity, status=discord.Status.online)
+    
     # Start the song check loop
     if CHECK_FOR_NEW_SONGS:
         check_for_new_songs.start()
@@ -1859,5 +1891,19 @@ async def history(ctx, *, song_name: str = None):
 
     # Step 5: Clean up the "thinking" message
     await thinking_message.delete()
+
+@bot.command(name='setprefix', help='Set a custom command prefix for your server.')
+@commands.has_permissions(administrator=True)
+async def set_prefix(ctx, prefix: str):
+    if len(prefix) > 5:
+        await ctx.send("The prefix is too long! Please choose a shorter prefix.")
+        return
+
+    prefixes = load_prefixes()
+    guild_id = str(ctx.guild.id)
+    prefixes[guild_id] = prefix
+    save_prefixes(prefixes)
+
+    await ctx.send(f"Prefix set to: `{prefix}`")
 
 bot.run(DISCORD_TOKEN)
