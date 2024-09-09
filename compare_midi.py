@@ -296,9 +296,9 @@ note_name_maps = {
 }
 
 # Time window for grouping events
-TIME_WINDOW = 240  # 60 ms window for grouping events
+TIME_WINDOW = 10  # 60 ms window for grouping events
 # Threshold for considering minor timing differences as insignificant
-TIME_THRESHOLD = 240
+TIME_THRESHOLD = 10
 
 # Define the notes to ignore for specific tracks
 IGNORED_NOTES = {
@@ -307,7 +307,7 @@ IGNORED_NOTES = {
 
 # Define the tracks to compare
 TRACKS_TO_COMPARE = [
-    'PART BASS', 'PART GUITAR', 'PART DRUMS', 'PART VOCALS', "PLASTIC GUITAR", "PLASTIC DRUMS", "PLASTIC BASS", 'BEAT', 'EVENTS'
+    'PART BASS', 'PART GUITAR', 'PART DRUMS', 'PART VOCALS', "PLASTIC GUITAR", "PLASTIC DRUMS", "PLASTIC BASS", 'BEAT', 'EVENTS', 'SECTION'
 ]
 
 def load_midi_tracks(file_path):
@@ -388,8 +388,9 @@ def visualize_midi_changes(differences, note_name_map, track_name, output_folder
     note_labels = np.array(notes)
     colors = np.array(['red' if action == 'removed' else 'green' for action in actions])
 
-    # Get unique note labels for y-axis
-    unique_notes = np.unique(note_labels)
+    # Get unique note labels for y-axis and sort them numerically
+    unique_notes = sorted(np.unique(note_labels), key=lambda n: int(n.split()[1]))  # Extract number and sort
+    
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
 
     # Plot using the index of the note names for y-axis
