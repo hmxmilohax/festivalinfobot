@@ -102,3 +102,15 @@ If you want to contribute to this project, feel free to fork the repository and 
 ## Issues
 
 If you encounter any issues, please open an issue on the GitHub repository.
+
+# Dependencies
+
+This bot is currently only targetted to run for windows as that is my personal environment.
+
+To be able to fetch and generate paths you will need two things:
+
+[CHOpt](https://github.com/GenericMadScientist/CHOpt) binary (CHOpt.exe) in the bot folder.
+
+fnf-midcrypt.py in the bot folder to decrypt midi files. This is not provided for you.
+
+The bot is unable to decrypt festival midis by itself.
