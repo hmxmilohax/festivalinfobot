@@ -1921,6 +1921,8 @@ async def history(ctx, *, song_name: str = None):
             # Assuming your comparison script generates images in the TEMP_FOLDER
             comparison_images = [f for f in os.listdir(TEMP_FOLDER) if f.endswith('.png')]
             
+            image_sent = False
+
             for image in comparison_images:
                 image_path = os.path.join(TEMP_FOLDER, image)
                 
@@ -1936,8 +1938,9 @@ async def history(ctx, *, song_name: str = None):
                     )
                     embed.set_image(url=f"attachment://{image}")
                     await ctx.send(embed=embed, file=file)
-            else:
-                await ctx.send(f"Comparison between {old_midi_date} and {new_midi_date} failed to generate any images. Notes were likely unchanged.")
+                    image_sent = True
+            if not image_sent:
+                await ctx.send(f"Comparison between {old_midi_date} and {new_midi_date} passed all checks and appear unchanged.")
             
             # Clean up generated images
             clear_out_folder(TEMP_FOLDER)

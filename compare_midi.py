@@ -332,6 +332,27 @@ def load_midi_tracks(file_path):
                     tempo_events.append((msg.time, msg.tempo))
     return tracks, tempo_events
 
+def compare_tempo_events(tempo_events1, tempo_events2):
+    differences = []
+    
+    # Combine both sets of tempo events
+    all_times = sorted(set([t[0] for t in tempo_events1] + [t[0] for t in tempo_events2]))
+    
+    # Create dictionaries to map time -> tempo
+    tempo_map1 = {time: tempo for time, tempo in tempo_events1}
+    tempo_map2 = {time: tempo for time, tempo in tempo_events2}
+    
+    # Compare tempo changes at each time
+    for time in all_times:
+        tempo1 = tempo_map1.get(time, None)
+        tempo2 = tempo_map2.get(time, None)
+        
+        if tempo1 != tempo2:
+            differences.append((time, tempo1, tempo2))
+    
+    return differences
+
+
 def extract_note_events(track, note_range, ignore_notes=None):
     note_events = defaultdict(list)
     current_time = 0
@@ -372,14 +393,15 @@ def extract_session_id(file_name):
         return match.group(1)  # Return the hash
     return None
 
-def visualize_midi_changes(differences, note_name_map, track_name, output_folder, session_id):
-    """Visualize MIDI changes between two tracks and save as an image, using note name maps."""
+def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id):
+    """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
     
     times = []
     notes = []
     actions = []
-    
+
+    # Plot note changes
     for time, removed, added in differences:
         for note in removed:
             times.append(time)
@@ -390,32 +412,48 @@ def visualize_midi_changes(differences, note_name_map, track_name, output_folder
             times.append(time)
             notes.append(note_name_map.get(note[0], f"Note {note[0]}"))
             actions.append('added')
+
+    # Plot text event changes
+    text_times = []
+    text_events = []
+    text_changes = []
     
+    for time, text1, text2 in text_differences:
+        text_times.append(time)
+        text_events.append(f"Text changed: {text1} -> {text2}")
+        text_changes.append('changed')
+
+    # Convert note and text times to numpy arrays for plotting
     times = np.array(times)
     note_labels = np.array(notes)
     colors = np.array(['red' if action == 'removed' else 'green' for action in actions])
 
-    # Get unique note labels for y-axis and sort them numerically
+    # Sort unique notes for y-axis labels
     def sort_key(n):
         parts = n.split()
         return int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else float('inf')
 
     unique_notes = sorted(np.unique(note_labels), key=sort_key)
-    
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
     
-    # Plot using the index of the note names for y-axis
+    # Plot note changes (use note indices for y-axis)
     note_indices = [note_to_index[note] for note in note_labels]
-    
     ax.scatter(times, note_indices, c=colors, marker='s', s=100, edgecolor='black', label=f'{track_name}')
-    
+
+    # Add text event markers
+    if text_times:
+        # Plot text event changes with blue triangles
+        ax.scatter(text_times, [-1] * len(text_times), c='blue', marker='^', s=100, edgecolor='black', label='Text Event')
+        for i, txt in enumerate(text_events):
+            ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=8)
+
     ax.set_xlabel('Time (ms)')
-    ax.set_ylabel('Note')
+    ax.set_ylabel('Note/Text')
     ax.set_title(f'MIDI Changes for {track_name}')
-    ax.set_yticks(np.arange(len(unique_notes)))
-    ax.set_yticklabels(unique_notes)  # Set the note names as labels
+    ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
+    ax.set_yticklabels(unique_notes + ['Text Events'])  # Add 'Text Events' to y-axis labels
     ax.grid(True, linestyle='--', alpha=0.7)
-    
+
     track_name = track_name.replace(' ', '_')
     
     # Save the plot to the output folder with session ID in the file name
@@ -530,14 +568,11 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         new_mid.save(output_file)
         print(f"Filtered update MIDI saved to '{output_file}'")
 
-
 def main(midi_file1, midi_file2, note_range=range(60, 128)):
     base_name1, ext1 = os.path.splitext(midi_file1)
     base_name2, ext2 = os.path.splitext(midi_file2)
     
-    # Extract session ID from the first input file
     session_id = extract_session_id(base_name1)
-    
     if not session_id:
         print("Error: Could not extract session ID from the file name.")
         return
@@ -558,22 +593,38 @@ def main(midi_file1, midi_file2, note_range=range(60, 128)):
     if tracks2 is None:
         print(f"Error loading update MIDI file '{midi_file2}'.")
         return
-    
+
+    # Compare tempo events
+    tempo_differences = compare_tempo_events(tempo_events1, tempo_events2)
+    if tempo_differences:
+        print("Tempo differences found:")
+        for time, tempo1, tempo2 in tempo_differences:
+            print(f"At time {time}: Tempo changed from {tempo1} to {tempo2}")
+    else:
+        print("Tempo mappings match between the two MIDI files.")
+
     # Compare existing tracks
     common_tracks = sorted(set(tracks1) & set(tracks2))
     for track_name in common_tracks:
         if track_name not in TRACKS_TO_COMPARE:
             continue
         
+        # Compare note events
         track1_events = extract_note_events(tracks1[track_name], note_range)
         track2_events = extract_note_events(tracks2[track_name], note_range)
         
         differences = compare_tracks(track1_events, track2_events, TIME_WINDOW, TIME_THRESHOLD)
         note_name_map = note_name_maps.get(track_name, {})
         
-        if differences:
+        # Compare text events (track events)
+        track1_text_events = extract_text_events(tracks1[track_name])
+        track2_text_events = extract_text_events(tracks2[track_name])
+        
+        text_differences = compare_text_events(track1_text_events, track2_text_events)
+        
+        if differences or text_differences:
             print(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, note_name_map, track_name, output_folder, session_id)
+            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id)
         else:
             print(f"Track '{track_name}' matches old track")
 
