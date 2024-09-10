@@ -1851,6 +1851,7 @@ async def history(ctx, *, song_name: str = None):
         return
 
     track_data = matched_tracks[0]
+    album_art_url = track_data['track'].get('au')
     shortname = track_data['track'].get('sn')
     actual_title = track_data['track'].get('tt', 'Unknown Title')
     actual_artist = track_data['track'].get('an', 'Unknown Artist')
@@ -1937,6 +1938,7 @@ async def history(ctx, *, song_name: str = None):
                         description=f"Comparing MIDI from {old_midi_date} to {new_midi_date}"
                     )
                     embed.set_image(url=f"attachment://{image}")
+                    embed.set_thumbnail(url=album_art_url)
                     await ctx.send(embed=embed, file=file)
                     image_sent = True
             if not image_sent:
