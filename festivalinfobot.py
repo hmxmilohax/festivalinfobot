@@ -1879,8 +1879,8 @@ async def history(ctx, *, song_name: str = None):
         await thinking_message.delete()  # Clean up the thinking message
         return
 
-    # Step 4: Reverse and Compare MIDI Files from Oldest to Newest
-    midi_file_changes.reverse()
+    ## Step 4: Reverse and Compare MIDI Files from Oldest to Newest
+    #midi_file_changes.reverse()
 
     for i in range(1, len(midi_file_changes)):
         old_midi_url = midi_file_changes[i - 1][1]
