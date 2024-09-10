@@ -389,7 +389,7 @@ def visualize_midi_changes(differences, note_name_map, track_name, output_folder
     colors = np.array(['red' if action == 'removed' else 'green' for action in actions])
 
     # Get unique note labels for y-axis and sort them numerically
-    unique_notes = sorted(np.unique(note_labels), key=lambda n: int(n.split()[1]))  # Extract number and sort
+    unique_notes = sorted(np.unique(note_labels), key=lambda n: int(n.split()[1]) if n.split()[1].isdigit() else float('inf'))
     
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
 

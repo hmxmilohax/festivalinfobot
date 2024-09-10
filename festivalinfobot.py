@@ -18,6 +18,9 @@ config.read('config.ini')
 
 start_time = time.time()
 
+# Folder where local JSON files are stored
+LOCAL_JSON_FOLDER = "json/"
+
 # Read the Discord bot token and channel IDs from the config file
 DISCORD_TOKEN = config.get('discord', 'token')
 CHANNEL_IDS = config.get('discord', 'channel_ids', fallback="").split(',')
@@ -913,6 +916,13 @@ async def check_for_new_songs():
 
     print("Checking for new songs...")
 
+    # Run sparks_tracks.py alongside this script
+    try:
+        subprocess.Popen(["python", "sparks_tracks.py"])
+        print("Running sparks_tracks.py")
+    except Exception as e:
+        print(f"Failed to run sparks_tracks.py: {e}")
+
     # Fetch current jam tracks
     tracks = fetch_jam_tracks_file()
 
@@ -1777,6 +1787,26 @@ def fetch_file_from_commit(commit_sha):
         print(f"Error fetching file from commit {commit_sha}: {e}")
         return None
 
+def fetch_local_history():
+    json_files = []
+    try:
+        # List all files in the LOCAL_JSON_FOLDER
+        for file_name in os.listdir(LOCAL_JSON_FOLDER):
+            if file_name.endswith('.json'):
+                json_files.append(file_name)
+    except Exception as e:
+        print(f"Error reading local JSON files: {e}")
+    return sorted(json_files)
+
+# Function to load JSON content from a specific file
+def load_json_from_file(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading JSON from file {file_path}: {e}")
+        return None
+
 @bot.command(
     name='history', help="Check the history of a song's midi file and visually compare versions.\nThis may take a bit to generate while it searches a song's history.\nMay not include every single midi revision that has ever existed.",
     usage="[songname]"
@@ -1809,23 +1839,26 @@ async def history(ctx, *, song_name: str = None):
     # Send the "thinking" message to show the user the bot is working
     thinking_message = await ctx.send(f"Processing the history of **{actual_title}** - *{actual_artist}*\nPlease wait...")
 
-    # Step 1: Fetch the revision history of the spark-tracks.json file
-    commit_history = fetch_revision_history()
-    if not commit_history:
-        await ctx.send("Unable to fetch revision history.")
+    # Step 1: Fetch the local revision history of the song
+    json_files = fetch_local_history()  # Fetch list of local JSON files
+
+    if not json_files:
+        await ctx.send("No local history files found.")
+        await thinking_message.delete()
         return
 
-    # Step 3: Track changes in MIDI file over all commits
+    # Step 3: Track changes in MIDI file over all commits (from local files)
     midi_file_changes = []
     seen_midi_files = set()
 
-    for commit in commit_history:
-        commit_sha = commit['sha']
-        file_content = fetch_file_from_commit(commit_sha)
+    for json_file in json_files:
+        file_path = os.path.join(LOCAL_JSON_FOLDER, json_file)
+        file_content = load_json_from_file(file_path)
+        print(f"checking json {file_path}")
         if not file_content:
             continue
-        
-        # Check for the song in this commit's spark-tracks.json
+
+        # Check for the song in this file's spark-tracks.json
         song_data = file_content.get(shortname)
         if song_data and 'track' in song_data:
             midi_file_from_commit = song_data['track'].get('mu', None)
