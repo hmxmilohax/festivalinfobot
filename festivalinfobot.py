@@ -1854,7 +1854,6 @@ async def history(ctx, *, song_name: str = None):
     for json_file in json_files:
         file_path = os.path.join(LOCAL_JSON_FOLDER, json_file)
         file_content = load_json_from_file(file_path)
-        print(f"checking json {file_path}")
         if not file_content:
             continue
 
