@@ -13,6 +13,7 @@ import subprocess
 import mido
 import asyncio
 import hashlib
+import string
 
 def generate_session_hash(user_id, song_name):
     """Generate a unique hash based on the user ID and song name to isolate sessions."""
@@ -1476,7 +1477,8 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         mid.tracks = new_tracks
 
         # Save the modified MIDI to a new file
-        modified_midi_file = midi_file.replace('.mid', '_modified.mid')
+        translator = str.maketrans('', '', string.punctuation.replace('_', '').replace('.', ''))
+        modified_midi_file = midi_file.translate(translator).replace('.mid', '_modified.mid').replace(' ', '_')
         print(f"Saving modified MIDI to: {modified_midi_file}")
         mid.save(modified_midi_file)
         print(f"Modified MIDI saved successfully.")
@@ -1620,7 +1622,9 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
                 return
 
             # Step 4: Generate the path image using chopt.exe
-            output_image = f"{session_hash}_{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
+            translator = str.maketrans('', '', string.punctuation.replace('_', '').replace('.', ''))
+            clean_songname = songname.translate(translator)
+            output_image = f"{session_hash}_{clean_songname.strip()}_path.png".replace(' ', '_')
             chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument, difficulty)
 
             if chopt_error:
@@ -1832,17 +1836,6 @@ async def history(ctx, *, song_name: str = None):
     user_id = ctx.author.id
     session_hash = generate_session_hash(user_id, song_name)  # Generate a unique hash for the session
 
-    # Send the "thinking" message to show the user the bot is working
-    thinking_message = await ctx.send(f"Processing the history of **{song_name}**\nPlease wait...")
-
-    # Step 1: Fetch the local revision history of the song
-    json_files = fetch_local_history()  # Fetch list of local JSON files
-
-    if not json_files:
-        await ctx.send("No local history files found.")
-        await thinking_message.delete()
-        return
-
     # Step 2: Fetch the current track data from the jam API to perform fuzzy search
     tracks = fetch_available_jam_tracks()
     if not tracks:
@@ -1861,6 +1854,17 @@ async def history(ctx, *, song_name: str = None):
     shortname = track_data['track'].get('sn')
     actual_title = track_data['track'].get('tt', 'Unknown Title')
     actual_artist = track_data['track'].get('an', 'Unknown Artist')
+
+    # Send the "thinking" message to show the user the bot is working
+    thinking_message = await ctx.send(f"Processing the history of **{actual_title}** - *{actual_artist}*\nPlease wait...")
+
+    # Step 1: Fetch the local revision history of the song
+    json_files = fetch_local_history()  # Fetch list of local JSON files
+
+    if not json_files:
+        await ctx.send("No local history files found.")
+        await thinking_message.delete()
+        return
 
     # Step 3: Track changes in MIDI file over all commits (from local files)
     midi_file_changes = []
@@ -1942,6 +1946,38 @@ async def history(ctx, *, song_name: str = None):
 
     # Step 5: Clean up the "thinking" message
     await thinking_message.delete()
+
+@bot.command(name='fullhistory', help="only jnack can run this")
+async def fullhistory(ctx):
+    # Check if the user ID matches yours
+    if ctx.author.id != 960524988824313876:
+        await ctx.send("You are not authorized to run this command.")
+        return
+
+    # Fetch all available tracks
+    tracks = fetch_available_jam_tracks()
+    if not tracks:
+        await ctx.send("Could not fetch tracks.")
+        return
+
+    # Loop through all the tracks and run the history command for each
+    for shortname, track in tracks.items():
+        song_name = track['track']['tt']
+        artist_name = track['track']['an']
+
+        try:
+            # Send a message indicating which song's history is being processed
+            await ctx.send(f"Processing the history for **{song_name}** by *{artist_name}*...")
+
+            # Call the history command with the song's title
+            await history(ctx, song_name=song_name)
+
+        except Exception as e:
+            await ctx.send(f"Failed to process the history for **{song_name}**. Error: {e}")
+            # Continue even if one song fails
+
+    # Final message indicating the full history run is complete
+    await ctx.send("Full history run completed.")
 
 @bot.command(name='setprefix', help='Set a custom command prefix for your server.')
 @commands.has_permissions(administrator=True)
