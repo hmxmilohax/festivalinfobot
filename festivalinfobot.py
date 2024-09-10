@@ -1934,8 +1934,9 @@ async def history(ctx, *, song_name: str = None):
                 if image_session_id == session_hash and os.path.getsize(image_path) > 0:  # Check if the image is non-empty
                     file = discord.File(image_path, filename=image)
                     embed = discord.Embed(
-                        title=f"MIDI Comparison for {actual_title} - {actual_artist}",
-                        description=f"Comparing MIDI from {old_midi_date} to {new_midi_date}"
+                        title=f"Festival History",
+                        description=f"**{actual_title}** - *{actual_artist}*\nComparing changes between:\n`{old_midi_date}` and `{new_midi_date}`",
+                        color=0x8927A1
                     )
                     embed.set_image(url=f"attachment://{image}")
                     embed.set_thumbnail(url=album_art_url)
