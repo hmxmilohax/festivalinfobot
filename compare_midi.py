@@ -4,7 +4,7 @@ from collections import defaultdict
 import os
 import matplotlib.pyplot as plt
 import numpy as np
-
+import re
 
 # Define the note name maps for different tracks
 note_name_maps = {
@@ -365,7 +365,14 @@ def group_events_by_time_window(events, time_window):
 def events_equal(event1, event2):
     return event1[0] == event2[0] and event1[1] == event2[1]
 
-def visualize_midi_changes(differences, note_name_map, track_name, output_folder):
+def extract_session_id(file_name):
+    # Use regex to capture the hash part of the file name
+    match = re.search(r'version_([a-f0-9]+)_', file_name)
+    if match:
+        return match.group(1)  # Return the hash
+    return None
+
+def visualize_midi_changes(differences, note_name_map, track_name, output_folder, session_id):
     """Visualize MIDI changes between two tracks and save as an image, using note name maps."""
     fig, ax = plt.subplots(figsize=(10, 6))
     
@@ -389,10 +396,14 @@ def visualize_midi_changes(differences, note_name_map, track_name, output_folder
     colors = np.array(['red' if action == 'removed' else 'green' for action in actions])
 
     # Get unique note labels for y-axis and sort them numerically
-    unique_notes = sorted(np.unique(note_labels), key=lambda n: int(n.split()[1]) if n.split()[1].isdigit() else float('inf'))
+    def sort_key(n):
+        parts = n.split()
+        return int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else float('inf')
+
+    unique_notes = sorted(np.unique(note_labels), key=sort_key)
     
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
-
+    
     # Plot using the index of the note names for y-axis
     note_indices = [note_to_index[note] for note in note_labels]
     
@@ -406,9 +417,9 @@ def visualize_midi_changes(differences, note_name_map, track_name, output_folder
     ax.grid(True, linestyle='--', alpha=0.7)
     
     track_name = track_name.replace(' ', '_')
-
-    # Save the plot to the output folder
-    image_path = os.path.join(output_folder, f"{track_name}_changes.png")
+    
+    # Save the plot to the output folder with session ID in the file name
+    image_path = os.path.join(output_folder, f"{track_name}_changes_{session_id}.png")
     plt.savefig(image_path)
     plt.close()
     
@@ -521,8 +532,16 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
 
 
 def main(midi_file1, midi_file2, note_range=range(60, 128)):
-    base_name, ext = os.path.splitext(midi_file1)
-    file_base_name = os.path.basename(base_name)
+    base_name1, ext1 = os.path.splitext(midi_file1)
+    base_name2, ext2 = os.path.splitext(midi_file2)
+    
+    # Extract session ID from the first input file
+    session_id = extract_session_id(base_name1)
+    
+    if not session_id:
+        print("Error: Could not extract session ID from the file name.")
+        return
+
     output_folder = os.path.join(os.path.dirname(__file__), 'out')
     os.makedirs(output_folder, exist_ok=True)
 
@@ -554,13 +573,13 @@ def main(midi_file1, midi_file2, note_range=range(60, 128)):
         
         if differences:
             print(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, note_name_map, track_name, output_folder)
+            visualize_midi_changes(differences, note_name_map, track_name, output_folder, session_id)
         else:
             print(f"Track '{track_name}' matches old track")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Usage: python compare_midi.py <midi_file1>")
+        print("Usage: python compare_midi.py <midi_file1> <midi_file2>")
     else:
         midi_file1 = sys.argv[1]
         midi_file2 = sys.argv[2]

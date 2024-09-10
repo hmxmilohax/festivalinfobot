@@ -11,6 +11,12 @@ import string
 from discord.ext.commands import DefaultHelpCommand
 import subprocess
 import mido
+import asyncio
+import hashlib
+
+def generate_session_hash(user_id, song_name):
+    """Generate a unique hash based on the user ID and song name to isolate sessions."""
+    return hashlib.md5(f"{user_id}_{song_name}".encode()).hexdigest()
 
 # Load configuration from config.ini
 config = ConfigParser()
@@ -1533,6 +1539,9 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
     )
     async def generate_path(ctx, songname: str, instrument: str = 'guitar', *args):
         try:
+            user_id = ctx.author.id
+            session_hash = generate_session_hash(user_id, songname)  # Generate session hash
+
             squeeze_percent = 20  # Default squeeze percent
             difficulty = 'expert'  # Default difficulty
 
@@ -1576,7 +1585,7 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
                     return
                 # Use the first matched track
                 song_data = matched_tracks[0]
-            
+
             song_url = song_data['track'].get('mu')
             album_art_url = song_data['track'].get('au')  # Fetch album art URL
             track_title = song_data['track'].get('tt')  # Get the actual track title
@@ -1584,7 +1593,7 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
             display_instrument, instrument_codename = get_instrument_from_query(instrument)  # Get user-friendly instrument name
 
             # Step 2: Decrypt the .dat file into a .mid file
-            dat_file = f"{songname}.dat"
+            dat_file = f"{session_hash}_{songname}.dat"
             midi_file = decrypt_dat_file(song_url, dat_file)
             if not midi_file:
                 await ctx.send(f"Failed to decrypt the .dat file for '{songname}'.")
@@ -1611,7 +1620,7 @@ if PATHING_ALLOWED and DECRYPTION_ALLOWED:
                 return
 
             # Step 4: Generate the path image using chopt.exe
-            output_image = f"{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
+            output_image = f"{session_hash}_{songname}_path.png".replace(' ', '_')  # Replace spaces with underscores
             chopt_output, chopt_error = run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument, difficulty)
 
             if chopt_error:
@@ -1808,7 +1817,8 @@ def load_json_from_file(file_path):
         return None
 
 @bot.command(
-    name='history', help="Check the history of a song's midi file and visually compare versions.\nThis may take a bit to generate while it searches a song's history.\nMay not include every single midi revision that has ever existed.",
+    name='history', 
+    help="Check the history of a song's midi file and visually compare versions.\nThis may take a bit to generate while it searches a song's history.\nMay not include every single midi revision that has ever existed.",
     usage="[songname]"
 )
 async def history(ctx, *, song_name: str = None):
@@ -1819,25 +1829,11 @@ async def history(ctx, *, song_name: str = None):
         await ctx.send("Please provide a song name.")
         return
 
-    # Step 2: Fetch the current track data from the jam API to perform fuzzy search
-    tracks = fetch_available_jam_tracks()
-    if not tracks:
-        await ctx.send('Could not fetch tracks.')
-        return
-
-    # Perform fuzzy search to find the matching song
-    matched_tracks = fuzzy_search_tracks(tracks, song_name)
-    if not matched_tracks:
-        await ctx.send(f"No tracks found for '{song_name}'.")
-        return
-
-    track_data = matched_tracks[0]
-    shortname = track_data['track'].get('sn')
-    actual_title = track_data['track'].get('tt', 'Unknown Title')
-    actual_artist = track_data['track'].get('an', 'Unknown Artist')
+    user_id = ctx.author.id
+    session_hash = generate_session_hash(user_id, song_name)  # Generate a unique hash for the session
 
     # Send the "thinking" message to show the user the bot is working
-    thinking_message = await ctx.send(f"Processing the history of **{actual_title}** - *{actual_artist}*\nPlease wait...")
+    thinking_message = await ctx.send(f"Processing the history of **{song_name}**\nPlease wait...")
 
     # Step 1: Fetch the local revision history of the song
     json_files = fetch_local_history()  # Fetch list of local JSON files
@@ -1846,6 +1842,25 @@ async def history(ctx, *, song_name: str = None):
         await ctx.send("No local history files found.")
         await thinking_message.delete()
         return
+
+    # Step 2: Fetch the current track data from the jam API to perform fuzzy search
+    tracks = fetch_available_jam_tracks()
+    if not tracks:
+        await ctx.send('Could not fetch tracks.')
+        await thinking_message.delete()
+        return
+
+    # Perform fuzzy search to find the matching song
+    matched_tracks = fuzzy_search_tracks(tracks, song_name)
+    if not matched_tracks:
+        await ctx.send(f"No tracks found for '{song_name}'.")
+        await thinking_message.delete()
+        return
+
+    track_data = matched_tracks[0]
+    shortname = track_data['track'].get('sn')
+    actual_title = track_data['track'].get('tt', 'Unknown Title')
+    actual_artist = track_data['track'].get('an', 'Unknown Artist')
 
     # Step 3: Track changes in MIDI file over all commits (from local files)
     midi_file_changes = []
@@ -1888,8 +1903,9 @@ async def history(ctx, *, song_name: str = None):
         old_midi_date = midi_file_changes[i - 1][0]
         new_midi_date = midi_file_changes[i][0]
 
-        old_midi_file = decrypt_dat_file(old_midi_url, f"version_{i - 1}.dat")
-        new_midi_file = decrypt_dat_file(new_midi_url, f"version_{i}.dat")
+        # Use session_hash to uniquely name the MIDI files for this session
+        old_midi_file = decrypt_dat_file(old_midi_url, f"version_{session_hash}_old_{i - 1}.dat")
+        new_midi_file = decrypt_dat_file(new_midi_url, f"version_{session_hash}_new_{i}.dat")
 
         if old_midi_file and new_midi_file:
             # Add debug logging to confirm comparison command runs properly
@@ -1901,17 +1917,21 @@ async def history(ctx, *, song_name: str = None):
             # Assuming your comparison script generates images in the TEMP_FOLDER
             comparison_images = [f for f in os.listdir(TEMP_FOLDER) if f.endswith('.png')]
             
-            if comparison_images:
-                for image in comparison_images:
-                    image_path = os.path.join(TEMP_FOLDER, image)
-                    if os.path.getsize(image_path) > 0:  # Check if the image is non-empty
-                        file = discord.File(image_path, filename=image)
-                        embed = discord.Embed(
-                            title=f"MIDI Comparison for {actual_title} - {actual_artist}",
-                            description=f"Comparing MIDI from {old_midi_date} to {new_midi_date}"
-                        )
-                        embed.set_image(url=f"attachment://{image}")
-                        await ctx.send(embed=embed, file=file)
+            for image in comparison_images:
+                image_path = os.path.join(TEMP_FOLDER, image)
+                
+                # Extract session ID from the image filename
+                image_session_id = image.split('_')[-1].replace('.png', '')  # Assuming the hash is at the end of the file name
+                
+                # Check if the image matches the current session ID
+                if image_session_id == session_hash and os.path.getsize(image_path) > 0:  # Check if the image is non-empty
+                    file = discord.File(image_path, filename=image)
+                    embed = discord.Embed(
+                        title=f"MIDI Comparison for {actual_title} - {actual_artist}",
+                        description=f"Comparing MIDI from {old_midi_date} to {new_midi_date}"
+                    )
+                    embed.set_image(url=f"attachment://{image}")
+                    await ctx.send(embed=embed, file=file)
             else:
                 await ctx.send(f"Comparison between {old_midi_date} and {new_midi_date} failed to generate any images. Notes were likely unchanged.")
             
