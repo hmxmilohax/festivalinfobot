@@ -392,7 +392,6 @@ def extract_session_id(file_name):
     if match:
         return match.group(1)  # Return the hash
     return None
-
 def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -405,12 +404,11 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     for time, removed, added in differences:
         for note in removed:
             times.append(time)
-            # Get note name or fallback to note number
-            notes.append(note_name_map.get(note[0], f"Note {note[0]}"))
+            notes.append(note[0])  # Use the raw MIDI note number for plotting
             actions.append('removed')
         for note in added:
             times.append(time)
-            notes.append(note_name_map.get(note[0], f"Note {note[0]}"))
+            notes.append(note[0])  # Use the raw MIDI note number for plotting
             actions.append('added')
 
     # Plot text event changes
@@ -425,19 +423,14 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
 
     # Convert note and text times to numpy arrays for plotting
     times = np.array(times)
-    note_labels = np.array(notes)
     colors = np.array(['red' if action == 'removed' else 'green' for action in actions])
 
-    # Sort unique notes for y-axis labels
-    def sort_key(n):
-        parts = n.split()
-        return int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else float('inf')
-
-    unique_notes = sorted(np.unique(note_labels), key=sort_key)
+    # Sort the MIDI notes in descending order
+    unique_notes = sorted(np.unique(notes), reverse=True)
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
     
     # Plot note changes (use note indices for y-axis)
-    note_indices = [note_to_index[note] for note in note_labels]
+    note_indices = [note_to_index[note] for note in notes]
     ax.scatter(times, note_indices, c=colors, marker='s', s=100, edgecolor='black', label=f'{track_name}')
 
     # Add text event markers
@@ -448,10 +441,17 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
             ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=8)
 
     ax.set_xlabel('Time (ms)')
-    ax.set_ylabel('Note/Text')
+    ax.set_ylabel('MIDI Note/Text')
     ax.set_title(f'MIDI Changes for {track_name}')
+    
+    # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
-    ax.set_yticklabels(unique_notes + ['Text Events'])  # Add 'Text Events' to y-axis labels
+
+    # Apply note names after sorting and plotting
+    ax.set_yticklabels([f"{note_name_map.get(note, f'Note {note}')}" for note in unique_notes] + ['Text Events'])
+    
+    ax.invert_yaxis()  # This inverts the y-axis to ensure highest notes are at the top
+
     ax.grid(True, linestyle='--', alpha=0.7)
 
     track_name = track_name.replace(' ', '_')
