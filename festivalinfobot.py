@@ -1966,6 +1966,9 @@ async def fullhistory(ctx):
         artist_name = track['track']['an']
 
         try:
+            # Send a message indicating which song's history is being processed
+            await ctx.send(f"Processing the history for **{song_name}** by *{artist_name}*...")
+
             # Call the history command with the song's title
             await history(ctx, song_name=song_name)
 
