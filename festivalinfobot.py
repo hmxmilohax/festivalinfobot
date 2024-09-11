@@ -910,9 +910,15 @@ async def on_ready():
     # Apply the activity
     await bot.change_presence(activity=activity, status=discord.Status.online)
     
+    # Print all the servers the bot is running in
+    print("Serving:")
+    for guild in bot.guilds:
+        print(f"{guild.name}, Server ID: {guild.id}")
+    
     # Start the song check loop
     if CHECK_FOR_NEW_SONGS:
         check_for_new_songs.start()
+
 
 async def handle_imacat_search(ctx):
     with open('imacat.json', 'r') as imacat_file:
