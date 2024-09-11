@@ -501,6 +501,9 @@ def fetch_jam_tracks_file():
         return None
 
 def save_known_songs_to_disk(songs):
+    # Fetch jam tracks using the API call
+    response = requests.get(API_URL)
+    data = response.json()
     # Generate timestamp in the required format (e.g., 2024-04-24T13.27.49)
     timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H.%M.%S')
     unique_id = hashlib.md5(timestamp.encode()).hexdigest()[:6]
@@ -560,7 +563,7 @@ def save_known_songs_to_disk(songs):
     # Save the new JSON file if no match was found
     file_path = os.path.join(folder_path, file_name)
     with open(file_path, 'w') as file:
-        json.dump(current_tracks_data, file, indent=4)
+        json.dump(data, file, indent=4)
     print(f"New file saved as {file_name}")
 
 def load_known_songs_from_disk(shortnames:bool = False):
@@ -1759,7 +1762,6 @@ def fetch_local_history():
         print(f"Error reading local JSON files: {e}")
     return sorted(json_files)
 
-# Function to load JSON content from a specific file
 def load_json_from_file(file_path):
     try:
         with open(file_path, 'r') as f:
