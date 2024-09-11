@@ -556,7 +556,7 @@ def save_known_songs_to_disk(songs):
 
     # Check if any of the 3 most recent files match the current data
     for content in recent_files_content:
-        if json.dumps(content, sort_keys=True) == current_songs_json:
+        if json.dumps(content, sort_keys=True) == json.dumps(data, sort_keys=True):
             print(f"No new sparks-tracks.json changes to save. Matches {file_name}.")
             return  # Exit without saving if there's a match
 
