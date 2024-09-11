@@ -1442,7 +1442,7 @@ async def leaderboard(ctx, shortname: str = None, instrument: str = None, rank_o
         await ctx.send('No entries in leaderboard.')
 
 # Helper function to modify the MIDI file for Pro Lead and Pro Bass and Pro Drum
-def modify_midi_file(midi_file: str, instrument: str) -> str:
+def modify_midi_file(midi_file: str, instrument: str, session_hash: str, shortname: str) -> str:
     try:
         print(f"Loading MIDI file: {midi_file}")
         mid = mido.MidiFile(midi_file)
@@ -1483,9 +1483,12 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
         # Assign modified tracks back to the MIDI file
         mid.tracks = new_tracks
 
-        # Save the modified MIDI to a new file
-        translator = str.maketrans('', '', string.punctuation.replace('_', '').replace('.', ''))
-        modified_midi_file = midi_file.translate(translator).replace('.mid', '_modified.mid').replace(' ', '_')
+        # Create the new file path in the 'out' folder with the session hash in the filename
+        output_folder = 'out'  # Ensure this folder exists in your setup
+        midi_file_name = os.path.basename(midi_file)  # Get the original file name
+        modified_midi_file_name = f"{shortname}_{session_hash}.mid"  # Add session hash to the file name
+        modified_midi_file = os.path.join(output_folder, modified_midi_file_name)  # Save in 'out' folder
+
         print(f"Saving modified MIDI to: {modified_midi_file}")
         mid.save(modified_midi_file)
         print(f"Modified MIDI saved successfully.")
@@ -1494,6 +1497,7 @@ def modify_midi_file(midi_file: str, instrument: str) -> str:
     except Exception as e:
         print(f"Error modifying MIDI for {instrument}: {e}")
         return None
+
 
 # Function to call chopt.exe and capture its output
 def run_chopt(midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: str = None, difficulty: str = 'expert'):
@@ -1598,6 +1602,7 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar', *args):
         track_title = song_data['track'].get('tt')
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
+        display_instrument, instrument_codename = get_instrument_from_query(instrument)  # Get user-friendly instrument name
 
         # Notify the user that the bot is processing
         thinking_message = await ctx.send(f"Generating path for **{track_title}** - *{artist_title}*.\nPlease wait...")
@@ -1620,10 +1625,10 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar', *args):
 
         # Step 3: Modify the MIDI file if necessary (e.g., Pro parts)
         modified_midi_file = None
-        if 'Peripheral' in command_instrument:
-            modified_midi_file = modify_midi_file(midi_file, command_instrument)
+        if 'Peripheral' in instrument_codename:
+            modified_midi_file = modify_midi_file(midi_file, instrument, session_hash, short_name)
             if not modified_midi_file:
-                await ctx.send(f"Failed to modify MIDI for '{command_instrument}'.")
+                await ctx.send(f"Failed to modify MIDI for '{instrument}'.")
                 await thinking_message.delete()
                 return
             midi_file = modified_midi_file  # Use the modified file
@@ -1642,7 +1647,7 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar', *args):
             file = discord.File(os.path.join(TEMP_FOLDER, output_image), filename=output_image)
             embed = discord.Embed(
                 title=f"Path for **{track_title}** - *{artist_title}*",
-                description=f"`Instrument:` **{command_instrument.capitalize()}**\n"
+                description=f"`Instrument:` **{display_instrument}**\n"
                             f"`Difficulty:` **{difficulty.capitalize()}**\n"
                             f"`Squeeze Percent:` **{squeeze_percent}%**",
                 color=0x8927A1
