@@ -314,11 +314,14 @@ class LastButton(discord.ui.Button):
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
 
-async def send_auto_publish_message(channel, embed):
+async def send_auto_publish_message(channel, embed, file = False):
     try:
-        message = await channel.send(embed=embed)
+        if file:
+            message = await channel.send(embed=embed, file=file)
+        else:
+            message = await channel.send(embed=embed)
         # Check if the channel is a TextChannel and if it's a news channel
-        if isinstance(channel, discord.TextChannel) and channel.is_news():
+        if channel.is_news():
             # Auto-publish the message
             await message.publish()
             print(f"Published message in announcement channel: {channel.name}")
@@ -422,12 +425,14 @@ async def process_chart_url_change(old_url, new_url, channel, track_name, song_t
                     embed.set_image(url=f"attachment://{image}")
                     embed.set_thumbnail(url=album_art_url)
                     try:
-                        await channel.send(embed=embed, file=file)
+                        await send_auto_publish_message(channel, embed, file)
                     except Exception as e:
                         print(f"Error sending embed: {e}")
                 delete_session_files(session_hash)
             else:
-                await channel.send(f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
+                message = await channel.send(f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
+                if channel.is_news():
+                    await message.publish()
                 delete_session_files(session_hash)
         else:
             await channel.send("MIDI comparison did not complete successfully.")
