@@ -392,6 +392,7 @@ def extract_session_id(file_name):
     if match:
         return match.group(1)  # Return the hash
     return None
+
 def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -425,7 +426,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     times = np.array(times)
     colors = np.array(['red' if action == 'removed' else 'green' for action in actions])
 
-    # Sort the MIDI notes in descending order
+    # Sort the MIDI notes in descending order and map them to note names
     unique_notes = sorted(np.unique(notes), reverse=True)
     note_to_index = {note: i for i, note in enumerate(unique_notes)}
     
@@ -447,8 +448,8 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
 
-    # Apply actual MIDI note numbers instead of note names
-    ax.set_yticklabels([f"Note {note}" for note in unique_notes] + ['Text Events'])
+    # Apply note names instead of raw MIDI numbers, using the note_name_map
+    ax.set_yticklabels([note_name_map.get(note, f"Note {note}") for note in unique_notes] + ['Text Events'])
     
     ax.invert_yaxis()  # This inverts the y-axis to ensure highest notes are at the top
 
