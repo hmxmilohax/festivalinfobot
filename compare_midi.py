@@ -568,13 +568,13 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         new_mid.save(output_file)
         print(f"Filtered update MIDI saved to '{output_file}'")
 
-def main(midi_file1, midi_file2, note_range=range(60, 128)):
+def main(midi_file1, midi_file2, session_id, note_range=range(60, 128)):
     base_name1, ext1 = os.path.splitext(midi_file1)
     base_name2, ext2 = os.path.splitext(midi_file2)
-    
-    session_id = extract_session_id(base_name1)
+    session_id, ext3 = os.path.splitext(session_id)
+
     if not session_id:
-        print("Error: Could not extract session ID from the file name.")
+        print("Error: Could not extract session ID from the arg.")
         return
 
     output_folder = os.path.join(os.path.dirname(__file__), 'out')
@@ -629,9 +629,10 @@ def main(midi_file1, midi_file2, note_range=range(60, 128)):
             print(f"Track '{track_name}' matches old track")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python compare_midi.py <midi_file1> <midi_file2>")
+    if len(sys.argv) != 4:
+        print("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id>")
     else:
         midi_file1 = sys.argv[1]
         midi_file2 = sys.argv[2]
-        main(midi_file1, midi_file2)
+        session_id = sys.argv[3]
+        main(midi_file1, midi_file2, session_id)
