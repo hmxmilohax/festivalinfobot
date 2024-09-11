@@ -380,7 +380,6 @@ def decrypt_dat_file(dat_url_or_path, output_file):
         return None
 
 async def process_chart_url_change(old_url, new_url, channel, track_name, song_title, artist_name, album_art_url, last_modified_old, last_modified_new, session_hash):
-
     # Decrypt old .dat to .midi
     old_midi_file = decrypt_dat_file(old_url, session_hash)
 
@@ -398,31 +397,44 @@ async def process_chart_url_change(old_url, new_url, channel, track_name, song_t
         # Run the comparison command and wait for it to finish
         comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash]
         result = subprocess.run(comparison_command, capture_output=True, text=True)
-
         # Check the output for errors, just in case
         if result.returncode != 0:
             await channel.send(f"Comparison failed with error: {result.stderr}")
             return
 
-        # Now that comparison is complete, check for any image output
-        comparison_images = [f for f in os.listdir(TEMP_FOLDER) if f.startswith(f'{session_hash}_') and f.endswith('.png')]
+        # Check for the completion flag in the output
+        if "MIDI comparison completed successfully" in result.stdout:
+            # Now that comparison is complete, check for any image output
+            comparison_images = [f for f in os.listdir(TEMP_FOLDER) if f.endswith(f'{session_hash}.png')]
 
-        if comparison_images:
-            for image in comparison_images:
-                image_path = os.path.join(TEMP_FOLDER, image)
-                file = discord.File(image_path, filename=image)
+            last_modified_old_str = datetime.fromisoformat(last_modified_old.replace('Z', '+00:00')).strftime("%B %d, %Y")
+            last_modified_new_str = datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')).strftime("%B %d, %Y")
 
-                last_modified_old_str = datetime.fromisoformat(last_modified_old.replace('Z', '+00:00')).strftime("%B %d, %Y")
-                last_modified_new_str = datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')).strftime("%B %d, %Y")
-                
-                embed = discord.Embed(
-                    title=f"",
-                    description=f"**{song_title}** - *{artist_name}*\nChanges between:\n`{last_modified_old_str}` and `{last_modified_new_str}`",
-                    color=0x8927A1
-                )
-                embed.set_image(url=f"attachment://{image}")
-                embed.set_thumbnail(url=album_art_url)
-                await channel.send(embed=embed, file=file)
+            if comparison_images:
+                for image in comparison_images:
+                    image_path = os.path.abspath(os.path.join(TEMP_FOLDER, image))
+                    file = discord.File(image_path, filename=image)
+                    embed = discord.Embed(
+                        title=f"",
+                        description=f"**{song_title}** - *{artist_name}*\nDetected changes between:\n`{last_modified_old_str}` and `{last_modified_new_str}`",
+                        color=0x8927A1
+                    )
+                    embed.set_image(url=f"attachment://{image}")
+                    embed.set_thumbnail(url=album_art_url)
+                    try:
+                        await channel.send(embed=embed, file=file)
+                    except Exception as e:
+                        print(f"Error sending embed: {e}")
+                delete_session_files(session_hash)
+            else:
+                await channel.send(f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
+                delete_session_files(session_hash)
+        else:
+            await channel.send("MIDI comparison did not complete successfully.")
+            delete_session_files(session_hash)
+    else:
+        await channel.send("Failed to decrypt MIDI files.")
+        delete_session_files(session_hash)
 
 def fuzzy_search_tracks(tracks, search_term):
     # Remove punctuation from the search term
@@ -805,6 +817,8 @@ async def check_for_new_songs():
         print(f"No channel IDs provided; skipping the {CHECK_FOR_SONGS_INTERVAL}-minute probe.")
         return
 
+    session_hash = generate_session_hash(start_time, start_time)  # Unique session identifier
+
     print("Checking for new songs...")
 
     # Run sparks_tracks.py alongside this script
@@ -867,7 +881,6 @@ async def check_for_new_songs():
                 last_modified_new = new_song.get('lastModified', None)
                 local_midi_file_old = download_and_archive_midi_file(old_url, short_name)
                 local_midi_file_new = download_and_archive_midi_file(new_url, short_name)
-                session_hash = generate_session_hash(track_name, artist_name)  # Unique session identifier
 
                 if (old_url != new_url) and DECRYPTION_ALLOWED and CHART_COMPARING_ALLOWED:
                     print(f"Chart URL changed:")
@@ -875,12 +888,12 @@ async def check_for_new_songs():
                     print(f"New: {local_midi_file_new}")
 
                     # Pass the track name to the process_chart_url_change function
-                    await process_chart_url_change(local_midi_file_old, local_midi_file_new, channel, track_name, track_name, artist_name, album_art_url, last_modified_old, last_modified_new, session_hash)
+                    print(f"Running process_chart_url_change for {local_midi_file_old} and {local_midi_file_new}")
+                    await process_chart_url_change(local_midi_file_old, local_midi_file_new, channel, short_name, track_name, artist_name, album_art_url, last_modified_old, last_modified_new, session_hash)
 
                 embed = generate_modified_track_embed(old=old_song, new=new_song)
                 await send_auto_publish_message(channel, embed)
             save_known_songs_to_disk(tracks)
-            delete_session_files(session_hash)
 
     print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}")
 
@@ -1875,12 +1888,19 @@ async def history(ctx, *, song_name: str = None):
         await thinking_message.delete()
         return
 
-    # Compare MIDI files
-    print("Comparing MIDI files...")
-    await compare_midi_files(ctx, midi_file_changes, album_art_url, shortname, actual_title, actual_artist, session_hash)
+    for i in range(1, len(midi_file_changes)):
+        old_midi = midi_file_changes[i - 1]
+        new_midi = midi_file_changes[i]
+
+        old_midi_file = old_midi[1]
+        new_midi_file = new_midi[1]
+
+        print(f"Running process_chart_url_change for {old_midi_file} and {new_midi_file}")
+        await process_chart_url_change(
+            old_midi_file, new_midi_file, ctx.channel, shortname, actual_title, actual_artist, album_art_url, old_midi[0], new_midi[0], session_hash
+        )
 
     await thinking_message.delete()
-    delete_session_files(session_hash)
     print("Finished running 'history' command.")
 
 def track_midi_changes(json_files, shortname, session_hash):
@@ -1906,51 +1926,13 @@ def track_midi_changes(json_files, shortname, session_hash):
 
             if midi_file_url and midi_file_url not in seen_midi_files:
                 seen_midi_files[midi_file_url] = True
-                last_modified_date = (
-                    datetime.fromisoformat(last_modified.replace('Z', '+00:00')).strftime("%B %d, %Y")
-                    if last_modified else "Unknown"
-                )
                 local_midi_file = download_and_archive_midi_file(midi_file_url, shortname)  # Download the .dat file
-                midi_file_changes.append((last_modified_date, local_midi_file))
+                midi_file_changes.append((last_modified, local_midi_file))
 
     except Exception as e:
         print(f"Error processing {json_file}: {e}")
     
     return midi_file_changes
-
-async def compare_midi_files(ctx, midi_file_changes, album_art_url, shortname, actual_title, actual_artist, session_hash):
-    """Compare the MIDI files and send comparison results."""
-    for i in range(1, len(midi_file_changes)):
-        old_midi = midi_file_changes[i - 1]
-        new_midi = midi_file_changes[i]
-
-        print(f"Comparing old MIDI ({old_midi[0]}) with new MIDI ({new_midi[0]})")
-
-        old_midi_file = old_midi[1]
-        new_midi_file = new_midi[1]
-
-        print(f"Running process_chart_url_change for {old_midi_file} and {new_midi_file}")
-        await process_chart_url_change(
-            old_midi_file, new_midi_file, ctx.channel, shortname, actual_title, actual_artist, album_art_url, old_midi[0], new_midi[0], session_hash
-        )
-
-        # Handle visual comparison if needed
-        comparison_images = [f for f in os.listdir(TEMP_FOLDER) if f.endswith('.png')]
-        if comparison_images:
-            for image in comparison_images:
-                image_path = os.path.join(TEMP_FOLDER, image)
-                file = discord.File(image_path, filename=image)
-                embed = discord.Embed(
-                    title=f"Comparison of {actual_title} - {actual_artist}",
-                    description=f"Changes between `{old_midi[0]}` and `{new_midi[0]}`",
-                    color=0x8927A1
-                )
-                embed.set_image(url=f"attachment://{image}")
-                embed.set_thumbnail(url=album_art_url)
-                await ctx.send(embed=embed, file=file)
-        else:
-            print(f"No visual changes found between {old_midi[0]} and {new_midi[0]}.")
-            await ctx.send(f"Comparison between `{old_midi[0]}` and `{new_midi[0]}` shows no visual changes.")
 
 @bot.command(name='fullhistory', help="only jnack can run this")
 async def fullhistory(ctx):

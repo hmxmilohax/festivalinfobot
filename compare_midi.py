@@ -447,8 +447,8 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
 
-    # Apply note names after sorting and plotting
-    ax.set_yticklabels([f"{note_name_map.get(note, f'Note {note}')}" for note in unique_notes] + ['Text Events'])
+    # Apply actual MIDI note numbers instead of note names
+    ax.set_yticklabels([f"Note {note}" for note in unique_notes] + ['Text Events'])
     
     ax.invert_yaxis()  # This inverts the y-axis to ensure highest notes are at the top
 
@@ -461,7 +461,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     plt.savefig(image_path)
     plt.close()
     
-    print(f"Saved MIDI comparison visualization for {track_name} to {image_path}")
+    #print(f"Saved MIDI comparison visualization for {track_name} to {image_path}")
 
 def compare_tracks(track1_events, track2_events, time_window, time_threshold, velocity_threshold=5):
     differences = []
@@ -575,24 +575,24 @@ def main(midi_file1, midi_file2, session_id, note_range=range(60, 128)):
 
     if not session_id:
         print("Error: Could not extract session ID from the arg.")
-        return
+        return False
 
     output_folder = os.path.join(os.path.dirname(__file__), 'out')
     os.makedirs(output_folder, exist_ok=True)
 
     if not os.path.exists(midi_file2):
         print(f"Update file '{midi_file2}' is missing.")
-        return
+        return False
 
     tracks1, tempo_events1 = load_midi_tracks(midi_file1)
     if tracks1 is None:
         print(f"Error loading base MIDI file '{midi_file1}'.")
-        return
+        return False
 
     tracks2, tempo_events2 = load_midi_tracks(midi_file2)
     if tracks2 is None:
         print(f"Error loading update MIDI file '{midi_file2}'.")
-        return
+        return False
 
     # Compare tempo events
     tempo_differences = compare_tempo_events(tempo_events1, tempo_events2)
@@ -601,7 +601,7 @@ def main(midi_file1, midi_file2, session_id, note_range=range(60, 128)):
         for time, tempo1, tempo2 in tempo_differences:
             print(f"At time {time}: Tempo changed from {tempo1} to {tempo2}")
     else:
-        print("Tempo mappings match between the two MIDI files.")
+        print("Tempo Map unchanged")
 
     # Compare existing tracks
     common_tracks = sorted(set(tracks1) & set(tracks2))
@@ -623,10 +623,11 @@ def main(midi_file1, midi_file2, session_id, note_range=range(60, 128)):
         text_differences = compare_text_events(track1_text_events, track2_text_events)
         
         if differences or text_differences:
-            print(f"Differences found in track '{track_name}':")
+            #print(f"Differences found in track '{track_name}':")
             visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id)
         else:
-            print(f"Track '{track_name}' matches old track")
+            print(f"'{track_name}' unchanged")
+    return True
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
@@ -635,4 +636,9 @@ if __name__ == "__main__":
         midi_file1 = sys.argv[1]
         midi_file2 = sys.argv[2]
         session_id = sys.argv[3]
-        main(midi_file1, midi_file2, session_id)
+        
+        result = main(midi_file1, midi_file2, session_id)
+        if result:
+            print("MIDI comparison completed successfully.")
+        else:
+            print("MIDI comparison failed.")
