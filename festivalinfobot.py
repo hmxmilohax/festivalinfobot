@@ -1666,14 +1666,19 @@ async def generate_path(ctx, songname: str, instrument: str = 'guitar', *args):
             await thinking_message.delete()
             return
 
+        filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
+
         # Step 5: Check if path image is generated successfully and send it
         if os.path.exists(os.path.join(TEMP_FOLDER, output_image)):
             file = discord.File(os.path.join(TEMP_FOLDER, output_image), filename=output_image)
             embed = discord.Embed(
                 title=f"Path for **{track_title}** - *{artist_title}*",
-                description=f"`Instrument:` **{display_instrument}**\n"
-                            f"`Difficulty:` **{difficulty.capitalize()}**\n"
-                            f"`Squeeze Percent:` **{squeeze_percent}%**",
+                description=(
+                    f"`Instrument:` **{display_instrument}**\n"
+                    f"`Difficulty:` **{difficulty.capitalize()}**\n"
+                    f"`Squeeze Percent:` **{squeeze_percent}%**\n"
+                    f"```{filtered_output}```"
+                ),
                 color=0x8927A1
             )
             embed.set_image(url=f"attachment://{output_image}")
