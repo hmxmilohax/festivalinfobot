@@ -325,8 +325,12 @@ async def send_auto_publish_message(channel, embed, file = False):
             # Auto-publish the message
             await message.publish()
             print(f"Published message in announcement channel: {channel.name}")
-    except Exception as e:
-        print(f"Error sending or publishing message: {e}")
+    except discord.errors.HTTPException as e:
+        if e.code == 429:  # Rate limit error
+            retry_after = e.retry_after  # Discord provides how long to wait
+            print(f"Rate limited. Retrying in {retry_after} seconds.")
+            await asyncio.sleep(retry_after)
+            await channel.send(embed=embed)
 
 def is_running_in_command_channel(channel_id):
     if USE_COMMAND_CHANNELS:
@@ -958,6 +962,7 @@ async def check_for_new_songs():
             for new_song in new_songs:
                 embed = generate_track_embed(new_song, is_new=True)
                 await send_auto_publish_message(channel, embed)
+                await asyncio.sleep(2)
             save_known_songs_to_disk(tracks)
 
         if modified_songs:
@@ -985,6 +990,7 @@ async def check_for_new_songs():
 
                 embed = generate_modified_track_embed(old=old_song, new=new_song)
                 await send_auto_publish_message(channel, embed)
+                await asyncio.sleep(2)
             save_known_songs_to_disk(tracks)
 
     print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}")
