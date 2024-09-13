@@ -683,9 +683,14 @@ def fetch_shop_tracks():
         print(f'Error fetching shop tracks: {e}')
         return None
 
-def generate_track_embed(track_data, is_new=False):
+def generate_track_embed(track_data, is_new=False, is_removed=False):
     track = track_data['track']
-    title = f"New song found:\n{track['tt']}" if is_new else track['tt']
+    if is_new:
+        title = f"New Track Added: {track['tt']}"
+    elif is_removed:
+        title = f"Track Removed: {track['tt']}"
+    else:
+        title = f"{track['tt']}"
     placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
     embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
 
@@ -943,6 +948,13 @@ async def check_for_new_songs():
     new_songs = []
     modified_songs = []
 
+    removed_songs = []
+
+    # Check for removed songs
+    for shortname, known_track in known_tracks_dict.items():
+        if shortname not in current_tracks_dict:
+            removed_songs.append(known_track)
+
     for shortname, current_track in current_tracks_dict.items():
         if shortname not in known_tracks_dict:
             new_songs.append(current_track)
@@ -961,6 +973,14 @@ async def check_for_new_songs():
             print(f"New songs detected!")
             for new_song in new_songs:
                 embed = generate_track_embed(new_song, is_new=True)
+                await send_auto_publish_message(channel, embed)
+                await asyncio.sleep(2)
+            save_known_songs_to_disk(tracks)
+
+        if removed_songs:
+            print(f"Removed songs detected!")
+            for removed_song in removed_songs:
+                embed = generate_track_embed(removed_song, is_removed=True)
                 await send_auto_publish_message(channel, embed)
                 await asyncio.sleep(2)
             save_known_songs_to_disk(tracks)
