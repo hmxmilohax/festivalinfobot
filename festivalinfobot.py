@@ -759,6 +759,49 @@ def generate_track_embed(track_data, is_new=False):
     
     return embed
 
+def compare_qi_fields(old_qi, new_qi):
+    # Parse the qi fields if they are valid JSON strings
+    try:
+        old_qi_data = json.loads(old_qi)
+        new_qi_data = json.loads(new_qi)
+    except json.JSONDecodeError:
+        return None  # Return None if parsing fails
+
+    embed_fields = []
+
+    # Compare the direct fields like 'sid', 'pid', 'title'
+    for field in ['sid', 'pid', 'stereoId', 'instrumentalId', 'title']:
+        if old_qi_data.get(field) != new_qi_data.get(field):
+            embed_fields.append(
+                f"**{field}** changed\n"
+                f"```Old: {old_qi_data.get(field, '[N/A]')}\nNew: {new_qi_data.get(field, '[N/A]')}```"
+            )
+
+    # Compare the tracks part
+    if 'tracks' in old_qi_data and 'tracks' in new_qi_data:
+        old_tracks = old_qi_data['tracks']
+        new_tracks = new_qi_data['tracks']
+        if len(old_tracks) == len(new_tracks):
+            for i, track in enumerate(old_tracks):
+                for track_field in ['part', 'channels', 'vols']:
+                    if track.get(track_field) != new_tracks[i].get(track_field):
+                        embed_fields.append(
+                            f"Track {i+1} **{track_field}** changed\n"
+                            f"```Old: {track.get(track_field, '[N/A]')}\nNew: {new_tracks[i].get(track_field, '[N/A]')}```"
+                        )
+        else:
+            embed_fields.append("Track length changed in 'tracks' field")
+
+    # Compare the preview part if exists
+    if 'preview' in old_qi_data and 'preview' in new_qi_data:
+        if old_qi_data['preview'].get('starttime') != new_qi_data['preview'].get('starttime'):
+            embed_fields.append(
+                "**preview.starttime** changed\n"
+                f"```Old: {old_qi_data['preview'].get('starttime', '[N/A]')}\nNew: {new_qi_data['preview'].get('starttime', '[N/A]')}```"
+            )
+
+    return embed_fields
+
 def generate_modified_track_embed(old, new):
     old_track_data = old['track']
     new_track_data = new['track']
@@ -800,19 +843,63 @@ def generate_modified_track_embed(old, new):
         'ba': 'Bass'
     }
 
+    extra_comparisons = {
+        'dn': 'Track Number',
+        '_type': 'Track Type',
+        '_noIndex': 'No Index Flag',
+        '_activeDate': 'Active Date',
+        '_locale': 'Locale',
+        '_templateName': 'Template Name'
+    }
+
+    # Report changes in the simple fields
     for value, name in simple_comparisons.items():
         if old_track_data.get(value, '[N/A]') != new_track_data.get(value, '[N/A]'):
-            embed.add_field(name=f"{name} changed", value=f"```Old: \"{old_track_data.get(value, '[N/A]')}\"\nNew: \"{new_track_data.get(value, '[N/A]')}\"```", inline=False)
+            embed.add_field(
+                name=f"{name} changed", 
+                value=f"```Old: \"{old_track_data.get(value, '[N/A]')}\"\nNew: \"{new_track_data.get(value, '[N/A]')}\"```", 
+                inline=False
+            )
 
+    # Report changes in difficulty fields
     for value, name in difficulty_comparisons.items():
         if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
-            embed.add_field(name=f"{name} difficulty changed", value=f"```Old: \"{generate_difficulty_bar(old_track_data['in'].get(value, 0))}\"\nNew: \"{generate_difficulty_bar(new_track_data['in'].get(value, 0))}\"```", inline=False)
+            embed.add_field(
+                name=f"{name} difficulty changed", 
+                value=f"```Old: \"{generate_difficulty_bar(old_track_data['in'].get(value, 0))}\"\nNew: \"{generate_difficulty_bar(new_track_data['in'].get(value, 0))}\"```", 
+                inline=False
+            )
 
-    # check for mismatched difficulty properties
+    # Check for mismatched difficulty properties
     for key in new_track_data['in'].keys():
-        if not (key in difficulty_comparisons.keys()):
-            if key != '_type':
-                embed.add_field(name=f"{key} (*Mismatched Difficulty*)", value=f"```Found: {generate_difficulty_bar(new_track_data['in'][key])}```", inline=False)
+        if key not in difficulty_comparisons.keys() and key != '_type':
+            embed.add_field(
+                name=f"{key} (*Mismatched Difficulty*)", 
+                value=f"```Found: {generate_difficulty_bar(new_track_data['in'][key])}```", 
+                inline=False
+            )
+
+    # Report `lastModified` change
+    if old.get('lastModified') != new.get('lastModified'):
+        embed.add_field(
+            name="Last Modified Date changed", 
+            value=f"```Old: {old.get('lastModified', '[N/A]')}\nNew: {new.get('lastModified', '[N/A]')} ```", 
+            inline=False
+        )
+
+    # Report `qi` change (JSON string difference)
+    qi_comparisons = compare_qi_fields(old_track_data.get('qi', ''), new_track_data.get('qi', ''))
+    if qi_comparisons:
+        for field in qi_comparisons:
+            embed.add_field(name="QI Field Update", value=field, inline=False)
+
+    for value, name in extra_comparisons.items():
+        if old.get(value) != new.get(value):
+            embed.add_field(
+                name=f"{name} changed", 
+                value=f"```Old: \"{old.get(value, '[N/A]')}\"\nNew: \"{new.get(value, '[N/A]')}\"```", 
+                inline=False
+            )
 
     return embed
 
