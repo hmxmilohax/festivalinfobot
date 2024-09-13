@@ -28,7 +28,7 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
 1. Clone this repository:
 
     ```bash
-    git clone https://github.com/yourusername/festivalinfobot.git
+    git clone https://github.com/hmxmilohax/festivalinfobot.git
     cd festivalinfobot
     ```
 
