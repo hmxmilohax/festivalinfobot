@@ -1235,7 +1235,7 @@ async def count_tracks(ctx):
     total_tracks = len(tracks)
     embed = discord.Embed(
         title="Total Available Songs",
-        description=f"There are currently **{total_tracks}** available songs available in Fortnite Festival.",
+        description=f"There are currently **{total_tracks}** songs available in Fortnite Festival.",
         color=0x8927A1
     )
 
