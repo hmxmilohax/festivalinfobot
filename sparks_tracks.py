@@ -24,6 +24,7 @@ def get_commit_history():
 
     while True:
         params["page"] = page
+        print(f'[GET] {COMMITS_URL}')
         response = requests.get(COMMITS_URL, headers=headers, params=params)
         response.raise_for_status()
         commits = response.json()
@@ -52,6 +53,7 @@ def download_file_at_commit(commit_sha, commit_timestamp):
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
     
     raw_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{commit_sha}/{FILE_PATH}"
+    print(f'[GET] {raw_url}')
     response = requests.get(raw_url, headers=headers)
     response.raise_for_status()
 
