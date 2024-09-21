@@ -1,5 +1,6 @@
 from datetime import datetime
 from difflib import get_close_matches
+import json
 import string
 import discord
 from discord.ext import commands
@@ -88,12 +89,19 @@ class SearchCommandHandler:
             date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
             return date_ts.strftime("%B %d, %Y")
         return "Currently in the shop!"
+    
+    async def handle_imacat_search(self, interaction: discord.Interaction):
+        with open('imacat.json', 'r') as imacat_file:
+            imacat_data = json.load(imacat_file)
+        embed = self.embed_handler.generate_track_embed(imacat_data)
+        embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
+        await interaction.response.send_message(embed=embed)
 
     async def handle_interaction(self, interaction: discord.Interaction, query:str):
         # Special case for "I'm A Cat"
-        # if query.lower() in {"i'm a cat", "im a cat", "imacat"}:
-        #     await handle_imacat_search(ctx)
-        #     return
+        if query.lower() in {"i'm a cat", "im a cat", "imacat"}:
+            await self.handle_imacat_search(interaction=interaction)
+            return
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
