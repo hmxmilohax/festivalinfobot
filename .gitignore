@@ -1,4 +1,4 @@
-
+channels.json
 config.ini
 known_songs.json
 known_tracks.json
@@ -9,3 +9,4 @@ prefixes.json
 json
 midi_files
 **/__pycache__
+backups/

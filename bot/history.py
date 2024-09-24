@@ -10,6 +10,7 @@ from discord.ext import commands
 import requests
 
 from bot import constants
+from bot.config import JamTrackEvent
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tracks import JamTrackHandler
@@ -478,8 +479,8 @@ class LoopCheckHandler():
         self.jam_track_handler = JamTrackHandler()
 
     async def handle_task(self):
-        if not self.bot.CHANNEL_IDS:
-            print(f"No channel IDs provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
+        if not self.bot.config:
+            print(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
             return
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)  # Unique session identifier
@@ -527,33 +528,51 @@ class LoopCheckHandler():
                 if current_track != known_track:
                     modified_songs.append((known_track, current_track))
 
-        for channel_id in self.bot.CHANNEL_IDS:
-            channel = self.bot.get_channel(channel_id)
+        combined_channels = self.bot.config.channels
+        combined_channels.extend(self.bot.config.users)
+
+        for channel_to_send in combined_channels:
+            if channel_to_send.type == 'channel':
+                channel = self.bot.get_channel(channel_to_send.id)
+            elif channel_to_send.type == 'user':
+                channel = self.bot.get_user(channel_to_send.id)
+            else:
+                channel = None
+
             if not channel:
-                print(f"Channel with ID {channel_id} not found.")
+                print(f"Channel with ID {channel_to_send.id} not found.")
                 continue
 
-            if new_songs:
+            content = ""
+            if channel_to_send.roles:
+                role_pings = []
+                for role in channel_to_send.roles:
+                    role_pings.append(f"<@&{role}>")
+                content = " ".join(role_pings)
+
+            if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
                 print(f"New songs detected!")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
-                    message = await channel.send(embed=embed)
-                    if channel.is_news():
-                        await message.publish()
+                    message = await channel.send(content=content, embed=embed)
+                    if isinstance(channel, discord.TextChannel):
+                        if channel.is_news():
+                            await message.publish()
                     await asyncio.sleep(2)
                 save_known_songs_to_disk(tracks)
 
-            if removed_songs:
+            if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
                 print(f"Removed songs detected!")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
-                    message = await channel.send(embed=embed)
-                    if channel.is_news():
-                        await message.publish()
+                    message = await channel.send(content=content, embed=embed)
+                    if isinstance(channel, discord.TextChannel):
+                        if channel.is_news():
+                            await message.publish()
                     await asyncio.sleep(2)
                 save_known_songs_to_disk(tracks)
 
-            if modified_songs:
+            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
                 print(f"Modified songs detected!")
                 for old_song, new_song in modified_songs:
                     old_url = old_song['track'].get('mu', '')
@@ -577,10 +596,11 @@ class LoopCheckHandler():
                         await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash, channel=channel)
 
                     embed = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
-                    message = await channel.send(embed=embed)
-                    if channel.is_news():
-                        await message.publish()
+                    message = await channel.send(content=content, embed=embed)
+                    if isinstance(channel, discord.TextChannel):
+                        if channel.is_news():
+                            await message.publish()
                     await asyncio.sleep(2)
                 save_known_songs_to_disk(tracks)
 
-        print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}")
+        print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}\nRemoved: {len(removed_songs)}")
