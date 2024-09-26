@@ -45,8 +45,6 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
     [discord]
     # your bot token, duplicate this file to config.ini and add it there
     token = YOUR_DISCORD_BOT_TOKEN_HERE
-    # list of channel ids the bot sends jam track updates to
-    channel_ids = 123456789012345678, 234567890123456789
     # the command prefix the bot will use
     prefix = !
     # the channel ids the bot is allowed to be triggered by a command in
@@ -71,8 +69,6 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
     ```
 
    - Replace `YOUR_DISCORD_BOT_TOKEN` with your actual Discord bot token.
-   - Replace the `channel_ids` with the IDs of the channels where you want the bot to report new songs.
-   - Replace the `prefix` with the specific prefix the bot will use.
    - Follow the comments to customize the configuration more
 
 4. Run the bot:
