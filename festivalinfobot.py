@@ -14,13 +14,33 @@ from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 
 class FestivalInfoBot(commands.Bot):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
     async def on_ready(self):
         print(f'Logged in as {self.user.name}')
 
         print("Bot now active on:")
-        print("Name".ljust(30), "ID")
-        for guild in self.guilds:
-            print(guild.name.ljust(30), guild.id)
+        print("No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date")
+        
+        # Sort guilds by the bot's join date
+        sorted_guilds = sorted(
+            self.guilds, 
+            key=lambda guild: guild.me.joined_at or datetime.datetime.min
+        )
+        
+        # Enumerate over sorted guilds to get the join number
+        for index, guild in enumerate(sorted_guilds, start=1):
+            join_date = (
+                guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
+                if guild.me.joined_at else "Unknown"
+            )
+            print(
+                str(index).ljust(5),
+                guild.name.ljust(30), 
+                str(guild.id).ljust(20), 
+                join_date
+            )
 
         print("Syncing slash command tree...")
         await self.tree.sync()
