@@ -593,7 +593,7 @@ class LoopCheckHandler():
 
                         # Pass the track name to the process_chart_url_change function
                         print(f"Running process_chart_url_change for {local_midi_file_old} and {local_midi_file_new}")
-                        await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash, channel=channel)
+                        await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, interaction=None, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash, channel=channel)
 
                     embed = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
                     message = await channel.send(content=content, embed=embed)
