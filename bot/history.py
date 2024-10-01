@@ -533,7 +533,18 @@ class LoopCheckHandler():
         combined_channels = self.bot.config.channels
         combined_channels.extend(self.bot.config.users)
 
+        already_sent_to = []
+        duplicates = []
+
         for channel_to_send in combined_channels:
+            # check for duplicates
+            if channel_to_send.id in already_sent_to:
+                print(f'DUPLICATE DETECTED: {channel_to_send.id}')
+                duplicates.append(channel_to_send.id)
+                continue
+            else:
+                already_sent_to.append(channel_to_send.id)
+
             if channel_to_send.type == 'channel':
                 channel = self.bot.get_channel(channel_to_send.id)
             elif channel_to_send.type == 'user':
@@ -604,5 +615,10 @@ class LoopCheckHandler():
                             await message.publish()
                     await asyncio.sleep(2)
                 save_known_songs_to_disk(tracks)
+
+        if len(duplicates) > 0:
+            print('Warning: Duplicates detected!')
+            print('Please check!\n' * 10)
+            print('Duplicates: ' + ', '.join(duplicates))
 
         print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}\nRemoved: {len(removed_songs)}")
