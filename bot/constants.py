@@ -255,6 +255,7 @@ def get_jam_tracks():
     print(f'[GET] {content_url}')
     try:
         response = requests.get(content_url)
+        response.raise_for_status()
         data = response.json()
 
         if isinstance(data, dict):

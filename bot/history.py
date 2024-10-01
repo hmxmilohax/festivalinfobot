@@ -19,6 +19,8 @@ def save_known_songs_to_disk(songs):
     # Fetch jam tracks using the API call
     print(f'[GET] {constants.CONTENT_API}')
     response = requests.get(constants.CONTENT_API)
+    response.raise_for_status()
+
     data = response.json()
     # Generate timestamp in the required format (e.g., 2024-04-24T13.27.49)
     timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H.%M.%S')
@@ -85,8 +87,8 @@ def save_known_songs_to_disk(songs):
 def load_known_songs_from_disk(shortnames:bool = False):
     path = constants.SONGS_FILE if not shortnames else constants.SHORTNAME_FILE
     if os.path.exists(path):
-        with open(path, 'r') as file:
-            return json.load(file)
+        with open(path, 'r', encoding="utf-8") as file:
+            return json.loads(file.read())
     return list()
 
 class HistoryHandler():
