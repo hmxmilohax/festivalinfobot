@@ -619,6 +619,6 @@ class LoopCheckHandler():
         if len(duplicates) > 0:
             print('Warning: Duplicates detected!')
             print('Please check!\n' * 10)
-            print('Duplicates: ' + ', '.join(duplicates))
+            print('Duplicates: ' + ', '.join([str(_id) for _id in duplicates]))
 
         print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}\nRemoved: {len(removed_songs)}")
