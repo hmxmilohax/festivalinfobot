@@ -190,7 +190,10 @@ class HistoryHandler():
                 if not channel:
                     await interaction.edit_original_response(content=f"Comparison failed with error: {result.stderr}")
                 else:
-                    await channel.send(content=f"Comparison failed with error: {result.stderr}")
+                    try:
+                        await channel.send(content=f"Comparison failed with error: {result.stderr}")
+                    except Exception as e:
+                        print(f"Error sending message to channel {channel.id}: {e}")
 
                 return
 
@@ -206,7 +209,10 @@ class HistoryHandler():
                     if not channel:
                         await interaction.edit_original_response(content=f"Found {len(comparison_images)} MIDI Track changes:")
                     else:
-                        await channel.send(content=f"Found {len(comparison_images)} MIDI Track changes:")
+                        try:
+                            await channel.send(content=f"Found {len(comparison_images)} MIDI Track changes:")
+                        except Exception as e:
+                            print(f"Error sending message to channel {channel.id}: {e}")
 
                     # do not use edit_original_response here
                     for image in comparison_images:
@@ -229,27 +235,36 @@ class HistoryHandler():
                             if img_message.channel.is_news():
                                 await img_message.publish()
                         except Exception as e:
-                            print(f"Error sending embed: {e}")
+                            print(f"Error sending embed to channel {channel.id if channel else 'N/A'}: {e}")
                     constants.delete_session_files(session_hash)
                 else:
                     if not channel:
                         message = await interaction.edit_original_response(content=f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
                     else:
-                        message = await channel.send(content=f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
-                    if message.channel.is_news():
-                        await message.publish()
+                        try:
+                            message = await channel.send(content=f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
+                            if message.channel.is_news():
+                                await message.publish()
+                        except Exception as e:
+                            print(f"Error sending message to channel {channel.id}: {e}")
                     constants.delete_session_files(session_hash)
             else:
                 if not channel:
                     message = await interaction.edit_original_response(content="MIDI comparison did not complete successfully.")
                 else:
-                    message = await channel.send(content="MIDI comparison did not complete successfully.")
+                    try:
+                        message = await channel.send(content="MIDI comparison did not complete successfully.")
+                    except Exception as e:
+                        print(f"Error sending message to channel {channel.id}: {e}")
                 constants.delete_session_files(session_hash)
         else:
             if not channel:
                 await interaction.edit_original_response(content="Failed to decrypt MIDI files.")
             else:
-                await channel.send(content="Failed to decrypt MIDI files.")
+                try:
+                    await channel.send(content="Failed to decrypt MIDI files.")
+                except Exception as e:
+                    print(f"Error sending message to channel {channel.id}: {e}")
             constants.delete_session_files(session_hash)
 
     def fetch_local_history(self):
@@ -273,7 +288,10 @@ class HistoryHandler():
             if not use_channel:
                 await interaction.response.send_message(content="Could not fetch tracks.")
             else:
-                await channel.send(content="Could not fetch tracks.")
+                try:
+                    await channel.send(content="Could not fetch tracks.")
+                except Exception as e:
+                    print(f"Error sending message to channel {channel.id}: {e}")
             return
 
         # Perform fuzzy search to find the matching song
@@ -283,7 +301,10 @@ class HistoryHandler():
             if not use_channel:
                 await interaction.response.send_message(content=f"No tracks found for '{song}'.")
             else:
-                await channel.send(content=f"No tracks found for '{song}'.")
+                try:
+                    await channel.send(content=f"No tracks found for '{song}'.")
+                except Exception as e:
+                    print(f"Error sending message to channel {channel.id}: {e}")
             return
         
         if not use_channel:
@@ -301,7 +322,10 @@ class HistoryHandler():
             if not use_channel:
                 await interaction.edit_original_response(content=f"No local history files found.")
             else:
-                await channel.send(content=f"No local history files found.")
+                try:
+                    await channel.send(content=f"No local history files found.")
+                except Exception as e:
+                    print(f"Error sending message to channel {channel.id}: {e}")
             return
 
         midi_file_changes = self.track_midi_changes(json_files, shortname, session_hash)
@@ -311,7 +335,10 @@ class HistoryHandler():
             if not use_channel:
                 await interaction.edit_original_response(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
             else:
-                await channel.send(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
+                try:
+                    await channel.send(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
+                except Exception as e:
+                    print(f"Error sending message to channel {channel.id}: {e}")
             return
 
         for i in range(1, len(midi_file_changes)):
@@ -530,12 +557,13 @@ class LoopCheckHandler():
                 if current_track != known_track:
                     modified_songs.append((known_track, current_track))
 
+        combined_channels = self.bot.config.channels
+        combined_channels.extend(self.bot.config.users)
+
         already_sent_to = []
         duplicates = []
 
-        print(f'Sending to {len(self.bot.config.channels + self.bot.config.users)} channels...')
-
-        for channel_to_send in self.bot.config.channels + self.bot.config.users:
+        for channel_to_send in combined_channels:
             # check for duplicates
             if channel_to_send.id in already_sent_to:
                 print(f'DUPLICATE DETECTED: {channel_to_send.id}')
@@ -566,22 +594,28 @@ class LoopCheckHandler():
                 print(f"New songs detected!")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
-                    message = await channel.send(content=content, embed=embed)
-                    if isinstance(channel, discord.TextChannel):
-                        if channel.is_news():
-                            await message.publish()
-                    await asyncio.sleep(2)
+                    try:
+                        message = await channel.send(content=content, embed=embed)
+                        if isinstance(channel, discord.TextChannel):
+                            if channel.is_news():
+                                await message.publish()
+                        await asyncio.sleep(2)
+                    except Exception as e:
+                        print(f"Error sending message to channel {channel.id}: {e}")
                 save_known_songs_to_disk(tracks)
 
             if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
                 print(f"Removed songs detected!")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
-                    message = await channel.send(content=content, embed=embed)
-                    if isinstance(channel, discord.TextChannel):
-                        if channel.is_news():
-                            await message.publish()
-                    await asyncio.sleep(2)
+                    try:
+                        message = await channel.send(content=content, embed=embed)
+                        if isinstance(channel, discord.TextChannel):
+                            if channel.is_news():
+                                await message.publish()
+                        await asyncio.sleep(2)
+                    except Exception as e:
+                        print(f"Error sending message to channel {channel.id}: {e}")
                 save_known_songs_to_disk(tracks)
 
             if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
@@ -608,11 +642,14 @@ class LoopCheckHandler():
                         await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, interaction=None, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash, channel=channel)
 
                     embed = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
-                    message = await channel.send(content=content, embed=embed)
-                    if isinstance(channel, discord.TextChannel):
-                        if channel.is_news():
-                            await message.publish()
-                    await asyncio.sleep(2)
+                    try:
+                        message = await channel.send(content=content, embed=embed)
+                        if isinstance(channel, discord.TextChannel):
+                            if channel.is_news():
+                                await message.publish()
+                        await asyncio.sleep(2)
+                    except Exception as e:
+                        print(f"Error sending message to channel {channel.id}: {e}")
                 save_known_songs_to_disk(tracks)
 
         if len(duplicates) > 0:
