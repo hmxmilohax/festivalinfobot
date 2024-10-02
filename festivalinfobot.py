@@ -746,4 +746,11 @@ class FestivalInfoBot(commands.Bot):
             
             await interaction.response.send_message(f'You have been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
 
+        @self.tree.command(name="test", description="Test")
+        async def dm_add_event(interaction: discord.Interaction):
+            for channel in self.config.channels + self.config.users:
+                print(channel.id)
+
+            await interaction.response.send_message(content="hi")
+
 bot = FestivalInfoBot()
