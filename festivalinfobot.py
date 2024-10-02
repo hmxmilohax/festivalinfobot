@@ -749,6 +749,8 @@ class FestivalInfoBot(commands.Bot):
                 await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
                 return
 
+            await interaction.response.defer(ephemeral=True)
+
             # Send a test message to all subscribed channels
             for channel_to_search in self.config.channels:
                 channel = self.get_channel(channel_to_search.id)
@@ -771,6 +773,6 @@ class FestivalInfoBot(commands.Bot):
                 else:
                     print(f"User with ID {user_to_send.id} not found.")
 
-            await interaction.response.send_message(content="Test messages have been sent.", ephemeral=True)
+            await interaction.followup.send(content="Test messages have been sent.", ephemeral=True)
 
 bot = FestivalInfoBot()
