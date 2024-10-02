@@ -189,7 +189,7 @@ class FestivalInfoBot(commands.Bot):
     
             await self.history_handler.handle_interaction(interaction=interaction, song=song)
 
-        @self.tree.command(name="fullhistory", description="Only jnack can run this")
+        @self.tree.command(name="test_fullhistory", description="Only the bot host can run this command. Runs history for every known song.")
         async def full_history(interaction: discord.Interaction):
             if not self.CHART_COMPARING_ALLOWED or not self.DECRYPTION_ALLOWED:
                 await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
@@ -212,9 +212,6 @@ class FestivalInfoBot(commands.Bot):
                 artist_name = track['track']['an']
 
                 try:
-                    # Send a message indicating which song's history is being processed
-                    await interaction.channel.send(content=f"Processing the history for **{song_name}** by *{artist_name}*...")
-
                     # Call the history command with the song's title
                     await self.history_handler.handle_interaction(interaction=interaction, song=song_name, channel=interaction.channel, use_channel=True)
 
@@ -745,5 +742,35 @@ class FestivalInfoBot(commands.Bot):
                 return
             
             await interaction.response.send_message(f'You have been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
+
+        @self.tree.command(name="test_notifs", description="Only the bot host can run this command. Tests subscriber notifications.")
+        async def test_command(interaction: discord.Interaction):
+            if interaction.user.id != 960524988824313876:
+                await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+                return
+
+            # Send a test message to all subscribed channels
+            for channel_to_search in self.config.channels:
+                channel = self.get_channel(channel_to_search.id)
+                if channel:
+                    try:
+                        await channel.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
+                    except Exception as e:
+                        print(f"Error sending message to channel {channel.id}: {e}")
+                else:
+                    print(f"Channel with ID {channel_to_search.id} not found.")
+
+            # Send a test message to all subscribed users
+            for user_to_send in self.config.users:
+                user = self.get_user(user_to_send.id)
+                if user:
+                    try:
+                        await user.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
+                    except Exception as e:
+                        print(f"Error sending message to user {user.id}: {e}")
+                else:
+                    print(f"User with ID {user_to_send.id} not found.")
+
+            await interaction.response.send_message(content="Test messages have been sent.", ephemeral=True)
 
 bot = FestivalInfoBot()
