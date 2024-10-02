@@ -2,6 +2,7 @@ from datetime import datetime
 import enum
 import json
 import os
+import copy
 
 from bot import constants
 
@@ -14,16 +15,16 @@ class JamTrackEvent(enum.Enum):
         return ['added', 'modified', 'removed']
 
 class SubscriptionChannel():
-    def __init__(self) -> None:
-        self.id : int = None
-        self.events : list[str] = None
-        self.roles : list[int] = None # Roles to ping when an event occurs
+    def __init__(self, cid, events, roles) -> None:
+        self.id : int = cid
+        self.events : list[str] = events
+        self.roles : list[int] = roles # Roles to ping when an event occurs
         self.type : str = 'channel'
 
 class SubscriptionUser():
-    def __init__(self) -> None:
-        self.id : int = None
-        self.events : list[str] = None
+    def __init__(self, uid, events) -> None:
+        self.id : int = uid
+        self.events : list[str] = events
         self.roles : list[int] = None # Roles to ping when an event occurs
         self.type : str = 'user'
 
@@ -36,40 +37,49 @@ class Config:
 
         self.load()
 
-    def save_config(self):
-        list_object = {
-            'channels': [],
-            'users': []
-        }
+    def save_channels(self):
+        channel_list = []
+
         for channel in self.channels:
             if any(user.id == channel.id for user in self.users): # Attempt to remove duplicates
                 continue # PD: I don't know what causes duplication
             
-            list_object['channels'].append({
+            channel_list.extend([copy.deepcopy({
                 'id': channel.id,
                 'events': channel.events,
                 'roles': channel.roles,
                 'type': 'channel'
-            })
+            })])
+
+        return channel_list
+
+    def save_users(self):
+        user_list = []
 
         for user in self.users:
             if any(channel.id == user.id for channel in self.channels): # Remove duplicates, too.
                 continue
 
-            list_object['users'].append({
+            user_list.extend([copy.deepcopy({
                 'id': user.id,
                 'events': user.events,
                 'roles': [],
                 'type': 'user'
-            })
+            })])
 
+        return user_list
+
+    def save_config(self):
         # if something fails, attempt to recover
         previous_file_content = open(self.file, 'r').read()
 
         try:
             # the json module likes erasing the entire file first before 
             # checking if the object is actually serializable
-            open(self.file, 'w').write(json.dumps(list_object, indent=4))
+            open(self.file, 'w').write(json.dumps({
+                'channels': self.save_channels(),
+                'users': self.save_users()
+            }, indent=4))
 
             # Tell the bot to completely reload the config
             self.callback()
@@ -88,20 +98,12 @@ class Config:
     def load_channels(self, data):
         self.channels = []
         for channel in data.get('channels', []):
-            channel_object = SubscriptionChannel()
-            channel_object.id = channel['id']
-            channel_object.events = channel['events']
-            channel_object.roles = channel['roles']
-            self.channels.append(channel_object)
+            self.channels.append(SubscriptionChannel(channel['id'], channel['events'], channel['roles']))
 
     def load_users(self, data):
         self.users = []
         for user in data.get('users', []):
-            user_object = SubscriptionUser()
-            user_object.id = user['id']
-            user_object.events = user['events']
-            user_object.roles = []
-            self.users.append(user_object)
+            self.users.append(SubscriptionUser(user['id'], user['events']))
 
     def load(self):
         if not os.path.exists(self.file):

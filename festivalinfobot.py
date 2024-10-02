@@ -1,3 +1,5 @@
+import asyncio
+from datetime import datetime
 import json
 import time
 from discord.ext import commands, tasks
@@ -26,7 +28,7 @@ class FestivalInfoBot(commands.Bot):
         # Sort guilds by the bot's join date
         sorted_guilds = sorted(
             self.guilds, 
-            key=lambda guild: guild.me.joined_at or datetime.datetime.min
+            key=lambda guild: guild.me.joined_at or datetime.min
         )
         
         # Enumerate over sorted guilds to get the join number
@@ -71,7 +73,7 @@ class FestivalInfoBot(commands.Bot):
         def reload_config():
            self.config = Config(config_file="channels.json", reload_callback=reload_config) 
 
-        self.config = Config(config_file="channels.json", reload_callback=reload_config)
+        reload_config()
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -281,25 +283,34 @@ class FestivalInfoBot(commands.Bot):
                         description=f"{found_command.description}\n**Usage**: {usage}",
                         color=0x8927A1
                     )
+
+                    await interaction.response.send_message(embed=embed)
                 else:
                     await interaction.response.send_message(content=f"No command found with the name \"{command}\"", ephemeral=True)
                     return
             else:
-                embed = discord.Embed(
-                    title="Festival Tracker Help",
-                    description=f"A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)\nUse `/help <command>` to get more information on a specific command.",
-                    color=0x8927A1
-                )
-                # Walk through all commands registered in self.tree
-                for command in self.tree.get_commands():
-                    # Add command to embed
-                    embed.add_field(
-                        name=f"`/{command.name}`",
-                        value=command.description or "No description",
-                        inline=False
-                    )
+                embeds = []
+                commands = self.tree.get_commands()
 
-            await interaction.response.send_message(embed=embed)
+                for i in range(0, len(commands), 5):
+                    embed = discord.Embed(
+                        title="Festival Tracker Help",
+                        description=f"A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)\nUse `/help <command>` to get more information on a specific command.",
+                        color=0x8927A1
+                    )
+                    chunk = commands[i:i + 5]
+                    # Walk through all commands registered in self.tree
+                    for command in chunk:
+                        # Add command to embed
+                        embed.add_field(
+                            name=f"`/{command.name}`",
+                            value=command.description or "No description",
+                            inline=False
+                        )
+                    embeds.append(embed)
+
+                view = constants.PaginatorView(embeds, interaction.user.id)
+                view.message = await interaction.response.send_message(embed=view.get_embed(), view=view)
 
     def setup_subscribe_commands(self):
         # Setup all the subscription commands
@@ -307,12 +318,6 @@ class FestivalInfoBot(commands.Bot):
         async def set_channel_subscription(interaction: discord.Interaction, channel: discord.channel.TextChannel, remove: bool = False) -> bool:
             channel_list = [subscribed_channel for subscribed_channel in self.config.channels if subscribed_channel.id == channel.id]
             channel_exists = len(channel_list) > 0
-
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
 
             if remove:
                 # User ran /unsubscribe on a channel which isnt subscribed
@@ -322,26 +327,27 @@ class FestivalInfoBot(commands.Bot):
                 # User ran /unsubscribe
                 else:
                     try:
-                        self.config.channels.remove(channel_list[0])
+                        for _channel in channel_list:
+                            self.config.channels.remove(_channel)
                     except ValueError as e:
                         await interaction.response.send_message(f"The channel <#{channel.id}> could not be unsubscribed: {e}")
                         return False
             else:
                 # User ran /subscribe on a channel which is already subscribed
                 if channel_exists:
-                    channel_events = channel_list[0].events
-                    if len(channel_events) == len(config.JamTrackEvent.get_all_events()):
-                        await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to all Jam Track events.")
-                    else:    
-                        await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to the events \"{'\", \"'.join([event_names[event] for event in channel_events])}\".")
+                    for i, _channel in enumerate(channel_list):
+                        if i > 0:
+                            print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+
+                        channel_events = _channel.events
+                        if len(channel_events) == len(config.JamTrackEvent.get_all_events()):
+                            await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to all Jam Track events.")
+                        else:    
+                            await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in channel_events])}\".")
                     return False
                 # User ran /subscribe
                 else:
-                    new_channel = config.SubscriptionChannel()
-                    new_channel.id = channel.id
-                    new_channel.roles = []
-                    new_channel.events = config.JamTrackEvent.get_all_events()
-                    self.config.channels.append(new_channel)
+                    self.config.channels.append(config.SubscriptionChannel(channel.id, config.JamTrackEvent.get_all_events(), []))
 
             try:
                 self.config.save_config()
@@ -386,7 +392,31 @@ class FestivalInfoBot(commands.Bot):
             if not subscription_result:
                 return
             
-            await interaction.response.send_message(f"The channel <#{channel.id}> has been subscribed to all Jam Track events.")
+            # Bot will throw 403 if it can't manage messages
+            if interaction.channel.permissions_for(interaction.guild.me).manage_messages:            
+                await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
+                message = await interaction.original_response()  # Retrieve the message object for reactions
+                await message.add_reaction("✅")
+
+                def check(reaction, user):
+                    return (
+                        user == interaction.user and
+                        user.guild_permissions.administrator and
+                        str(reaction.emoji) == "✅" and
+                        reaction.message.id == message.id
+                    )
+
+                try:
+                    reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
+                except asyncio.TimeoutError:
+                    await message.clear_reactions()
+                    await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.")
+                else:
+                    await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
+                    await message.clear_reactions()
+                    await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
+            else:
+                await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n**Tip:** I can send a test message to this channel if I have the **Manage Messages** permission here.")
 
         @self.tree.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
         @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")
@@ -411,38 +441,32 @@ class FestivalInfoBot(commands.Bot):
             channel_exists = len(channel_list) > 0
             chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
 
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
-
             if not channel_exists:
                 # Only check for permissions if the channel is added
                 permission_result = await check_permissions(interaction=interaction, channel=channel)
                 if not permission_result:
                     return
 
-                new_channel = config.SubscriptionChannel()
-                new_channel.id = channel.id
-                new_channel.roles = []
-                new_channel.events = [chosen_event]
-                self.config.channels.append(new_channel)
+                self.config.channels.append(config.SubscriptionChannel(channel.id, [chosen_event], []))
             else:
-                subscribed_events = self.config.channels[self.config.channels.index(channel_list[0])].events
-                if chosen_event in subscribed_events:
-                    await interaction.response.send_message(f'The channel <#{channel.id}> is already subscribed to the event "{event_names[chosen_event]}".')
-                    return
-                else:
-                    self.config.channels[self.config.channels.index(channel_list[0])].events.append(chosen_event)
+                for i, _channel in enumerate(channel_list):
+                    if i > 0:
+                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+
+                    subscribed_events = self.config.channels[self.config.channels.index(_channel)].events
+                    if chosen_event in subscribed_events:
+                        await interaction.response.send_message(f'The channel <#{channel.id}> is already subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
+                        return
+                    else:
+                        self.config.channels[self.config.channels.index(_channel)].events.append(chosen_event)
 
             try:
                 self.config.save_config()
             except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{event_names[chosen_event]}\" to the channel <#{channel.id}>: {e}\nEvent subscription cancelled.")
+                await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{constants.EVENT_NAMES[chosen_event]}\" to the channel <#{channel.id}>: {e}\nEvent subscription cancelled.")
                 return
             
-            await interaction.response.send_message(f'The channel <#{channel.id}> has been subscribed to the event "{event_names[chosen_event]}".')
+            await interaction.response.send_message(f'The channel <#{channel.id}> has been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
 
         @self.tree.command(name="remove_event", description="Remove a Jam Track event from a channel")
         @app_commands.describe(channel = "The channel to remove a Jam Track event from")
@@ -453,43 +477,41 @@ class FestivalInfoBot(commands.Bot):
             channel_exists = len(channel_list) > 0
             chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
 
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
-
             if not channel_exists:
                 await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
                 return
             else:
-                subscribed_events = self.config.channels[self.config.channels.index(channel_list[0])].events
+                for i, _channel in enumerate(channel_list):
+                    if i > 0:
+                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
 
-                if chosen_event in subscribed_events:
-                    try:
-                        self.config.channels[self.config.channels.index(channel_list[0])].events.remove(chosen_event)
+                    subscribed_events = self.config.channels[self.config.channels.index(_channel)].events
 
-                        # Remove the channel from the subscription list if it isnt subscribed to any events
-                        if len(self.config.channels[self.config.channels.index(channel_list[0])].events) < 1:
-                            self.config.channels.remove(channel_list[0])
-                            self.config.save_config()
-                            await interaction.response.send_message(f"The channel <#{channel.id}> has been removed from the subscription list because it is no longer subscribed to any events.")
+                    if chosen_event in subscribed_events:
+                        try:
+                            self.config.channels[self.config.channels.index(_channel)].events.remove(chosen_event)
+
+                            # Remove the channel from the subscription list if it isnt subscribed to any events
+                            if len(self.config.channels[self.config.channels.index(_channel)].events) < 1:
+                                self.config.channels.remove(_channel)
+                                self.config.save_config()
+                                await interaction.response.send_message(f"The channel <#{channel.id}> has been removed from the subscription list because it is no longer subscribed to any events.")
+                                return
+
+                        except Exception as e:
+                            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
                             return
-
-                    except Exception as e:
-                        await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{event_names[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
+                    else:
+                        await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
                         return
-                else:
-                    await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to the event "{event_names[chosen_event]}".')
-                    return
 
             try:
                 self.config.save_config()
             except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{event_names[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
+                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
                 return
             
-            await interaction.response.send_message(f'The channel <#{channel.id}> has been unsubscribed from the event "{event_names[chosen_event]}".')
+            await interaction.response.send_message(f'The channel <#{channel.id}> has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".')
 
         @self.tree.command(name="add_role", description="Add a role ping to a channel's subscription messages")
         @app_commands.describe(channel = "The channel to add a role ping to")
@@ -503,13 +525,17 @@ class FestivalInfoBot(commands.Bot):
                 await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
                 return
             else:
-                channel_roles = self.config.channels[self.config.channels.index(channel_list[0])].roles
+                for i, _channel in enumerate(channel_list):
+                    if i > 0:
+                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
 
-                if role.id in channel_roles:
-                    await interaction.response.send_message(f"This role ping is already assigned to the channel <#{channel.id}>.")
-                    return
-                else:
-                    self.config.channels[self.config.channels.index(channel_list[0])].roles.append(role.id)
+                    channel_roles = self.config.channels[self.config.channels.index(_channel)].roles
+
+                    if role.id in channel_roles:
+                        await interaction.response.send_message(f"This role ping is already assigned to the channel <#{channel.id}>.")
+                        return
+                    else:
+                        self.config.channels[self.config.channels.index(_channel)].roles.append(role.id)
 
             try:
                 self.config.save_config()
@@ -531,17 +557,21 @@ class FestivalInfoBot(commands.Bot):
                 await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
                 return
             else:
-                channel_roles = self.config.channels[self.config.channels.index(channel_list[0])].roles
+                for i, _channel in enumerate(channel_list):
+                    if i > 0:
+                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
 
-                if role.id in channel_roles:
-                    try:
-                        self.config.channels[self.config.channels.index(channel_list[0])].roles.remove(role.id)
-                    except ValueError as e:
-                        await interaction.response.send_message(f"This role ping could not be removed from the channel <#{channel.id}>: {e}\nRole ping removal cancelled.")
+                    channel_roles = self.config.channels[self.config.channels.index(_channel)].roles
+
+                    if role.id in channel_roles:
+                        try:
+                            self.config.channels[self.config.channels.index(_channel)].roles.remove(role.id)
+                        except ValueError as e:
+                            await interaction.response.send_message(f"This role ping could not be removed from the channel <#{channel.id}>: {e}\nRole ping removal cancelled.")
+                            return
+                    else:
+                        await interaction.response.send_message(f"This role ping is not assigned to the channel <#{channel.id}>.")
                         return
-                else:
-                    await interaction.response.send_message(f"This role ping is not assigned to the channel <#{channel.id}>.")
-                    return
 
             try:
                 self.config.save_config()
@@ -556,12 +586,6 @@ class FestivalInfoBot(commands.Bot):
         async def subscriptions(interaction: discord.Interaction):
             embed = discord.Embed(title=f"Subscriptions for **{interaction.guild.name}**", color=0x8927A1)
 
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
-
             total_channels = 0
 
             for channel_to_search in self.config.channels:
@@ -570,15 +594,17 @@ class FestivalInfoBot(commands.Bot):
                 if channel:
                     if channel.guild.id == interaction.guild.id:
                         total_channels += 1
-                        events_content = "Events: " + ", ".join([event_names[event] for event in channel_to_search.events])
+                        events_content = "**Events:** " + ", ".join([constants.EVENT_NAMES[event] for event in channel_to_search.events])
                         role_content = ""
                         if channel_to_search.roles:
                             if len(channel_to_search.roles) > 0:
-                                role_content = "Roles: " + ", ".join([f'<@&{role.id}>' for role in channel_to_search.roles])
-                        embed.add_field(name=f"<#{channel_to_search.id}>", value=f"{events_content}\n{role_content}")
+                                role_content = "**Roles:** " + ", ".join([f'<@&{role.id}>' for role in channel_to_search.roles])
+                        embed.add_field(name=f"<#{channel_to_search.id}>", value=f"{events_content}\n{role_content}", inline=False)
 
             if total_channels < 1:
                 embed.add_field(name="There are no subscriptions in this guild.", value="")
+            else:
+                embed.description = f'{total_channels} found'
 
             await interaction.response.send_message(embed=embed)
 
@@ -602,24 +628,19 @@ class FestivalInfoBot(commands.Bot):
             user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
             user_exists = len(user_list) > 0
 
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
-
             if not user_exists:
-                new_user = config.SubscriptionUser()
-                new_user.id = interaction.user.id
-                new_user.events = config.JamTrackEvent.get_all_events()
-                self.config.users.append(new_user)
+                self.config.users.append(config.SubscriptionUser(interaction.user.id, config.JamTrackEvent.get_all_events()))
             else:
-                subscribed_user_events = self.config.users[self.config.users.index(user_list[0])].events
-                if len(subscribed_user_events) == len(config.JamTrackEvent.get_all_events()):
-                    await interaction.response.send_message(f"You're already subscribed to all Jam Track events.", ephemeral=True)
-                else:    
-                    await interaction.response.send_message(f"You're already subscribed to the events \"{'\", \"'.join([event_names[event] for event in subscribed_user_events])}\".", ephemeral=True)
-                return
+                for i, _user in enumerate(user_list):
+                    if i > 0:
+                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+
+                    subscribed_user_events = self.config.users[self.config.users.index(_user)].events
+                    if len(subscribed_user_events) == len(config.JamTrackEvent.get_all_events()):
+                        await interaction.response.send_message(f"You're already subscribed to all Jam Track events.", ephemeral=True)
+                    else:    
+                        await interaction.response.send_message(f"You're already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in subscribed_user_events])}\".", ephemeral=True)
+                    return
 
             try:
                 self.config.save_config()
@@ -638,11 +659,14 @@ class FestivalInfoBot(commands.Bot):
                 await interaction.response.send_message(f"You are not subscribed to any Jam Track events.", ephemeral=True)
                 return
             else:
-                try:
-                    self.config.users.remove(user_list[0])
-                except ValueError as e:
-                    await interaction.response.send_message(f"The bot's subscription list could not be updated to remove you: {e}\nUnsubscription cancelled.", ephemeral=True)
-                    return
+                for i, _user in enumerate(user_list):
+                    if i > 0:
+                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+                    try:
+                        self.config.users.remove(_user)
+                    except ValueError as e:
+                        await interaction.response.send_message(f"The bot's subscription list could not be updated to remove you: {e}\nUnsubscription cancelled.", ephemeral=True)
+                        return
 
             try:
                 self.config.save_config()
@@ -658,32 +682,27 @@ class FestivalInfoBot(commands.Bot):
             user_exists = len(user_list) > 0
             chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
 
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
-
             if not user_exists:
-                new_user = config.SubscriptionUser()
-                new_user.id = interaction.user.id
-                new_user.events = [chosen_event]
-                self.config.users.append(new_user)
+                self.config.users.append(config.SubscriptionUser(interaction.user.id, [chosen_event]))
             else:
-                subscribed_events = self.config.users[self.config.users.index(user_list[0])].events
-                if chosen_event in subscribed_events:
-                    await interaction.response.send_message(f'You are already subscribed to the event "{event_names[chosen_event]}".', ephemeral=True)
-                    return
-                else:
-                    self.config.users[self.config.users.index(user_list[0])].events.append(chosen_event)
+                for i, _user in enumerate(user_list):
+                    if i > 0:
+                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+
+                    subscribed_events = self.config.users[self.config.users.index(_user)].events
+                    if chosen_event in subscribed_events:
+                        await interaction.response.send_message(f'You are already subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
+                        return
+                    else:
+                        self.config.users[self.config.users.index(_user)].events.append(chosen_event)
 
             try:
                 self.config.save_config()
             except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{event_names[chosen_event]}\" to you: {e}\nEvent subscription cancelled.", ephemeral=True)
+                await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{constants.EVENT_NAMES[chosen_event]}\" to you: {e}\nEvent subscription cancelled.", ephemeral=True)
                 return
             
-            await interaction.response.send_message(f'You have been subscribed to the event "{event_names[chosen_event]}".', ephemeral=True)
+            await interaction.response.send_message(f'You have been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
 
         @self.tree.command(name="dm_remove_event", description="Unsubscribe yourself from Jam Track events")
         async def dm_add_event(interaction: discord.Interaction, event: config.JamTrackEvent):
@@ -691,42 +710,40 @@ class FestivalInfoBot(commands.Bot):
             user_exists = len(user_list) > 0
             chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
 
-            event_names = {
-                'added': "Jam Track Added",
-                'removed': "Jam Track Removed",
-                'modified': "Jam Track Modified"
-            }
-
             if not user_exists:
                 await interaction.response.send_message(f'You are not subscribed to any events.', ephemeral=True)
                 return
             else:
-                subscribed_events = self.config.users[self.config.users.index(user_list[0])].events
+                for i, _user in enumerate(user_list):
+                    if i > 0:
+                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
 
-                if chosen_event in subscribed_events:
-                    try:
-                        self.config.users[self.config.users.index(user_list[0])].events.remove(chosen_event)
+                    subscribed_events = self.config.users[self.config.users.index(_user)].events
 
-                        # Remove the channel from the subscription list if it isnt subscribed to any events
-                        if len(self.config.users[self.config.users.index(user_list[0])].events) < 1:
-                            self.config.users.remove(user_list[0])
-                            self.config.save_config()
-                            await interaction.response.send_message(f"You have been removed from the subscription list because you are no longer subscribed to any events.", ephemeral=True)
+                    if chosen_event in subscribed_events:
+                        try:
+                            self.config.users[self.config.users.index(_user)].events.remove(chosen_event)
+
+                            # Remove the channel from the subscription list if it isnt subscribed to any events
+                            if len(self.config.users[self.config.users.index(_user)].events) < 1:
+                                self.config.users.remove(_user)
+                                self.config.save_config()
+                                await interaction.response.send_message(f"You have been removed from the subscription list because you are no longer subscribed to any events.", ephemeral=True)
+                                return
+
+                        except Exception as e:
+                            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from you: {e}\nEvent unsubscription cancelled.", ephemeral=True)
                             return
-
-                    except Exception as e:
-                        await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{event_names[chosen_event]}\" from you: {e}\nEvent unsubscription cancelled.", ephemeral=True)
+                    else:
+                        await interaction.response.send_message(f'You are not subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
                         return
-                else:
-                    await interaction.response.send_message(f'You are not subscribed to the event "{event_names[chosen_event]}".', ephemeral=True)
-                    return
 
             try:
                 self.config.save_config()
             except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{event_names[chosen_event]}\" from you: {e}\nEvent unsubscription cancelled.", ephemeral=True)
+                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from you: {e}\nEvent unsubscription cancelled.", ephemeral=True)
                 return
             
-            await interaction.response.send_message(f'You have been unsubscribed from the event "{event_names[chosen_event]}".', ephemeral=True)
+            await interaction.response.send_message(f'You have been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
 
 bot = FestivalInfoBot()

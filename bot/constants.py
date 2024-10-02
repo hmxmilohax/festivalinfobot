@@ -33,6 +33,12 @@ DAILY_API = 'https://api.nitestats.com/v1/epic/modes-smart'
 SHOP_API = 'https://fortnite-api.com/v2/shop'
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
 
+EVENT_NAMES = {
+    'added': "Track Added",
+    'removed': "Track Removed",
+    'modified': "Track Modified"
+}
+
 SIMPLE_COMPARISONS = {
     'tt': 'Title',
     'an': 'Artist',
