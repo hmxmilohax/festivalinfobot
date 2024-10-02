@@ -512,6 +512,27 @@ class LoopCheckHandler():
             print(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
             return
 
+        # Remove duplicates from self.bot.config.channels and self.bot.config.users
+        def remove_duplicates_by_id(items):
+            seen_ids = set()
+            unique_items = []
+            for item in items:
+                if item.id not in seen_ids:
+                    seen_ids.add(item.id)
+                    unique_items.append(item)
+            return unique_items
+
+        # Clean up duplicates and save the config if changes were made
+        original_channel_count = len(self.bot.config.channels)
+        original_user_count = len(self.bot.config.users)
+
+        self.bot.config.channels = remove_duplicates_by_id(self.bot.config.channels)
+        self.bot.config.users = remove_duplicates_by_id(self.bot.config.users)
+
+        if len(self.bot.config.channels) != original_channel_count or len(self.bot.config.users) != original_user_count:
+            print("Duplicates found in config; cleaning up and saving.")
+            self.bot.config.save_config()
+
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)  # Unique session identifier
 
         print("Checking for new songs...")
@@ -557,8 +578,7 @@ class LoopCheckHandler():
                 if current_track != known_track:
                     modified_songs.append((known_track, current_track))
 
-        combined_channels = self.bot.config.channels
-        combined_channels.extend(self.bot.config.users)
+        combined_channels = self.bot.config.channels + self.bot.config.users
 
         already_sent_to = []
         duplicates = []
