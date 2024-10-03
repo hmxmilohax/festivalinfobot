@@ -241,8 +241,8 @@ class Difficulty:
         return f"Difficulty({self.english=}, {self.chopt=}, {self.pitch_ranges=}, {self.diff_4k=})".replace('self.', '')
 
 class Instruments(enum.Enum):
-    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="guitar", midi="PLASTIC GUITAR", replace="PART GUITAR")
-    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="bass", midi="PLASTIC BASS", replace="PART BASS")
+    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", chopt="proguitar", midi="PLASTIC GUITAR")
+    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", chopt="probass", midi="PLASTIC BASS")
     ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", replace="PART DRUMS", lb_enabled=False)
     Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS")
     Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR")
