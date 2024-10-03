@@ -14,7 +14,7 @@ from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
+from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, GamblingHandler
 
 class FestivalInfoBot(commands.Bot):
     def __init__(self, **kwargs):
@@ -114,6 +114,7 @@ class FestivalInfoBot(commands.Bot):
         self.path_handler = PathCommandHandler()
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
+        self.gambling_handler = GamblingHandler()
 
         self.setup_commands()
         self.setup_subscribe_commands()
@@ -125,6 +126,14 @@ class FestivalInfoBot(commands.Bot):
         @app_commands.describe(query = "A search query: an artist, song name, or shortname.")
         async def search_command(interaction: discord.Interaction, query:str):
             await self.search_handler.handle_interaction(interaction=interaction, query=query)
+
+        @self.tree.command(name="random_track", description="Get a random Jam Track from the list of available Jam Tracks!")
+        async def random_track_command(interaction: discord.Interaction):
+            await self.gambling_handler.handle_random_track_interaction(interaction=interaction)
+
+        @self.tree.command(name="random_setlist", description="Get a random setlist from the list of available Jam Tracks!")
+        async def random_setlist_command(interaction: discord.Interaction):
+            await self.gambling_handler.handle_random_setlist_interaction(interaction=interaction)
 
         @self.tree.command(name="daily", description="Display the tracks currently in daily rotation.")
         async def daily_command(interaction: discord.Interaction):

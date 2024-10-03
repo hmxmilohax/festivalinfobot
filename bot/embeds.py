@@ -246,12 +246,14 @@ class SearchEmbedHandler:
 
         return embeds
     
-    def generate_track_embed(self, track_data, is_new=False, is_removed=False):
+    def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False):
         track = track_data['track']
         if is_new:
             title = f"New Track Added: {track['tt']}"
         elif is_removed:
             title = f"Track Removed: {track['tt']}"
+        elif is_random:
+            title = f"Your Random Jam Track:\n{track['tt']}"
         else:
             title = f"{track['tt']}"
         placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import random
 
 import discord
 import requests
@@ -225,3 +226,76 @@ class TracklistHandler:
         
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
+class RerollTrackView(discord.ui.View):
+    def __init__(self, re_roll_callback):
+        super().__init__(timeout=30)  # No timeout for the view
+        self.re_roll_callback = re_roll_callback
+
+    @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
+    async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Call the re_roll function when the button is pressed
+        await interaction.response.defer() 
+        await self.re_roll_callback()
+
+class RerollSetlistView(discord.ui.View):
+    def __init__(self, re_roll_callback):
+        super().__init__(timeout=30)  # No timeout for the view
+        self.re_roll_callback = re_roll_callback
+
+    @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
+    async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Call the re_roll function when the button is pressed
+        await interaction.response.defer() 
+        await self.re_roll_callback()
+
+class GamblingHandler:
+    def __init__(self) -> None:
+        self.search_embed_handler = SearchEmbedHandler()
+
+    async def handle_random_track_interaction(self, interaction: discord.Interaction):
+        tracks = constants.get_jam_tracks()
+        if not tracks:
+            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            return
+
+        track_list = constants.get_jam_tracks()
+
+        if not track_list:
+            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+
+        async def re_roll():
+            chosen_track = random.choice(track_list)
+            embed = self.search_embed_handler.generate_track_embed(chosen_track, is_random=True)
+            await interaction.edit_original_response(embed=embed, view=reroll_view)
+
+        reroll_view = RerollTrackView(re_roll)
+
+        await re_roll()
+
+    async def handle_random_setlist_interaction(self, interaction: discord.Interaction):
+        tracks = constants.get_jam_tracks()
+        if not tracks:
+            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            return
+
+        track_list = constants.get_jam_tracks()
+
+        if not track_list:
+            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+
+        async def re_roll():
+            chosen_tracks = [random.choice(track_list),random.choice(track_list),random.choice(track_list),random.choice(track_list)]
+            embed = discord.Embed(title="Your random setlist!", description="The 4 tracks are...", color=0x8927A1)
+            embed.add_field(name="", value="\n".join([f'- **{str(track["track"]["tt"])}** - *{str(track["track"]["an"])}*' for track in chosen_tracks]))
+            await interaction.edit_original_response(embed=embed, view=reroll_view)
+
+        reroll_view = RerollSetlistView(re_roll)
+
+        await re_roll()
