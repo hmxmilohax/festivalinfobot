@@ -8,6 +8,7 @@ from discord import app_commands
 from configparser import ConfigParser
 
 from bot import config, constants, embeds
+from bot.admin import AdminCog, TestCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
@@ -20,6 +21,12 @@ class FestivalInfoBot(commands.Bot):
         super().__init__(**kwargs)
 
     async def on_ready(self):
+        # Setup all the subscription commands
+        print("Setting up admin commands...")
+        # Apparently this works, dont know why but
+        # it is possible to await this function here
+        await self.setup_admin_commands()
+        
         print(f'Logged in as {self.user.name}')
 
         print("Bot now active on:")
@@ -189,40 +196,6 @@ class FestivalInfoBot(commands.Bot):
     
             await self.history_handler.handle_interaction(interaction=interaction, song=song)
 
-        @self.tree.command(name="test_fullhistory", description="Only the bot host can run this command. Runs history for every known song.")
-        async def full_history(interaction: discord.Interaction):
-            if not self.CHART_COMPARING_ALLOWED or not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-    
-            if interaction.user.id != 960524988824313876:
-                await interaction.response.send_message(content="You are not authorised to run this command.")
-                return
-            
-            track_list = JamTrackHandler().get_jam_tracks()
-            if not track_list:
-                await interaction.response.send_message(content="Could not get tracks.", ephemeral=True)
-                return
-            
-            await interaction.response.defer()
-
-            # Loop through all the tracks and run the history command for each
-            for track in track_list:
-                song_name = track['track']['tt']
-                artist_name = track['track']['an']
-
-                try:
-                    # Call the history command with the song's title
-                    await self.history_handler.handle_interaction(interaction=interaction, song=song_name, channel=interaction.channel, use_channel=True)
-
-                except Exception as e:
-                    await interaction.channel.send(content=f"Failed to process the history for **{song_name}**. Error: {e}")
-                    print(e)
-                    # Continue even if one song fails
-
-            # Final message indicating the full history run is complete
-            await interaction.channel.send(content="Full history run completed.")
-
         @self.tree.command(name="metahistory", description="View the metadata history of a Jam Track.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         async def metahistory_command(interaction: discord.Interaction, song:str):
@@ -254,16 +227,18 @@ class FestivalInfoBot(commands.Bot):
 
             upstream_commit_url = remote_url + '/commit/' + latest_commit_hash
             local_commit_url = remote_url + '/commit/' + local_commit_hash
+            remote_branch_url = remote_url + '/tree/' + branch_name + '/'
             # Create an embed to display the statistics
             embed = discord.Embed(
                 title="Festival Tracker Statistics",
                 description="",
                 color=0x8927A1
             )
-            embed.add_field(name="Servers", value=f"{server_count} servers", inline=False)
+            embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
+            embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
             embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
-            embed.add_field(name="Latest Upstream Update", value=f"{last_update_formatted} ([`{latest_commit_hash[:7]}`]({upstream_commit_url}))", inline=False)
-            embed.add_field(name="Local Commit Info", value=f"`{branch_name}` [`{local_commit_hash[:7]}`]({local_commit_url}) ({commit_status})", inline=False)
+            embed.add_field(name="Latest Upstream Info", value=f"[`{latest_commit_hash[:7]}`]({upstream_commit_url}) {last_update_formatted}", inline=False)
+            embed.add_field(name="Local Commit Info", value=f"[`{branch_name}`]({remote_branch_url}) [`{local_commit_hash[:7]}`]({local_commit_url}) ({commit_status})", inline=False)
             if len(dirtyness) > 0:
                 embed.add_field(name="Local Changes", value=f"```{dirtyness}```", inline=False)
             await interaction.response.send_message(embed=embed)
@@ -309,318 +284,18 @@ class FestivalInfoBot(commands.Bot):
                 view = constants.PaginatorView(embeds, interaction.user.id)
                 view.message = await interaction.response.send_message(embed=view.get_embed(), view=view)
 
+    async def setup_admin_commands(self):
+        admin_cog = AdminCog(self)
+        await self.add_cog(admin_cog)
+        # await self.tree.add_command(admin_cog.admin_group)
+
+        test_cog = TestCog(self)
+        await self.add_cog(test_cog)
+
     def setup_subscribe_commands(self):
-        # Setup all the subscription commands
-        
-        async def set_channel_subscription(interaction: discord.Interaction, channel: discord.channel.TextChannel, remove: bool = False) -> bool:
-            channel_list = [subscribed_channel for subscribed_channel in self.config.channels if subscribed_channel.id == channel.id]
-            channel_exists = len(channel_list) > 0
-
-            if remove:
-                # User ran /unsubscribe on a channel which isnt subscribed
-                if not channel_exists:
-                    await interaction.response.send_message(f"The channel <#{channel.id}> is not subscribed.")
-                    return False
-                # User ran /unsubscribe
-                else:
-                    try:
-                        for _channel in channel_list:
-                            self.config.channels.remove(_channel)
-                    except ValueError as e:
-                        await interaction.response.send_message(f"The channel <#{channel.id}> could not be unsubscribed: {e}")
-                        return False
-            else:
-                # User ran /subscribe on a channel which is already subscribed
-                if channel_exists:
-                    for i, _channel in enumerate(channel_list):
-                        if i > 0:
-                            print(f'Found another channel for {channel.id}?\nChannel no. {i}')
-
-                        channel_events = _channel.events
-                        if len(channel_events) == len(config.JamTrackEvent.get_all_events()):
-                            await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to all Jam Track events.")
-                        else:    
-                            await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in channel_events])}\".")
-                    return False
-                # User ran /subscribe
-                else:
-                    self.config.channels.append(config.SubscriptionChannel(channel.id, config.JamTrackEvent.get_all_events(), []))
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to " + ("remove" if remove else "include") + f" <#{channel.id}>: {e}\n" + ("Unsubscription" if remove else "Subscription") + " cancelled.")
-                return False
-                    
-            return True
-
-        async def check_permissions(interaction: discord.Interaction, channel: discord.channel.TextChannel) -> bool:
-            # There are so many permissions we have to check for
-
-            # View the channel
-            if not channel.permissions_for(channel.guild.me).view_channel:
-                await interaction.response.send_message(f'I can\'t view that channel! Please make sure I have the "View Channel" permission in that channel.')
-                return False
-            
-            # Send messages in the channel
-            if not channel.permissions_for(channel.guild.me).send_messages:
-                await interaction.response.send_message(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in <#{channel.id}>.')
-                return False
-            
-            # If news channel, publish messages (Manage Messages permission!!!)
-            if channel.is_news():
-                if not channel.permissions_for(channel.guild.me).manage_messages:
-                    await interaction.response.send_message(f'I can\'t publish messages in that Announcement channel! Please make sure I have the "Manage Messages" permission in <#{channel.id}>.')
-                    return False
-                
-            # Possible, "Embed Links", "Attach Files?"
-
-            return True
-
-        @self.tree.command(name="subscribe", description="Subscribe a channel to Jam Track events")
-        @app_commands.describe(channel = "The channel to send Jam Track events to.")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def subscribe(interaction: discord.Interaction, channel: discord.channel.TextChannel):
-            permission_result = await check_permissions(interaction=interaction, channel=channel)
-            if not permission_result:
-                return
-            
-            subscription_result = await set_channel_subscription(interaction=interaction, channel=channel, remove=False)
-            if not subscription_result:
-                return
-            
-            # Bot will throw 403 if it can't manage messages
-            if interaction.channel.permissions_for(interaction.guild.me).manage_messages:            
-                await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
-                message = await interaction.original_response()  # Retrieve the message object for reactions
-                await message.add_reaction("✅")
-
-                def check(reaction, user):
-                    return (
-                        user == interaction.user and
-                        user.guild_permissions.administrator and
-                        str(reaction.emoji) == "✅" and
-                        reaction.message.id == message.id
-                    )
-
-                try:
-                    reaction, user = await self.wait_for('reaction_add', timeout=30.0, check=check)
-                except asyncio.TimeoutError:
-                    await message.clear_reactions()
-                    await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.")
-                else:
-                    await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
-                    await message.clear_reactions()
-                    await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
-            else:
-                await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n**Tip:** I can send a test message to this channel if I have the **Manage Messages** permission here.")
-
-        @self.tree.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
-        @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def unsubscribe(interaction: discord.Interaction, channel: discord.channel.TextChannel):
-            permission_result = await check_permissions(interaction=interaction, channel=channel)
-            if not permission_result:
-                return
-            
-            subscription_result = await set_channel_subscription(interaction=interaction, channel=channel, remove=True)
-            if not subscription_result:
-                return
-            
-            await interaction.response.send_message(f"The channel <#{channel.id}> has been unsubscribed from all Jam Track events.")
-
-        @self.tree.command(name="add_event", description="Add a Jam Track event to a channel")
-        @app_commands.describe(channel = "The channel to add a Jam Track event to")
-        @app_commands.describe(event = "The event to add")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def add_event(interaction: discord.Interaction, channel: discord.channel.TextChannel, event: config.JamTrackEvent):
-            channel_list = [subscribed_channel for subscribed_channel in self.config.channels if subscribed_channel.id == channel.id]
-            channel_exists = len(channel_list) > 0
-            chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
-
-            if not channel_exists:
-                # Only check for permissions if the channel is added
-                permission_result = await check_permissions(interaction=interaction, channel=channel)
-                if not permission_result:
-                    return
-
-                self.config.channels.append(config.SubscriptionChannel(channel.id, [chosen_event], []))
-            else:
-                for i, _channel in enumerate(channel_list):
-                    if i > 0:
-                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
-
-                    subscribed_events = self.config.channels[self.config.channels.index(_channel)].events
-                    if chosen_event in subscribed_events:
-                        await interaction.response.send_message(f'The channel <#{channel.id}> is already subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
-                        return
-                    else:
-                        self.config.channels[self.config.channels.index(_channel)].events.append(chosen_event)
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{constants.EVENT_NAMES[chosen_event]}\" to the channel <#{channel.id}>: {e}\nEvent subscription cancelled.")
-                return
-            
-            await interaction.response.send_message(f'The channel <#{channel.id}> has been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
-
-        @self.tree.command(name="remove_event", description="Remove a Jam Track event from a channel")
-        @app_commands.describe(channel = "The channel to remove a Jam Track event from")
-        @app_commands.describe(event = "The event to remove")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def remove_event(interaction: discord.Interaction, channel: discord.channel.TextChannel, event: config.JamTrackEvent):
-            channel_list = [subscribed_channel for subscribed_channel in self.config.channels if subscribed_channel.id == channel.id]
-            channel_exists = len(channel_list) > 0
-            chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
-
-            if not channel_exists:
-                await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
-                return
-            else:
-                for i, _channel in enumerate(channel_list):
-                    if i > 0:
-                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
-
-                    subscribed_events = self.config.channels[self.config.channels.index(_channel)].events
-
-                    if chosen_event in subscribed_events:
-                        try:
-                            self.config.channels[self.config.channels.index(_channel)].events.remove(chosen_event)
-
-                            # Remove the channel from the subscription list if it isnt subscribed to any events
-                            if len(self.config.channels[self.config.channels.index(_channel)].events) < 1:
-                                self.config.channels.remove(_channel)
-                                self.config.save_config()
-                                await interaction.response.send_message(f"The channel <#{channel.id}> has been removed from the subscription list because it is no longer subscribed to any events.")
-                                return
-
-                        except Exception as e:
-                            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
-                            return
-                    else:
-                        await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
-                        return
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
-                return
-            
-            await interaction.response.send_message(f'The channel <#{channel.id}> has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".')
-
-        @self.tree.command(name="add_role", description="Add a role ping to a channel's subscription messages")
-        @app_commands.describe(channel = "The channel to add a role ping to")
-        @app_commands.describe(role = "The role to add a ping for")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def add_role(interaction: discord.Interaction, channel: discord.channel.TextChannel, role: discord.Role):
-            channel_list = [subscribed_channel for subscribed_channel in self.config.channels if subscribed_channel.id == channel.id]
-            channel_exists = len(channel_list) > 0
-
-            if not channel_exists:
-                await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
-                return
-            else:
-                for i, _channel in enumerate(channel_list):
-                    if i > 0:
-                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
-
-                    channel_roles = self.config.channels[self.config.channels.index(_channel)].roles
-
-                    if role.id in channel_roles:
-                        await interaction.response.send_message(f"This role ping is already assigned to the channel <#{channel.id}>.")
-                        return
-                    else:
-                        self.config.channels[self.config.channels.index(_channel)].roles.append(role.id)
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to add this role ping to the channel <#{channel.id}>: {e}\nRole ping addition cancelled.")
-                return
-            
-            await interaction.response.send_message(f'The channel <#{channel.id}> has been assigned to ping this role on future Jam Track events.')
-
-        @self.tree.command(name="remove_role", description="Remove a role ping from a channel's subscription messages")
-        @app_commands.describe(channel = "The channel to remove a role ping from")
-        @app_commands.describe(role = "The role to remove a ping for")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def remove_role(interaction: discord.Interaction, channel: discord.channel.TextChannel, role: discord.Role):
-            channel_list = [subscribed_channel for subscribed_channel in self.config.channels if subscribed_channel.id == channel.id]
-            channel_exists = len(channel_list) > 0
-
-            if not channel_exists:
-                await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
-                return
-            else:
-                for i, _channel in enumerate(channel_list):
-                    if i > 0:
-                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
-
-                    channel_roles = self.config.channels[self.config.channels.index(_channel)].roles
-
-                    if role.id in channel_roles:
-                        try:
-                            self.config.channels[self.config.channels.index(_channel)].roles.remove(role.id)
-                        except ValueError as e:
-                            await interaction.response.send_message(f"This role ping could not be removed from the channel <#{channel.id}>: {e}\nRole ping removal cancelled.")
-                            return
-                    else:
-                        await interaction.response.send_message(f"This role ping is not assigned to the channel <#{channel.id}>.")
-                        return
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove this role ping from the channel <#{channel.id}>: {e}\nRole ping removal cancelled.")
-                return
-            
-            await interaction.response.send_message(f'The channel <#{channel.id}> has been assigned to not ping this role on future Jam Track events.')
-
-        @self.tree.command(name="subscriptions", description="View the subscriptions in this guild")
-        @app_commands.checks.has_permissions(administrator=True)
-        async def subscriptions(interaction: discord.Interaction):
-            embed = discord.Embed(title=f"Subscriptions for **{interaction.guild.name}**", color=0x8927A1)
-
-            total_channels = 0
-
-            for channel_to_search in self.config.channels:
-                channel = self.get_channel(channel_to_search.id)
-
-                if channel:
-                    if channel.guild.id == interaction.guild.id:
-                        total_channels += 1
-                        events_content = "**Events:** " + ", ".join([constants.EVENT_NAMES[event] for event in channel_to_search.events])
-                        role_content = ""
-                        if channel_to_search.roles:
-                            if len(channel_to_search.roles) > 0:
-                                role_content = "**Roles:** " + ", ".join([f'<@&{role.id}>' for role in channel_to_search.roles])
-                        embed.add_field(name=f"<#{channel_to_search.id}>", value=f"{events_content}\n{role_content}", inline=False)
-
-            if total_channels < 1:
-                embed.add_field(name="There are no subscriptions in this guild.", value="")
-            else:
-                embed.description = f'{total_channels} found'
-
-            await interaction.response.send_message(embed=embed)
-
-        async def on_subscription_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
-            print(error)
-            if isinstance(error, app_commands.errors.MissingPermissions):
-                await interaction.response.send_message(content="You do not have the necessary permissions to run this command. Only administrators can use this command.", ephemeral=True)
-
-        subscribe.on_error = on_subscription_error
-        unsubscribe.on_error = on_subscription_error
-        add_event.on_error = on_subscription_error
-        remove_event.on_error = on_subscription_error
-        add_role.on_error = on_subscription_error
-        remove_role.on_error = on_subscription_error
-        subscriptions.on_error = on_subscription_error
-
         # User DM subscriptions
 
-        @self.tree.command(name="dm_subscribe", description="Subscribe yourself to Jam Track events")
+        @self.tree.command(name="subscribe", description="Subscribe yourself to Jam Track events")
         async def dm_subscribe(interaction: discord.Interaction):
             user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
             user_exists = len(user_list) > 0
@@ -647,7 +322,7 @@ class FestivalInfoBot(commands.Bot):
             
             await interaction.response.send_message(f"You've been successfully added to the subscription list; I will now send you all Jam Track events.", ephemeral=True)
             
-        @self.tree.command(name="dm_unsubscribe", description="Unsubscribe yourself from Jam Track events")
+        @self.tree.command(name="unsubscribe", description="Unsubscribe yourself from Jam Track events")
         async def dm_unsubscribe(interaction: discord.Interaction):
             user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
             user_exists = len(user_list) > 0
@@ -673,7 +348,7 @@ class FestivalInfoBot(commands.Bot):
             
             await interaction.response.send_message(f"You've been successfully removed from the subscription list; I will no longer send you any Jam Track events.", ephemeral=True)
 
-        @self.tree.command(name="dm_add_event", description="Subscribe yourself to specific Jam Track events")
+        @self.tree.command(name="add_event", description="Subscribe yourself to specific Jam Track events")
         async def dm_add_event(interaction: discord.Interaction, event: config.JamTrackEvent):
             user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
             user_exists = len(user_list) > 0
@@ -701,7 +376,7 @@ class FestivalInfoBot(commands.Bot):
             
             await interaction.response.send_message(f'You have been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
 
-        @self.tree.command(name="dm_remove_event", description="Unsubscribe yourself from Jam Track events")
+        @self.tree.command(name="remove_event", description="Unsubscribe yourself from Jam Track events")
         async def dm_add_event(interaction: discord.Interaction, event: config.JamTrackEvent):
             user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
             user_exists = len(user_list) > 0
@@ -742,37 +417,5 @@ class FestivalInfoBot(commands.Bot):
                 return
             
             await interaction.response.send_message(f'You have been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
-
-        @self.tree.command(name="test_notifs", description="Only the bot host can run this command. Tests subscriber notifications.")
-        async def test_command(interaction: discord.Interaction):
-            if interaction.user.id != 960524988824313876:
-                await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-                return
-
-            await interaction.response.defer(ephemeral=True)
-
-            # Send a test message to all subscribed channels
-            for channel_to_search in self.config.channels:
-                channel = self.get_channel(channel_to_search.id)
-                if channel:
-                    try:
-                        await channel.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
-                    except Exception as e:
-                        print(f"Error sending message to channel {channel.id}: {e}")
-                else:
-                    print(f"Channel with ID {channel_to_search.id} not found.")
-
-            # Send a test message to all subscribed users
-            for user_to_send in self.config.users:
-                user = self.get_user(user_to_send.id)
-                if user:
-                    try:
-                        await user.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
-                    except Exception as e:
-                        print(f"Error sending message to user {user.id}: {e}")
-                else:
-                    print(f"User with ID {user_to_send.id} not found.")
-
-            await interaction.followup.send(content="Test messages have been sent.", ephemeral=True)
 
 bot = FestivalInfoBot()

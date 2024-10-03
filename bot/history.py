@@ -514,6 +514,7 @@ class LoopCheckHandler():
 
         # Remove duplicates from self.bot.config.channels and self.bot.config.users
         def remove_duplicates_by_id(items):
+            print("Attempting to remove duplicates...")
             seen_ids = set()
             unique_items = []
             for item in items:
