@@ -107,7 +107,7 @@ class DailyCommandHandler:
         daily_tracks = self.process_daily_tracks(tracks, daily_shortnames_data)
 
         if daily_tracks:
-            await interaction.response.defer() # Makes it say thinking, and also avoids a timeout error on PaginatorView
+            await interaction.response.defer(thinking=True) # Makes it say thinking, and also avoids a timeout error on PaginatorView
 
             embeds = self.daily_embed_handler.create_daily_embeds(daily_tracks)
             view = constants.PaginatorView(embeds, interaction.user.id)
@@ -123,7 +123,7 @@ class ShopCommandHandler:
         tracks = self.fetch_shop_tracks()
         jam_tracks = constants.get_jam_tracks() # Fix circular import...
 
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
 
         if not tracks:
             await interaction.edit_original_response(content='Could not fetch tracks.', ephemeral=True)
@@ -217,7 +217,7 @@ class TracklistHandler:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
 
         total_tracks = len(track_list)
         title = f"Available Tracks (Total: {total_tracks})"
@@ -235,7 +235,7 @@ class RerollTrackView(discord.ui.View):
     @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
     async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Call the re_roll function when the button is pressed
-        await interaction.response.defer() 
+        await interaction.response.defer(thinking=True) 
         await self.re_roll_callback()
 
 class RerollSetlistView(discord.ui.View):
@@ -246,7 +246,7 @@ class RerollSetlistView(discord.ui.View):
     @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
     async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Call the re_roll function when the button is pressed
-        await interaction.response.defer() 
+        await interaction.response.defer(thinking=True) 
         await self.re_roll_callback()
 
 class GamblingHandler:
@@ -265,7 +265,7 @@ class GamblingHandler:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
 
         async def re_roll():
             chosen_track = random.choice(track_list)
@@ -288,7 +288,7 @@ class GamblingHandler:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
 
         async def re_roll():
             chosen_tracks = [random.choice(track_list),random.choice(track_list),random.choice(track_list),random.choice(track_list)]

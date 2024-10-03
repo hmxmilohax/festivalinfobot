@@ -250,20 +250,66 @@ class FestivalInfoBot(commands.Bot):
             embed.add_field(name="Local Commit Info", value=f"[`{branch_name}`]({remote_branch_url}) [`{local_commit_hash[:7]}`]({local_commit_url}) ({commit_status})", inline=False)
             if len(dirtyness) > 0:
                 embed.add_field(name="Local Changes", value=f"```{dirtyness}```", inline=False)
+
             await interaction.response.send_message(embed=embed)
 
         @self.tree.command(name="help", description="Show the help message")
         @app_commands.describe(command = "The command to view help about.")
         async def help_command(interaction: discord.Interaction, command:str = None):
+            _commands = self.tree.get_commands()
+            commands = []
+            for _command in _commands:
+                # Add command to embed
+                if isinstance(_command, discord.app_commands.commands.Group):
+                    for group_command in _command.commands:
+                        if group_command.guild_only and isinstance(interaction.channel, discord.DMChannel):
+                            continue
+                        commands.append({
+                            "name":f"`/{_command.name} {group_command.name}`",
+                            "value":group_command.description or "No description",
+                            "inline":False
+                        })
+                else:
+                    commands.append({
+                        "name":f"`/{_command.name}`",
+                        "value":_command.description or "No description",
+                        "inline":False
+                    })
+
             if command:
-                if self.tree.get_command(command):
-                    found_command = self.tree.get_command(command)
-                    usage = f"`/{found_command.qualified_name}`"
+                if self.tree.get_command(command.split(' ')[0]):
+                    found_command = self.tree.get_command(command.split(' ')[0])
+                    try:
+                        if isinstance(found_command, discord.app_commands.commands.Group):
+                            found_command = found_command.get_command(command.split(' ')[1])
+                    except Exception as e:
+                        print(e)
+                        await interaction.response.send_message(content=f"No command found with the name \"{command}\"", ephemeral=True)
+                        return
+                    
+                    parameters = " ".join([f'<{"" if param.required else "?"}{param.name}>' for param in found_command.parameters])
+                    usage = f"`/{found_command.qualified_name}" + (f" {parameters}" if len(parameters) > 0 else "") + "`"
+
+                    for param in found_command.parameters:
+                        # cmd_type = str(param.type).split('.').pop()
+                        usage += '\n- '
+                        usage += '`' + ('?' if not param.required else '') + f'{param.name}`'
+                        # usage += f' ({cmd_type})'
+                        usage += f': {param.description}' + ('.' if not param.description.endswith('.') else '') + (f' *Default: {str(param.default).split(".").pop()}*' if not param.required and param.default != None else "")
+
+                    description = f'{found_command.description}'
+                    description += '\n*(Server-only command)*' if found_command.guild_only else ''
+
                     embed = discord.Embed(
-                        title=f"Help with `/{found_command.name}`",
-                        description=f"{found_command.description}\n**Usage**: {usage}",
+                        title="Festival Tracker Help",
+                        description=f"A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)",
                         color=0x8927A1
                     )
+                    embed.add_field(name=f"Help with `/{found_command.qualified_name}`", value=description, inline=False)
+
+                    if any(not param.required for param in found_command.parameters):
+                        embed.set_footer(text="Tip: Parameters with \"?\" mean they're optional.")
+                    embed.add_field(name="Usage", value=usage, inline=False)
 
                     await interaction.response.send_message(embed=embed)
                 else:
@@ -271,7 +317,6 @@ class FestivalInfoBot(commands.Bot):
                     return
             else:
                 embeds = []
-                commands = self.tree.get_commands()
 
                 for i in range(0, len(commands), 5):
                     embed = discord.Embed(
@@ -281,17 +326,15 @@ class FestivalInfoBot(commands.Bot):
                     )
                     chunk = commands[i:i + 5]
                     # Walk through all commands registered in self.tree
+
                     for command in chunk:
-                        # Add command to embed
-                        embed.add_field(
-                            name=f"`/{command.name}`",
-                            value=command.description or "No description",
-                            inline=False
-                        )
+                        embed.add_field(name=command['name'], value=command['value'], inline=command['inline'])
+                    
                     embeds.append(embed)
 
                 view = constants.PaginatorView(embeds, interaction.user.id)
-                view.message = await interaction.response.send_message(embed=view.get_embed(), view=view)
+                await interaction.response.send_message(embed=view.get_embed(), view=view)
+                view.message = await interaction.original_response()
 
     async def setup_admin_commands(self):
         admin_cog = AdminCog(self)

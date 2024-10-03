@@ -54,7 +54,7 @@ class PathCommandHandler():
             await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
             return
 
-        await interaction.response.defer() # Makes the bot say Thinking...
+        await interaction.response.defer(thinking=True) # Makes the bot say Thinking...
 
         try:
             # Generate session hash for this path generation
@@ -89,7 +89,7 @@ class PathCommandHandler():
 
             # Step 3: Modify the MIDI file if necessary (e.g., Pro parts)
             modified_midi_file = None
-            if chosen_instrument.plastic and chosen_instrument.replace != None:
+            if chosen_instrument.replace != None:
                 modified_midi_file = self.midi_tool.modify_midi_file(midi_file, chosen_instrument, session_hash, short_name)
                 if not modified_midi_file:
                     await interaction.edit_original_response(content=f"Failed to modify MIDI for '{instrument}'.")
@@ -112,9 +112,9 @@ class PathCommandHandler():
                 embed = discord.Embed(
                     title=f"Path for **{track_title}** - *{artist_title}*",
                     description=(
-                        f"`Instrument:` **{display_instrument}**\n"
-                        f"`Difficulty:` **{chosen_diff.english}**\n"
-                        f"`Squeeze Percent:` **{squeeze_percent}%**\n"
+                        f"**Instrument:** {display_instrument}\n"
+                        f"**Difficulty:** {chosen_diff.english}\n"
+                        f"**Squeeze Percent:** {squeeze_percent}%\n"
                         f"```{filtered_output}```"
                     ),
                     color=0x8927A1

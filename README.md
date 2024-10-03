@@ -105,7 +105,7 @@ This bot is currently only targetted to run for windows as that is my personal e
 
 To be able to fetch and generate paths you will need two things:
 
-[CHOpt](https://github.com/GenericMadScientist/CHOpt) binary (CHOpt.exe) in the bot folder.
+[CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the bot folder.
 
 fnf-midcrypt.py in the bot folder to decrypt midi files. This is not provided for you.
 

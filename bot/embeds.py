@@ -249,15 +249,16 @@ class SearchEmbedHandler:
     def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False):
         track = track_data['track']
         if is_new:
-            title = f"New Track Added: {track['tt']}"
+            title = f"New Track Added:\n{track['tt']}"
         elif is_removed:
-            title = f"Track Removed: {track['tt']}"
+            title = f"Track Removed:\n{track['tt']}"
         elif is_random:
             title = f"Your Random Jam Track:\n{track['tt']}"
         else:
             title = f"{track['tt']}"
         placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
         embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
+        embed.set_footer(text="Festival Tracker")
 
         # Add various fields to the embed
         embed.add_field(name="\n", value="", inline=False)

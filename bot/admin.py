@@ -11,7 +11,7 @@ class AdminCog(commands.Cog):
         self.bot = bot
 
     # Define the base 'admin' group command
-    admin_group = app_commands.Group(name="admin", description="Admin commands")
+    admin_group = app_commands.Group(name="admin", description="Admin commands", guild_only=True)
 
     async def set_channel_subscription(self, interaction: discord.Interaction, channel: discord.channel.TextChannel, remove: bool = False) -> bool:
         channel_list = [subscribed_channel for subscribed_channel in self.bot.config.channels if subscribed_channel.id == channel.id]
@@ -306,10 +306,13 @@ class AdminCog(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-    async def on_subscription_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
-        print(error)
+    async def on_subscription_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
+        if isinstance(interaction.channel, discord.DMChannel) and interaction.command.guild_only: # just in case but the command wont show up in dms anyway
+            await interaction.response.send_message(content="You cannot run this command in DMs.")
+            return
         if isinstance(error, app_commands.errors.MissingPermissions):
             await interaction.response.send_message(content="You do not have the necessary permissions to run this command. Only administrators can use this command.", ephemeral=True)
+            return
 
     subscribe.on_error = on_subscription_error
     unsubscribe.on_error = on_subscription_error
@@ -333,7 +336,7 @@ class TestCog(commands.Cog):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
 
         # Send a test message to all subscribed channels
         for channel_to_search in self.bot.config.channels:
@@ -374,7 +377,7 @@ class TestCog(commands.Cog):
             await interaction.response.send_message(content="Could not get tracks.", ephemeral=True)
             return
         
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=True)
 
         # Loop through all the tracks and run the history command for each
         for track in track_list:
