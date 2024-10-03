@@ -10,3 +10,5 @@ json
 midi_files
 **/__pycache__
 backups/
+Qt6Core.dll
+Qt6Gui.dll
