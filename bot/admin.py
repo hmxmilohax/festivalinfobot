@@ -336,7 +336,7 @@ class TestCog(commands.Cog):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=True)
 
         # Send a test message to all subscribed channels
         for channel_to_search in self.bot.config.channels:
@@ -377,7 +377,7 @@ class TestCog(commands.Cog):
             await interaction.response.send_message(content="Could not get tracks.", ephemeral=True)
             return
         
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
 
         # Loop through all the tracks and run the history command for each
         for track in track_list:
