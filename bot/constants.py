@@ -50,15 +50,15 @@ SIMPLE_COMPARISONS = {
     'mm': 'Mode',
     'mk': 'Key',
     'su': 'Event ID',
-    'isrc': 'ISRC Code',
+    'isrc': 'International Standard Recording Code',
     'ar': 'ESRB Rating',
-    'au': 'Album Art',
+    'au': 'Album Art URL',
     'siv': 'Vocals Instrument',
     'sib': 'Bass Instrument',
     'sid': 'Drums Instrument',
     'sig': 'Guitar Instrument',
     'mt': 'BPM',
-    'ld': 'Lipsync',
+    'ld': 'Lip Sync',
     'mu': 'Chart URL',
     'ge': 'Genres',
     'gt': 'Gameplay Tags'
@@ -85,34 +85,20 @@ EXTRA_COMPARISONS = {
 
 class PaginatorView(discord.ui.View):
     def __init__(self, embeds, user_id):
-        super().__init__(timeout=60)
+        super().__init__(timeout=30)
         self.embeds = embeds
         self.user_id = user_id
         self.current_page = 0
         self.total_pages = len(embeds)
         self.add_buttons()
+        self.message : discord.Message
 
     def add_buttons(self):
         self.clear_items()
-        # "First" button
         self.add_item(FirstButton(style=discord.ButtonStyle.primary, label='First', user_id=self.user_id))
-        
-        # "Previous" button
-        if self.current_page > 0:
-            self.add_item(PreviousButton(style=discord.ButtonStyle.primary, label='Previous', user_id=self.user_id))
-        else:
-            self.add_item(PreviousButton(style=discord.ButtonStyle.secondary, label='Previous', disabled=True, user_id=self.user_id))
-
-        # "Page#" button
+        self.add_item(PreviousButton(style=discord.ButtonStyle.primary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
         self.add_item(PageNumberButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
-
-        # "Next" button
-        if self.current_page < self.total_pages - 1:
-            self.add_item(NextButton(style=discord.ButtonStyle.primary, label='Next', user_id=self.user_id))
-        else:
-            self.add_item(NextButton(style=discord.ButtonStyle.secondary, label='Next', disabled=True, user_id=self.user_id))
-        
-        # "Last" button
+        self.add_item(NextButton(style=discord.ButtonStyle.primary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
         self.add_item(LastButton(style=discord.ButtonStyle.primary, label='Last', user_id=self.user_id))
 
     def get_embed(self):
@@ -129,7 +115,7 @@ class PaginatorView(discord.ui.View):
         except discord.NotFound:
             print("Message was not found when trying to edit after timeout.")
         except Exception as e:
-            print(f"An error occurred during on_timeout: {e}")
+            print(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class FirstButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):

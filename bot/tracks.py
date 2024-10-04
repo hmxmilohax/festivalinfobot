@@ -64,7 +64,7 @@ class SearchCommandHandler:
         self.shop_handler = helpers.ShopCommandHandler()
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
-        options = [f"{i + 1}. **{track['track']['tt']}** by *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
+        options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
         await interaction.response.send_message(content=f"I found multiple tracks matching your search. Please choose the correct one by typing the number:\n{options_message}")
 
