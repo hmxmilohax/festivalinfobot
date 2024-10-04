@@ -308,7 +308,7 @@ class HistoryHandler():
             return
         
         if not use_channel:
-            await interaction.response.defer(thinking=True)
+            await interaction.response.defer()
 
         track_data = matched_tracks[0]
         album_art_url = track_data['track'].get('au')
@@ -373,7 +373,7 @@ class HistoryHandler():
             await interaction.response.send_message(content=f"No tracks found for '{song}'.")
             return
         
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
 
         track_data = matched_tracks[0]
         album_art_url = track_data['track'].get('au')
@@ -467,7 +467,7 @@ class HistoryHandler():
             return
         
         if not use_channel:
-            await interaction.response.defer(thinking=True)
+            await interaction.response.defer()
 
         track_data = matched_tracks[0]
         album_art_url = track_data['track'].get('au')

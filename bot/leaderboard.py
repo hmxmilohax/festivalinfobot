@@ -56,7 +56,7 @@ class LeaderboardCommandHandler:
             await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
             return
 
-        await interaction.response.defer(thinking=True) # Makes the bot say Thinking...
+        await interaction.response.defer() # Makes the bot say Thinking...
         # From here on onwards, must use edit_original_response
 
         # Use the first matched track

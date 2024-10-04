@@ -54,7 +54,7 @@ class PathCommandHandler():
             await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
             return
 
-        await interaction.response.defer(thinking=True) # Makes the bot say Thinking...
+        await interaction.response.defer() # Makes the bot say Thinking...
 
         try:
             # Generate session hash for this path generation
