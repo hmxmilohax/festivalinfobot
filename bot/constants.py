@@ -95,11 +95,14 @@ class PaginatorView(discord.ui.View):
 
     def add_buttons(self):
         self.clear_items()
-        self.add_item(FirstButton(style=discord.ButtonStyle.primary, label='First', user_id=self.user_id))
-        self.add_item(PreviousButton(style=discord.ButtonStyle.primary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
+        
+        self.add_item(FirstButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='First', disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(PreviousButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
+
         self.add_item(PageNumberButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
-        self.add_item(NextButton(style=discord.ButtonStyle.primary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
-        self.add_item(LastButton(style=discord.ButtonStyle.primary, label='Last', user_id=self.user_id))
+
+        self.add_item(NextButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(LastButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Last', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
 
     def get_embed(self):
         return self.embeds[self.current_page]
@@ -151,6 +154,14 @@ class PageNumberButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')
         super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        view: PaginatorView = self.view
+        embed = view.get_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 class NextButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):

@@ -90,31 +90,27 @@ class AdminCog(commands.Cog):
         if not subscription_result:
             return
         
-        # Bot will throw 403 if it can't manage messages
-        if interaction.channel.permissions_for(interaction.guild.me).manage_messages:            
-            await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
-            message = await interaction.original_response()  # Retrieve the message object for reactions
-            await message.add_reaction("✅")
+        await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
+        message = await interaction.original_response()  # Retrieve the message object for reactions
+        await message.add_reaction("✅")
 
-            def check(reaction, user):
-                return (
-                    user == interaction.user and
-                    user.guild_permissions.administrator and
-                    str(reaction.emoji) == "✅" and
-                    reaction.message.id == message.id
-                )
+        def check(reaction, user):
+            return (
+                user == interaction.user and
+                user.guild_permissions.administrator and
+                str(reaction.emoji) == "✅" and
+                reaction.message.id == message.id
+            )
 
-            try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
-            except asyncio.TimeoutError:
-                await message.clear_reactions()
-                await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.")
-            else:
-                await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
-                await message.clear_reactions()
-                await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
+        try:
+            reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
+        except asyncio.TimeoutError:
+            # await message.clear_reactions()
+            await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.")
         else:
-            await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n**Tip:** I can send a test message to this channel if I have the **Manage Messages** permission here.")
+            await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
+            # await message.clear_reactions() # Bot will throw 403 if it can't manage messages
+            await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
 
     @admin_group.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
     @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")

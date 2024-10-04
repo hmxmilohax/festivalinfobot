@@ -228,23 +228,32 @@ class TracklistHandler:
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
 class RerollTrackView(discord.ui.View):
-    def __init__(self, re_roll_callback):
+    def __init__(self, re_roll_callback, user_id):
         super().__init__(timeout=30)  # No timeout for the view
         self.re_roll_callback = re_roll_callback
+        self.user_id = user_id
 
     @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
     async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Call the re_roll function when the button is pressed
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
         await interaction.response.defer() 
         await self.re_roll_callback()
 
 class RerollSetlistView(discord.ui.View):
-    def __init__(self, re_roll_callback):
+    def __init__(self, re_roll_callback, user_id):
         super().__init__(timeout=30)  # No timeout for the view
         self.re_roll_callback = re_roll_callback
+        self.user_id = user_id
 
     @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
     async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        # Call the re_roll function when the button is pressed
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
         # Call the re_roll function when the button is pressed
         await interaction.response.defer() 
         await self.re_roll_callback()
@@ -272,7 +281,7 @@ class GamblingHandler:
             embed = self.search_embed_handler.generate_track_embed(chosen_track, is_random=True)
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 
-        reroll_view = RerollTrackView(re_roll)
+        reroll_view = RerollTrackView(re_roll, user_id=interaction.user.id)
 
         await re_roll()
 
@@ -296,6 +305,6 @@ class GamblingHandler:
             embed.add_field(name="", value="\n".join([f'- **{str(track["track"]["tt"])}** - *{str(track["track"]["an"])}*' for track in chosen_tracks]))
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 
-        reroll_view = RerollSetlistView(re_roll)
+        reroll_view = RerollSetlistView(re_roll, user_id=interaction.user.id)
 
         await re_roll()
