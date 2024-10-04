@@ -20,7 +20,7 @@ class AdminCog(commands.Cog):
         if remove:
             # User ran /unsubscribe on a channel which isnt subscribed
             if not channel_exists:
-                await interaction.response.send_message(f"The channel <#{channel.id}> is not subscribed.")
+                await interaction.response.send_message(f"The channel {channel.mention} is not subscribed.")
                 return False
             # User ran /unsubscribe
             else:
@@ -28,7 +28,7 @@ class AdminCog(commands.Cog):
                     for _channel in channel_list:
                         self.bot.config.channels.remove(_channel)
                 except ValueError as e:
-                    await interaction.response.send_message(f"The channel <#{channel.id}> could not be unsubscribed: {e}")
+                    await interaction.response.send_message(f"The channel {channel.mention} could not be unsubscribed: {e}")
                     return False
         else:
             # User ran /subscribe on a channel which is already subscribed
@@ -39,9 +39,9 @@ class AdminCog(commands.Cog):
 
                     channel_events = _channel.events
                     if len(channel_events) == len(config.JamTrackEvent.get_all_events()):
-                        await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to all Jam Track events.")
+                        await interaction.response.send_message(f"The channel {channel.mention} is already subscribed to all Jam Track events.")
                     else:    
-                        await interaction.response.send_message(f"The channel <#{channel.id}> is already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in channel_events])}\".")
+                        await interaction.response.send_message(f"The channel {channel.mention} is already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in channel_events])}\".")
                 return False
             # User ran /subscribe
             else:
@@ -50,7 +50,7 @@ class AdminCog(commands.Cog):
         try:
             self.bot.config.save_config()
         except Exception as e:
-            await interaction.response.send_message(f"The bot's subscription list could not be updated to " + ("remove" if remove else "include") + f" <#{channel.id}>: {e}\n" + ("Unsubscription" if remove else "Subscription") + " cancelled.")
+            await interaction.response.send_message(f"The bot's subscription list could not be updated to " + ("remove" if remove else "include") + f" {channel.mention}: {e}\n" + ("Unsubscription" if remove else "Subscription") + " cancelled.")
             return False
                 
         return True
@@ -65,13 +65,13 @@ class AdminCog(commands.Cog):
         
         # Send messages in the channel
         if not channel.permissions_for(channel.guild.me).send_messages:
-            await interaction.response.send_message(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in <#{channel.id}>.')
+            await interaction.response.send_message(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in {channel.mention}.')
             return False
         
         # If news channel, publish messages (Manage Messages permission!!!)
         if channel.is_news():
             if not channel.permissions_for(channel.guild.me).manage_messages:
-                await interaction.response.send_message(f'I can\'t publish messages in that Announcement channel! Please make sure I have the "Manage Messages" permission in <#{channel.id}>.')
+                await interaction.response.send_message(f'I can\'t publish messages in that Announcement channel! Please make sure I have the "Manage Messages" permission in {channel.mention}.')
                 return False
             
         # Possible, "Embed Links", "Attach Files?"
@@ -90,7 +90,7 @@ class AdminCog(commands.Cog):
         if not subscription_result:
             return
         
-        await interaction.response.send_message(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
+        await interaction.response.send_message(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
         message = await interaction.original_response()  # Retrieve the message object for reactions
         await message.add_reaction("✅")
 
@@ -106,11 +106,11 @@ class AdminCog(commands.Cog):
             reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
         except asyncio.TimeoutError:
             # await message.clear_reactions()
-            await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.")
+            await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.")
         else:
             await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
             # await message.clear_reactions() # Bot will throw 403 if it can't manage messages
-            await interaction.edit_original_response(content=f"The channel <#{channel.id}> has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
+            await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
 
     @admin_group.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
     @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")
@@ -124,7 +124,7 @@ class AdminCog(commands.Cog):
         if not subscription_result:
             return
         
-        await interaction.response.send_message(f"The channel <#{channel.id}> has been unsubscribed from all Jam Track events.")
+        await interaction.response.send_message(f"The channel {channel.mention} has been unsubscribed from all Jam Track events.")
 
     @admin_group.command(name="add_event", description="Add a Jam Track event to a channel")
     @app_commands.describe(channel = "The channel to add a Jam Track event to")
@@ -149,7 +149,7 @@ class AdminCog(commands.Cog):
 
                 subscribed_events = self.bot.config.channels[self.bot.config.channels.index(_channel)].events
                 if chosen_event in subscribed_events:
-                    await interaction.response.send_message(f'The channel <#{channel.id}> is already subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
+                    await interaction.response.send_message(f'The channel {channel.mention} is already subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
                     return
                 else:
                     self.bot.config.channels[self.bot.config.channels.index(_channel)].events.append(chosen_event)
@@ -157,10 +157,10 @@ class AdminCog(commands.Cog):
         try:
             self.bot.config.save_config()
         except Exception as e:
-            await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{constants.EVENT_NAMES[chosen_event]}\" to the channel <#{channel.id}>: {e}\nEvent subscription cancelled.")
+            await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{constants.EVENT_NAMES[chosen_event]}\" to the channel {channel.mention}: {e}\nEvent subscription cancelled.")
             return
         
-        await interaction.response.send_message(f'The channel <#{channel.id}> has been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
+        await interaction.response.send_message(f'The channel {channel.mention} has been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
 
     @admin_group.command(name="remove_event", description="Remove a Jam Track event from a channel")
     @app_commands.describe(channel = "The channel to remove a Jam Track event from")
@@ -172,7 +172,7 @@ class AdminCog(commands.Cog):
         chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
 
         if not channel_exists:
-            await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
+            await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to any events.')
             return
         else:
             for i, _channel in enumerate(channel_list):
@@ -189,23 +189,23 @@ class AdminCog(commands.Cog):
                         if len(self.bot.config.channels[self.bot.config.channels.index(_channel)].events) < 1:
                             self.bot.config.channels.remove(_channel)
                             self.bot.config.save_config()
-                            await interaction.response.send_message(f"The channel <#{channel.id}> has been removed from the subscription list because it is no longer subscribed to any events.")
+                            await interaction.response.send_message(f"The channel {channel.mention} has been removed from the subscription list because it is no longer subscribed to any events.")
                             return
 
                     except Exception as e:
-                        await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
+                        await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel {channel.mention}: {e}\nEvent unsubscription cancelled.")
                         return
                 else:
-                    await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
+                    await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
                     return
 
         try:
             self.bot.config.save_config()
         except Exception as e:
-            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel <#{channel.id}>: {e}\nEvent unsubscription cancelled.")
+            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from the channel {channel.mention}: {e}\nEvent unsubscription cancelled.")
             return
         
-        await interaction.response.send_message(f'The channel <#{channel.id}> has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".')
+        await interaction.response.send_message(f'The channel {channel.mention} has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".')
 
     @admin_group.command(name="add_role", description="Add a role ping to a channel's subscription messages")
     @app_commands.describe(channel = "The channel to add a role ping to")
@@ -216,7 +216,7 @@ class AdminCog(commands.Cog):
         channel_exists = len(channel_list) > 0
 
         if not channel_exists:
-            await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
+            await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to any events.')
             return
         else:
             for i, _channel in enumerate(channel_list):
@@ -226,7 +226,7 @@ class AdminCog(commands.Cog):
                 channel_roles = self.bot.config.channels[self.bot.config.channels.index(_channel)].roles
 
                 if role.id in channel_roles:
-                    await interaction.response.send_message(f"This role ping is already assigned to the channel <#{channel.id}>.")
+                    await interaction.response.send_message(f"This role ping is already assigned to the channel {channel.mention}.")
                     return
                 else:
                     self.bot.config.channels[self.bot.config.channels.index(_channel)].roles.append(role.id)
@@ -234,10 +234,10 @@ class AdminCog(commands.Cog):
         try:
             self.bot.config.save_config()
         except Exception as e:
-            await interaction.response.send_message(f"The bot's subscription list could not be updated to add this role ping to the channel <#{channel.id}>: {e}\nRole ping addition cancelled.")
+            await interaction.response.send_message(f"The bot's subscription list could not be updated to add this role ping to the channel {channel.mention}: {e}\nRole ping addition cancelled.")
             return
         
-        await interaction.response.send_message(f'The channel <#{channel.id}> has been assigned to ping this role on future Jam Track events.')
+        await interaction.response.send_message(f'The channel {channel.mention} has been assigned to ping this role on future Jam Track events.')
 
     @admin_group.command(name="remove_role", description="Remove a role ping from a channel's subscription messages")
     @app_commands.describe(channel = "The channel to remove a role ping from")
@@ -248,7 +248,7 @@ class AdminCog(commands.Cog):
         channel_exists = len(channel_list) > 0
 
         if not channel_exists:
-            await interaction.response.send_message(f'The channel <#{channel.id}> is not subscribed to any events.')
+            await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to any events.')
             return
         else:
             for i, _channel in enumerate(channel_list):
@@ -261,19 +261,19 @@ class AdminCog(commands.Cog):
                     try:
                         self.bot.config.channels[self.bot.config.channels.index(_channel)].roles.remove(role.id)
                     except ValueError as e:
-                        await interaction.response.send_message(f"This role ping could not be removed from the channel <#{channel.id}>: {e}\nRole ping removal cancelled.")
+                        await interaction.response.send_message(f"This role ping could not be removed from the channel {channel.mention}: {e}\nRole ping removal cancelled.")
                         return
                 else:
-                    await interaction.response.send_message(f"This role ping is not assigned to the channel <#{channel.id}>.")
+                    await interaction.response.send_message(f"This role ping is not assigned to the channel {channel.mention}.")
                     return
 
         try:
             self.bot.config.save_config()
         except Exception as e:
-            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove this role ping from the channel <#{channel.id}>: {e}\nRole ping removal cancelled.")
+            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove this role ping from the channel {channel.mention}: {e}\nRole ping removal cancelled.")
             return
         
-        await interaction.response.send_message(f'The channel <#{channel.id}> has been assigned to not ping this role on future Jam Track events.')
+        await interaction.response.send_message(f'The channel {channel.mention} has been assigned to not ping this role on future Jam Track events.')
 
     @admin_group.command(name="subscriptions", description="View the subscriptions in this guild")
     @app_commands.checks.has_permissions(administrator=True)
@@ -293,7 +293,7 @@ class AdminCog(commands.Cog):
                     if channel_to_search.roles:
                         if len(channel_to_search.roles) > 0:
                             role_content = "**Roles:** " + ", ".join([f'<@&{role.id}>' for role in channel_to_search.roles])
-                    embed.add_field(name=f"<#{channel_to_search.id}>", value=f"{events_content}\n{role_content}", inline=False)
+                    embed.add_field(name=f"{channel.mention}", value=f"{events_content}\n{role_content}", inline=False)
 
         if total_channels < 1:
             embed.add_field(name="There are no subscriptions in this guild.", value="")
