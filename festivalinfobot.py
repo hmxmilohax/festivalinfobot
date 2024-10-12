@@ -294,15 +294,15 @@ class FestivalInfoBot(commands.Bot):
             await self.lightswitch_handler.handle_fortnitestatus_interaction(interaction=interaction)
 
         @self.tree.command(name="mainstage", description="View information about Festival Main Stage.")
-        async def fortnitestatus_command(interaction: discord.Interaction):
+        async def mainstage_command(interaction: discord.Interaction):
             await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction)
 
         @self.tree.command(name="battlestage", description="View information about Festival Battle Stage.")
-        async def fortnitestatus_command(interaction: discord.Interaction):
+        async def battlestage_command(interaction: discord.Interaction):
             await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Battle Stage")
 
         @self.tree.command(name="jamstage", description="View information about Festival Jam Stage.") 
-        async def fortnitestatus_command(interaction: discord.Interaction):
+        async def jamstage_command(interaction: discord.Interaction):
             await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Jam Stage")
 
         @self.tree.command(name="stats", description="Displays Festival Tracker stats")
