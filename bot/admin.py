@@ -364,7 +364,7 @@ class TestCog(commands.Cog):
 
     @test_group.command(name="logs", description="Only the bot host can run this command. Tests logging functions and levels.")
     async def test_command(self, interaction: discord.Interaction):
-        if interaction.user.id != 734822755224125451:
+        if interaction.user.id != 960524988824313876:
             await interaction.response.send_message(content="You are not authorised to run this command.")
             return
         
