@@ -12,3 +12,4 @@ midi_files
 backups/
 Qt6Core.dll
 Qt6Gui.dll
+logs

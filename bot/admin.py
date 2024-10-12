@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -35,7 +36,7 @@ class AdminCog(commands.Cog):
             if channel_exists:
                 for i, _channel in enumerate(channel_list):
                     if i > 0:
-                        print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+                        logging.warning(f'Found another channel for {channel.id}? Channel no. {i}')
 
                     channel_events = _channel.events
                     if len(channel_events) == len(config.JamTrackEvent.get_all_events()):
@@ -90,27 +91,30 @@ class AdminCog(commands.Cog):
         if not subscription_result:
             return
         
-        await interaction.response.send_message(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
-        message = await interaction.original_response()  # Retrieve the message object for reactions
-        await message.add_reaction("✅")
+        if interaction.channel.permissions_for(interaction.guild.me).add_reactions:
+            await interaction.response.send_message(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
+            message = await interaction.original_response()  # Retrieve the message object for reactions
+            await message.add_reaction("✅")
 
-        def check(reaction, user):
-            return (
-                user == interaction.user and
-                user.guild_permissions.administrator and
-                str(reaction.emoji) == "✅" and
-                reaction.message.id == message.id
-            )
+            def check(reaction, user):
+                return (
+                    user == interaction.user and
+                    user.guild_permissions.administrator and
+                    str(reaction.emoji) == "✅" and
+                    reaction.message.id == message.id
+                )
 
-        try:
-            reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
-        except asyncio.TimeoutError:
-            # await message.clear_reactions()
-            await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.")
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
+            except asyncio.TimeoutError:
+                # await message.clear_reactions()
+                await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.")
+            else:
+                await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
+                # await message.clear_reactions() # Bot will throw 403 if it can't manage messages
+                await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
         else:
-            await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
-            # await message.clear_reactions() # Bot will throw 403 if it can't manage messages
-            await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
+            await interaction.response.send_message(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.")
 
     @admin_group.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
     @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")
@@ -145,7 +149,7 @@ class AdminCog(commands.Cog):
         else:
             for i, _channel in enumerate(channel_list):
                 if i > 0:
-                    print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+                    logging.warning(f'Found another channel for {channel.id}? Channel no. {i}')
 
                 subscribed_events = self.bot.config.channels[self.bot.config.channels.index(_channel)].events
                 if chosen_event in subscribed_events:
@@ -177,7 +181,7 @@ class AdminCog(commands.Cog):
         else:
             for i, _channel in enumerate(channel_list):
                 if i > 0:
-                    print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+                    logging.warning(f'Found another channel for {channel.id}? Channel no. {i}')
 
                 subscribed_events = self.bot.config.channels[self.bot.config.channels.index(_channel)].events
 
@@ -221,7 +225,7 @@ class AdminCog(commands.Cog):
         else:
             for i, _channel in enumerate(channel_list):
                 if i > 0:
-                    print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+                    logging.warning(f'Found another channel for {channel.id} Channel no. {i}')
 
                 channel_roles = self.bot.config.channels[self.bot.config.channels.index(_channel)].roles
 
@@ -253,7 +257,7 @@ class AdminCog(commands.Cog):
         else:
             for i, _channel in enumerate(channel_list):
                 if i > 0:
-                    print(f'Found another channel for {channel.id}?\nChannel no. {i}')
+                    logging.warning(f'Found another channel for {channel.id}? Channel no. {i}')
 
                 channel_roles = self.bot.config.channels[self.bot.config.channels.index(_channel)].roles
 
@@ -341,9 +345,9 @@ class TestCog(commands.Cog):
                 try:
                     await channel.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
                 except Exception as e:
-                    print(f"Error sending message to channel {channel.id}: {e}")
+                    logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             else:
-                print(f"Channel with ID {channel_to_search.id} not found.")
+                logging.error(f"Channel with ID {channel_to_search.id} not found.")
 
         # Send a test message to all subscribed users
         for user_to_send in self.bot.config.users:
@@ -352,11 +356,31 @@ class TestCog(commands.Cog):
                 try:
                     await user.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
                 except Exception as e:
-                    print(f"Error sending message to user {user.id}: {e}")
+                    logging.error(f"Error sending message to user {user.id}", exc_info=e)
             else:
-                print(f"User with ID {user_to_send.id} not found.")
+                logging.error(f"User with ID {user_to_send.id} not found.")
 
         await interaction.followup.send(content="Test messages have been sent.", ephemeral=True)
+
+    @test_group.command(name="logs", description="Only the bot host can run this command. Tests logging functions and levels.")
+    async def test_command(self, interaction: discord.Interaction):
+        if interaction.user.id != 734822755224125451:
+            await interaction.response.send_message(content="You are not authorised to run this command.")
+            return
+        
+        logging.debug("[festival tracker] This is a DEBUG message.")
+        logging.info("[festival tracker] This is an INFO message.")
+        logging.warning("[festival tracker] This is a WARNING message.")
+        logging.error("[festival tracker] This is an ERROR message.", exc_info=Exception("This is a test exception."))
+        logging.critical("[festival tracker] This is a CRITICAL message." , exc_info=Exception("This is a test exception."))
+
+        logging.getLogger('discord').debug('[discord] This is a DEBUG message.')
+        logging.getLogger('discord').info('[discord] This is an INFO message.')
+        logging.getLogger('discord').warning('[discord] This is a WARNING message.')
+        logging.getLogger('discord').error('[discord] This is an ERROR message.', exc_info=Exception("This is a test exception."))
+        logging.getLogger('discord').critical('[discord] This is a CRITICAL message.', exc_info=Exception("This is a test exception."))
+
+        await interaction.response.send_message(content="Successfully tested logging functions and levels.")
         
     @test_group.command(name="full_history", description="Only the bot host can run this command. Runs history for every known song.")
     async def full_history(self, interaction: discord.Interaction):
@@ -386,7 +410,7 @@ class TestCog(commands.Cog):
 
             except Exception as e:
                 await interaction.channel.send(content=f"Failed to process the history for **{song_name}**. Error: {e}")
-                print(e)
+                logging.error("Unable to process the history", exc_info=e)
                 # Continue even if one song fails
 
         # Final message indicating the full history run is complete

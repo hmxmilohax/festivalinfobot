@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import logging
 import subprocess
 import discord
 import requests
@@ -10,7 +11,7 @@ class DailyCommandEmbedHandler():
     def __init__(self) -> None:
         pass
 
-    def create_daily_embeds(self, daily_tracks, chunk_size=10):
+    def create_daily_embeds(self, daily_tracks, chunk_size=3):
         embeds = []
         
         for i in range(0, len(daily_tracks), chunk_size):
@@ -18,13 +19,12 @@ class DailyCommandEmbedHandler():
             chunk = daily_tracks[i:i + chunk_size]
             
             for entry in chunk:
-                active_since_display = f"<t:{entry['activeSince']}:R>" if entry['activeSince'] else "Unknown"
+                # active_since_display = f"<t:{entry['activeSince']}:R>" if entry['activeSince'] else "Unknown"
                 active_until_display = f"<t:{entry['activeUntil']}:R>" if entry['activeUntil'] else "Unknown"
                 
                 embed.add_field(
                     name="",
-                    value=f"**\\• {entry['title']}** - *{entry['artist']}*\n"
-                        f"`Added:` {active_since_display} - `Leaving:` {active_until_display}\n"
+                    value=f"**\\• {entry['title']}** - *{entry['artist']}* - Leaving: {active_until_display}\n"
                         f"```{entry['difficulty']}```\n",
                     inline=False
                 )
@@ -65,7 +65,7 @@ class LeaderboardEmbedHandler():
                     field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
 
                 except Exception as e:
-                    print(f"Error in leaderboard entry formatting: {e}")
+                    logging.error(f"Error in leaderboard entry formatting", exc_info=e)
                 field_text += '\n'
             field_text += '```'
 
@@ -111,7 +111,7 @@ class LeaderboardEmbedHandler():
 
                     session_field_text += f"{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}\n"
                 except Exception as e:
-                    print(f"Error in session formatting: {e}")
+                    logging.error(f"Error in session formatting", exc_info=e)
 
             # Band data
             if not is_solo:
@@ -173,7 +173,7 @@ class StatsCommandEmbedHandler():
 
     def fetch_latest_github_commit_hash(self):
         repo_url = "https://api.github.com/repos/hmxmilohax/festivalinfobot/commits"
-        print(f'[GET] {repo_url}')
+        logging.debug(f'[GET] {repo_url}')
         response = requests.get(repo_url)
         if response.status_code == 200:
             latest_commit = response.json()[0]
@@ -190,7 +190,7 @@ class StatsCommandEmbedHandler():
             dirtyness = subprocess.check_output(['git', 'status', '--porcelain']).strip().decode('utf-8')
             return dirtyness, branch_name, commit_hash
         except Exception as e:
-            print(f"Error getting local commit hash: {e}")
+            logging.error(f"Error getting local commit info", exc_info=e)
             return "Unknown", "Unknown", "Unknown"
         
 class SearchEmbedHandler:

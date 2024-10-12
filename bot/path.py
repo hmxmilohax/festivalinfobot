@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import discord
 
@@ -12,7 +13,7 @@ class PathCommandHandler():
         self.midi_tool = MidiArchiveTools()
 
     # Function to call chopt.exe and capture its output
-    def run_chopt(self, midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: constants.Instrument = None, difficulty: str = 'expert'):
+    def run_chopt(self, midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: constants.Instrument = None, difficulty: str = 'expert', extra_args: list = []):
         chopt_command = [
             'chopt.exe', 
             '-f', midi_file, 
@@ -31,14 +32,50 @@ class PathCommandHandler():
             '-o', os.path.join(constants.TEMP_FOLDER, output_image)
         ])
 
+        chopt_command.extend(extra_args)
+
         result = subprocess.run(chopt_command, text=True, capture_output=True)
         
         if result.returncode != 0:
             return None, result.stderr
 
         return result.stdout.strip(), None
+    
+    def process_acts(self, arr):
+        sum_phrases = 0
+        sum_overlaps = 0
 
-    async def handle_interaction(self, interaction:discord.Interaction, song:str, instrument:constants.Instruments, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
+        for string in arr:
+            if "(" in string:
+                x, y = string.split("(")
+                y = y.replace(")", "")  # Remove closing parenthesis
+                sum_phrases += int(x)
+                sum_overlaps += int(y)
+            else:
+                sum_phrases += int(string)
+
+        return sum_phrases, sum_overlaps
+
+    async def handle_interaction(self, interaction:discord.Interaction, song:str, instrument:constants.Instruments, extra_args:list, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
+        extra_arguments = []
+        field_argument_descriptors = []
+        if extra_args[0]: # Lefty Flip
+            extra_arguments.append('--lefty-flip')
+            field_argument_descriptors.append('**Lefty Flip:** Yes')
+        if extra_args[1]: # Act Opacity
+            extra_arguments.append('--act-opacity')
+            extra_arguments.append(str(extra_args[1] / 100))
+            field_argument_descriptors.append(f'**Activation Opacity:** {extra_args[1]}%')
+        if extra_args[2]: # No BPM
+            extra_arguments.append('--no-bpms')
+            field_argument_descriptors.append(f'**No BPMs:** Yes')
+        if extra_args[3]: # No Solos
+            extra_arguments.append('--no-solos')
+            field_argument_descriptors.append(f'**No Solos:** Yes')
+        if extra_args[4]: # No Time Sigs
+            extra_arguments.append('--no-time-sigs')
+            field_argument_descriptors.append(f'**No Time Signatures:** Yes')
+
         # basically the code from leaderboard.py
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
         chosen_diff = constants.Difficulties[str(difficulty).replace('Difficulties.', '')].value
@@ -98,7 +135,7 @@ class PathCommandHandler():
 
             # Step 4: Generate the path image using chopt.exe
             output_image = f"{short_name}_{chosen_instrument.chopt.lower()}_path_{session_hash}.png".replace(' ', '_')
-            chopt_output, chopt_error = self.run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument=chosen_instrument, difficulty=chosen_diff.chopt)
+            chopt_output, chopt_error = self.run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument=chosen_instrument, difficulty=chosen_diff.chopt,extra_args=extra_arguments)
 
             if chopt_error:
                 await interaction.edit_original_response(content=f"An error occurred while running chopt: {chopt_error}")
@@ -106,19 +143,38 @@ class PathCommandHandler():
 
             filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
 
+            description = (
+                f"**Instrument:** {display_instrument}\n"
+                f"**Difficulty:** {chosen_diff.english}\n"
+                f"**Squeeze:** {squeeze_percent}%\n"
+            )
+
+            for arg in field_argument_descriptors:
+                description += f'{arg}\n'
+
             # Step 5: Check if path image is generated successfully and send it
             if os.path.exists(os.path.join(constants.TEMP_FOLDER, output_image)):
                 file = discord.File(os.path.join(constants.TEMP_FOLDER, output_image), filename=output_image)
                 embed = discord.Embed(
                     title=f"Path for **{track_title}** - *{artist_title}*",
-                    description=(
-                        f"**Instrument:** {display_instrument}\n"
-                        f"**Difficulty:** {chosen_diff.english}\n"
-                        f"**Squeeze Percent:** {squeeze_percent}%\n"
-                        f"```{filtered_output}```"
-                    ),
+                    description=description,
                     color=0x8927A1
                 )
+                embed.add_field(name="CHOpt output", value=f"```{filtered_output}```", inline=False)
+
+                acts = filtered_output.split('\n')[0].replace('Path: ', '').split('-')
+                total_acts = len(acts)
+                phrases, overlaps = self.process_acts(acts)
+
+                no_sp_score = filtered_output.split('\n')[1].split(' ').pop()
+                total_score = filtered_output.split('\n')[2].split(' ').pop()
+
+                embed.add_field(name="Phrases", value=phrases)
+                embed.add_field(name="Activations", value=total_acts)
+                embed.add_field(name="Overlaps", value=overlaps)
+                embed.add_field(name="No OD Score", value=no_sp_score)
+                embed.add_field(name="Total Score", value=total_score)
+
                 embed.set_image(url=f"attachment://{output_image}")
                 embed.set_thumbnail(url=album_art_url)
                 await interaction.edit_original_response(embed=embed, attachments=[file])

@@ -1,3 +1,4 @@
+import logging
 import requests
 import os
 from datetime import datetime
@@ -24,8 +25,9 @@ def get_commit_history():
 
     while True:
         params["page"] = page
-        print(f'[GET] {COMMITS_URL}')
-        response = requests.get(COMMITS_URL, headers=headers, params=params)
+        url = f'{COMMITS_URL}?' + '&'.join([f'{k}={v}' for k, v in params.items()])
+        logging.debug(f'[GET] {url}')
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         commits = response.json()
         
@@ -53,7 +55,7 @@ def download_file_at_commit(commit_sha, commit_timestamp):
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
     
     raw_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{commit_sha}/{FILE_PATH}"
-    print(f'[GET] {raw_url}')
+    logging.debug(f'[GET] {raw_url}')
     response = requests.get(raw_url, headers=headers)
     response.raise_for_status()
 
@@ -70,7 +72,7 @@ def download_file_at_commit(commit_sha, commit_timestamp):
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(response.text)
 
-    print(f"Downloaded: {file_name}")
+    logging.debug(f"Downloaded: {file_name}")
 
 def already_downloaded(commit_timestamp):
     # Format the timestamp to match the filenames we have saved
@@ -83,7 +85,7 @@ def already_downloaded(commit_timestamp):
 
 def main():
     commit_history = get_commit_history()
-    print(f"Updating local repo of spark-tracks jsons")
+    logging.info(f"Updating local repo of spark-tracks jsons")
     
     for commit in commit_history:
         commit_sha = commit["sha"]

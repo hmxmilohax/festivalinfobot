@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 import random
 
 import discord
@@ -13,7 +14,7 @@ class DailyCommandHandler:
 
     def fetch_daily_shortnames(self):
         try:
-            print(f'[GET] {constants.DAILY_API}')
+            logging.debug(f'[GET] {constants.DAILY_API}')
             response = requests.get(constants.DAILY_API)
             data = response.json()
 
@@ -29,7 +30,7 @@ class DailyCommandHandler:
             valid_states.sort(key=lambda x: datetime.fromisoformat(x['validFrom'].replace('Z', '+00:00')), reverse=True)
 
             if not valid_states:
-                print("No valid states found")
+                logging.error("No valid states found")
                 return None
 
             # Get the activeEvents from the most recent valid state
@@ -56,7 +57,7 @@ class DailyCommandHandler:
 
             return daily_tracks
         except Exception as e:
-            print(e)
+            logging.error(exc_info=e)
             return {}
     
     def convert_iso_to_timestamp(self, event_data):
@@ -160,7 +161,7 @@ class ShopCommandHandler:
 
     def fetch_shop_tracks(self):
         try:
-            print(f'[GET] {constants.SHOP_API}')
+            logging.debug(f'[GET] {constants.SHOP_API}')
             response = requests.get(constants.SHOP_API)
             data = response.json()
 
@@ -191,13 +192,13 @@ class ShopCommandHandler:
                                     }
 
                 if not available_tracks:
-                    print('No tracks found in the shop.')
+                    logging.error('No tracks found in the shop.')
                     return None
 
                 return available_tracks  # Return dictionary keyed by devName
 
         except Exception as e:
-            print(f'Error fetching shop tracks: {e}')
+            logging.error(f'Error fetching shop tracks', exc_info=e)
             return None
         
 class TracklistHandler:
