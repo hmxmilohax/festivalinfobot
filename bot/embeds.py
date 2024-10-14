@@ -19,8 +19,7 @@ class DailyCommandEmbedHandler():
             chunk = daily_tracks[i:i + chunk_size]
             
             for entry in chunk:
-                # active_since_display = f"<t:{entry['activeSince']}:R>" if entry['activeSince'] else "Unknown"
-                active_until_display = f"<t:{entry['activeUntil']}:R>" if entry['activeUntil'] else "Unknown"
+                active_until_display = discord.utils.format_dt(datetime.fromtimestamp(entry['activeUntil']), style="R") if entry['activeUntil'] else "Unknown"
                 
                 embed.add_field(
                     name="",
@@ -134,7 +133,7 @@ class LeaderboardEmbedHandler():
                     session_field_text += f"{name:<35}{total:>10}\n"
 
             session_field_text += '```'
-            embed.add_field(name=f"<t:{int(session['time'])}:R>", value=session_field_text, inline=False)
+            embed.add_field(name=discord.utils.format_dt(datetime.fromtimestamp(int(session['time'])), style="R"), value=session_field_text, inline=False)
 
         return embed
     
@@ -151,7 +150,7 @@ class StatsCommandEmbedHandler():
     def iso_to_unix_timestamp(self, iso_time_str):
         try:
             dt = datetime.fromisoformat(iso_time_str.replace('Z', '+00:00'))
-            return int(dt.timestamp())
+            return dt
         except ValueError:
             return None
         

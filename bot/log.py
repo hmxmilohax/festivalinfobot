@@ -79,7 +79,7 @@ def setup() -> logging.RootLogger:
     logger = logging.getLogger()
 
     # Disable debug messages on these dumb libraries!
-    if '-discord-debug' not in sys.argv:
+    if '-discord-debug' not in sys.argv: # Run festivalinfobot.py with -discord-debug to enable discord.py DEBUG level logging 
         logging.getLogger('discord').setLevel(logging.INFO)
     logging.getLogger('urllib3').setLevel(logging.INFO)
     logging.getLogger('matplotlib').setLevel(logging.INFO)

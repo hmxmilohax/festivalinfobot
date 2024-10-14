@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import random
 import shutil
 import subprocess
 import discord
@@ -415,7 +416,7 @@ class HistoryHandler():
                 prev_date = prev[0]
                 prev_properties = prev[1]
 
-                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n<t:{StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date)}:D> to <t:{StatsCommandEmbedHandler().iso_to_unix_timestamp(date)}:D>", color=0x8927A1)
+                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n{discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date), style='R')} to {discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(date), style='R')}", color=0x8927A1)
 
                 for pk, pv in properties_that_changed.items():
                     previous_property = None
@@ -512,9 +513,33 @@ class LoopCheckHandler():
         self.midi_tools = MidiArchiveTools()
         self.jam_track_handler = JamTrackHandler()
 
+    async def handle_activity_task(self):
+        tracks = self.jam_track_handler.get_jam_tracks()
+        num_tracks = len(tracks)
+        random_jam_track = random.choice(tracks)
+
+        servers = random.choice([True, False])
+
+        logging.debug("Creating activity...")
+        activity = discord.Activity(
+            type=discord.ActivityType.watching if servers else discord.ActivityType.playing,
+            name=f"{len(self.bot.guilds)} servers" if servers else f"{num_tracks} Jam Tracks",
+            state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']} | /help",
+        )
+
+        # Apply the activity
+        logging.debug("Applying activity...")
+        await self.bot.change_presence(activity=activity, status=discord.Status.online)
+
     async def handle_task(self):
         if not self.bot.config:
             logging.warning(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
+            return
+        
+        tracks = self.jam_track_handler.get_jam_tracks()
+
+        if not tracks:
+            logging.error('Could not fetch tracks.')
             return
 
         # Remove duplicates from self.bot.config.channels and self.bot.config.users
@@ -549,13 +574,6 @@ class LoopCheckHandler():
             logging.debug("Running sparks_tracks.py")
         except Exception as e:
             logging.error(f"Failed to run sparks_tracks.py", exc_info=e)
-
-        # Fetch current jam tracks
-        tracks = self.jam_track_handler.get_jam_tracks()
-
-        if not tracks:
-            logging.error('Could not fetch tracks.')
-            return
 
         # Dynamically reload known tracks and shortnames from disk each time the task runs
         known_tracks = load_known_songs_from_disk()  # Reload known_tracks.json

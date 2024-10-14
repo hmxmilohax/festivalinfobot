@@ -55,22 +55,25 @@ class FestivalInfoBot(commands.Bot):
         logging.debug("Syncing slash command tree...")
         await self.tree.sync()
 
-        logging.debug("Creating activity...")
-        # Set up the rich presence activity
-        activity = discord.Activity(
-            type=discord.ActivityType.playing, 
-            name=f"/help"
-        )
-
-        # Apply the activity
-        logging.debug("Applying activity...")
-        await self.change_presence(activity=activity, status=discord.Status.online)
-
+        logging.debug(f"Registering background task every {self.CHECK_FOR_SONGS_INTERVAL}min")
         @tasks.loop(minutes=self.CHECK_FOR_SONGS_INTERVAL)
         async def check_for_new_songs():
             await self.check_handler.handle_task()
+
         if self.CHECK_FOR_NEW_SONGS:
             check_for_new_songs.start()
+
+        @tasks.loop(minutes=5)
+        async def activity_task():
+            await self.check_handler.handle_activity_task()
+
+        @activity_task.before_loop
+        async def wait_thing(): 
+            # This prewents the task from running before the bot can finish logging in
+            # Was recommended to do this by StackOverflow
+            await self.wait_until_ready()
+
+        activity_task.start()
 
         logging.info("Bot is now running!")
 
@@ -106,8 +109,7 @@ class FestivalInfoBot(commands.Bot):
         intents.message_content = True  # Enable message content intent
 
         super().__init__(
-            # Prefix must be set, but no commands are in the 'text command list' so it wont do anything
-            command_prefix="ft!",
+            command_prefix=commands.when_mentioned_or('ft!'),
             help_command=None,
             intents=intents
         )
@@ -188,6 +190,11 @@ class FestivalInfoBot(commands.Bot):
         @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
         @app_commands.describe(account_id = "An Epic Games account ID.")
         async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = None, username:str = None, account_id:str = None):
+            if rank or username or account_id:
+                if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
+                    await interaction.response.send_message(content="You must be in a channel where I can send messages to view specific entries.", ephemeral=True)
+                    return
+            
             await self.lb_handler.handle_interaction(
                 interaction,
                 song=song,
@@ -325,7 +332,7 @@ class FestivalInfoBot(commands.Bot):
             # Timestamps
             last_update_timestamp = handler.iso_to_unix_timestamp(last_update)
             if last_update_timestamp:
-                last_update_formatted = f"<t:{last_update_timestamp}:R>"  # Use Discord's relative time format
+                last_update_formatted = discord.utils.format_dt(last_update_timestamp, style="R")  # Use Discord's relative time format
             else:
                 last_update_formatted = "Unknown"
 

@@ -75,7 +75,7 @@ class LeaderboardCommandHandler:
             else:
                 specific_entries = []
                 specific_entries.extend([entry for entry in leaderboard_entries if entry['rank'] == rank] if rank else [])
-                specific_entries.extend([entry for entry in leaderboard_entries if username.lower() in entry['userName'].lower()] if username else [])
+                specific_entries.extend([entry for entry in leaderboard_entries if username.lower() in str(entry.get('userName', 'N/A')).lower()] if username else [])
                 specific_entries.extend([entry for entry in leaderboard_entries if entry['teamId'] == account_id] if account_id else [])
                 specific_entries_unique = []
                 for entry in specific_entries: 

@@ -5,6 +5,8 @@ import logging
 
 import requests
 
+from bot import helpers
+
 class StatusHandler():
     def __init__(self) -> None:
         pass
@@ -77,9 +79,10 @@ class StatusHandler():
             embed.add_field(name="Rating", value=rating)
             embed.set_image(url=island_data['squareImgSrc'])
 
-            embed.add_field(name="Island Details", value=f"[Click here to view more details](https://fortnite.com{island_data['islandUrl']})", inline=False)
+            view = helpers.OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="View More", link=f"https://fortnite.com{island_data['islandUrl']}", emoji=None)
+            view.message = await interaction.original_response()
 
-            await interaction.edit_original_response(embed=embed)
+            await interaction.edit_original_response(embed=embed, view=view)
         else:
             embed = discord.Embed(title=search_for, description="Island not found", color=0x8927A1)
             await interaction.edit_original_response(embed=embed)

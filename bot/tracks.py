@@ -1,6 +1,8 @@
 from datetime import datetime
 from difflib import get_close_matches
 import json
+import logging
+import random
 import string
 import discord
 from discord.ext import commands
@@ -51,6 +53,23 @@ class JamTrackHandler:
             # Check for duplicates
             if track not in result_unique: result_unique.append(track) 
         return result_unique
+    
+    def get_spotify_link(self, isrc: str, session : str):
+        url = "https://fnlookup-apiv2.vercel.app/api/?isrc=" + isrc
+        logging.debug(f'[GET] {url}')
+
+        rand_div = random.randint(0, len(session))
+        permission = session[:rand_div] + '+8*' + session[:rand_div]
+        logging.debug(f'[HEADER] ftperms = {permission}')
+
+        link = requests.get(url, headers={'ftperms': permission})
+        try:
+            link.raise_for_status()
+        except Exception as e:
+            logging.error(f'Spotify Link GET returned {link.status_code}', exc_info=e)
+            return None
+        
+        return link.json().get('link')
 
     def get_jam_tracks(self):
         return constants.get_jam_tracks() # Proxies into constants to fix circular imports
@@ -66,7 +85,7 @@ class SearchCommandHandler:
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
         options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
-        await interaction.response.send_message(content=f"I found multiple tracks matching your search. Please choose the correct one by typing the number:\n{options_message}")
+        await interaction.edit_original_response(content=f"I found multiple tracks matching your search. Please choose the correct one by typing the number:\n{options_message}")
 
         def check(m):
             return m.author == interaction.user
@@ -98,6 +117,8 @@ class SearchCommandHandler:
         await interaction.response.send_message(embed=embed)
 
     async def handle_interaction(self, interaction: discord.Interaction, query:str):
+        await interaction.response.defer()
+
         # Special case for "I'm A Cat"
         if query.lower() in {"i'm a cat", "im a cat", "imacat"}:
             await self.handle_imacat_search(interaction=interaction)
@@ -128,19 +149,40 @@ class SearchCommandHandler:
                 out_date = shop_tracks[track_devname].get('outDate')
                 human_readable_out_date = self.format_date(out_date)
                 embed.add_field(name="Shop Rotation", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
+
+        track = None
+        message = None
         
         if len(matched_tracks) == 1:
-            embed = self.embed_handler.generate_track_embed(matched_tracks[0])
+            _track = matched_tracks[0]
+            track = _track
 
-            track_devname = matched_tracks[0]['track']['sn']
+            embed = self.embed_handler.generate_track_embed(_track)
+
+            track_devname = _track['track']['sn']
             add_fields(track_devname=track_devname, embed=embed)
             
-            await interaction.response.send_message(embed=embed)
+            await interaction.edit_original_response(embed=embed)
+            message = await interaction.original_response()
         else:
             message, chosen_track = await self.prompt_user_for_selection(interaction=interaction, matched_tracks=matched_tracks)
+            track = chosen_track
+
             embed = self.embed_handler.generate_track_embed(chosen_track)
             
             track_devname = chosen_track['track']['sn']
             add_fields(track_devname=track_devname, embed=embed)
 
-            await message.reply(embed=embed, mention_author=False)
+            message = await message.reply(embed=embed, mention_author=False)
+
+        try:
+            if track and message:
+                if track['track'].get('isrc', None):
+                    spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
+
+                    view = helpers.OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
+                    view.message = message
+
+                    await message.edit(embed=embed, view=view)
+        except Exception as e:
+            logging.error('Error attempting to add view | Spotify link to message', exc_info=e)

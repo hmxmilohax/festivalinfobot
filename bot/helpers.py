@@ -228,40 +228,59 @@ class TracklistHandler:
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
-class RerollTrackView(discord.ui.View):
-    def __init__(self, re_roll_callback, user_id):
-        super().__init__(timeout=30)  # No timeout for the view
-        self.re_roll_callback = re_roll_callback
-        self.user_id = user_id
+class OneButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
 
-    @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
-    async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Call the re_roll function when the button is pressed
-        if interaction.user.id != self.user_id:
+    async def callback(self, interaction: discord.Interaction):
+        view: OneButtonSimpleView = self.view
+        if interaction.user.id != self.user_id and view.restrict:
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
-        await interaction.response.defer() 
-        await self.re_roll_callback()
+        view.add_buttons()
+        if view.on_press:
+            await view.on_press()
+        await interaction.response.defer()
 
-class RerollSetlistView(discord.ui.View):
-    def __init__(self, re_roll_callback, user_id):
+class OneButtonSimpleView(discord.ui.View):
+    def __init__(self, on_press, user_id, label = "No label", emoji = "🔁", link = None, restrict_only_to_creator = True):
         super().__init__(timeout=30)  # No timeout for the view
-        self.re_roll_callback = re_roll_callback
+        self.on_press = on_press
         self.user_id = user_id
+        self.label_text = label
+        self.btn_emoji = emoji
+        self.message : discord.Message
+        self.link = link
+        self.restrict = restrict_only_to_creator
+        self.add_buttons()
 
-    @discord.ui.button(label='Reroll', style=discord.ButtonStyle.primary, emoji="🔁")
-    async def reroll_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Call the re_roll function when the button is pressed
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        # Call the re_roll function when the button is pressed
-        await interaction.response.defer() 
-        await self.re_roll_callback()
+    def add_buttons(self):
+        self.clear_items()
+        
+        self.add_item(OneButton(user_id=self.user_id, style=discord.ButtonStyle.primary, label=self.label_text, disabled=False, emoji=self.btn_emoji, url=self.link))
+
+    async def on_timeout(self):
+        try:
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(view=self)
+        except discord.NotFound:
+            logging.error("Message was not found when trying to edit after timeout.")
+        except Exception as e:
+            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class GamblingHandler:
     def __init__(self) -> None:
         self.search_embed_handler = SearchEmbedHandler()
+        self.daily_handler = DailyCommandHandler()
+        self.shop_handler = ShopCommandHandler()
+
+    def format_date(self, date_string):
+        if date_string:
+            date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+            return date_ts.strftime("%B %d, %Y")
+        return "Currently in the shop!"
 
     async def handle_random_track_interaction(self, interaction: discord.Interaction):
         tracks = constants.get_jam_tracks()
@@ -277,12 +296,29 @@ class GamblingHandler:
         
         await interaction.response.defer()
 
+        daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
+        shop_tracks = self.shop_handler.fetch_shop_tracks()
+
+        def add_fields(track_devname, embed):
+            if daily_shortnames_data and track_devname in daily_shortnames_data:
+                active_until = daily_shortnames_data[track_devname]['activeUntil']
+                human_readable_until = self.format_date(active_until)
+                embed.add_field(name="Daily Rotation", value=f"Free in daily rotation until {human_readable_until}.", inline=False)
+
+            # Add shop information
+            if shop_tracks and track_devname in shop_tracks:
+                out_date = shop_tracks[track_devname].get('outDate')
+                human_readable_out_date = self.format_date(out_date)
+                embed.add_field(name="Shop Rotation", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
+
         async def re_roll():
             chosen_track = random.choice(track_list)
             embed = self.search_embed_handler.generate_track_embed(chosen_track, is_random=True)
+            add_fields(chosen_track['track']['sn'], embed)
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 
-        reroll_view = RerollTrackView(re_roll, user_id=interaction.user.id)
+        reroll_view = OneButtonSimpleView(on_press=re_roll, user_id=interaction.user.id, label="Reroll Track")
+        reroll_view.message = await interaction.original_response()
 
         await re_roll()
 
@@ -306,6 +342,7 @@ class GamblingHandler:
             embed.add_field(name="", value="\n".join([f'- **{str(track["track"]["tt"])}** - *{str(track["track"]["an"])}*' for track in chosen_tracks]))
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 
-        reroll_view = RerollSetlistView(re_roll, user_id=interaction.user.id)
+        reroll_view = OneButtonSimpleView(on_press=re_roll, user_id=interaction.user.id, label="Reroll Setlist")
+        reroll_view.message = await interaction.original_response()
 
         await re_roll()
