@@ -59,7 +59,7 @@ class JamTrackHandler:
         logging.debug(f'[GET] {url}')
 
         rand_div = random.randint(0, len(session))
-        permission = session[:rand_div] + '+8*' + session[:rand_div]
+        permission = session[:rand_div] + '+8*' + session[rand_div:]
         logging.debug(f'[HEADER] ftperms = {permission}')
 
         link = requests.get(url, headers={'ftperms': permission})
