@@ -180,9 +180,9 @@ class SearchCommandHandler:
                 if track['track'].get('isrc', None):
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
-                    view = helpers.OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
-                    view.message = message
-
-                    await message.edit(embed=embed, view=view)
+                    if spotify:
+                        view = helpers.OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
+                        view.message = message
+                        await message.edit(embed=embed, view=view)
         except Exception as e:
             logging.error('Error attempting to add view | Spotify link to message', exc_info=e)
