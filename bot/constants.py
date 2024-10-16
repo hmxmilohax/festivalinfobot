@@ -1,6 +1,7 @@
 import enum
 import hashlib
 import json
+import logging
 import os
 
 import discord
@@ -116,9 +117,9 @@ class PaginatorView(discord.ui.View):
                 item.disabled = True
             await self.message.edit(view=self)
         except discord.NotFound:
-            print("Message was not found when trying to edit after timeout.")
+            logging.error("Message was not found when trying to edit after timeout.")
         except Exception as e:
-            print(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
+            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class FirstButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
@@ -238,13 +239,18 @@ class Difficulty:
         return f"Difficulty({self.english=}, {self.chopt=}, {self.pitch_ranges=}, {self.diff_4k=})".replace('self.', '')
 
 class Instruments(enum.Enum):
-    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", chopt="proguitar", midi="PLASTIC GUITAR")
-    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", chopt="probass", midi="PLASTIC BASS")
+    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
+    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS")
     ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", replace="PART DRUMS", lb_enabled=False)
     Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS")
     Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR")
     Drums = Instrument(english="Drums", lb_code="Solo_Drums", chopt="drums", midi="PART DRUMS")
     Vocals = Instrument(english="Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS")
+
+    # The @classmethod decorator just works!
+    @classmethod
+    def getall(self) -> list[Instrument]:
+        return [self.ProLead.value, self.ProBass.value, self.ProDrums.value, self.Bass.value, self.Lead.value, self.Drums.value, self.Vocals.value]
 
 class Difficulties(enum.Enum):
     Expert = Difficulty()
@@ -252,10 +258,14 @@ class Difficulties(enum.Enum):
     Medium = Difficulty(english="Medium", chopt="medium", pitch_ranges=[72, 76], diff_4k=True)
     Easy = Difficulty(english="Easy", chopt="easy", pitch_ranges=[60, 64], diff_4k=True)
 
+    @classmethod
+    def getall(self) -> list[Difficulty]:
+        return [self.Expert.value, self.Hard.value, self.Medium.value, self.Easy.value]
+
 def get_jam_tracks():
     content_url = CONTENT_API
 
-    print(f'[GET] {content_url}')
+    logging.debug(f'[GET] {content_url}')
     try:
         response = requests.get(content_url)
         response.raise_for_status()
@@ -268,10 +278,10 @@ def get_jam_tracks():
                     available_tracks.append(v)
             return available_tracks
         else:
-            print(f'Unexpected data format: {type(data)}')
+            logging.error(f'Unexpected data format: {type(data)}')
             return []
     except Exception as e:
-        print(f'Error getting jam tracks: {e}')
+        logging.error(f'Error getting jam tracks', exc_info=e)
         return []
     
 def generate_difficulty_string(difficulty_data):
@@ -305,14 +315,14 @@ def delete_session_files(session_hash):
             if session_hash in file_name:
                 file_path = os.path.join(TEMP_FOLDER, file_name)
                 os.remove(file_path)
-                print(f"Deleted file: {file_path}")
+                logging.info(f"Deleted file: {file_path}")
     except Exception as e:
-        print(f"Error while cleaning up files for session {session_hash}: {e}")
+        logging.error(f"Error while cleaning up files for session {session_hash}", exc_info=e)
 
 def load_json_from_file(file_path):
     try:
         with open(file_path, 'r') as f:
             return json.load(f)
     except Exception as e:
-        print(f"Error loading JSON from file {file_path}: {e}")
+        logging.error(f"Error loading JSON from file {file_path}",exc_info=e)
         return None

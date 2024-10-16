@@ -1,3 +1,4 @@
+import logging
 import requests
 import bot.constants as constants
 from bot.embeds import LeaderboardEmbedHandler
@@ -12,7 +13,7 @@ class LeaderboardCommandHandler:
 
     def fetch_leaderboard_of_track(self, shortname:str, instrument:constants.Instrument):
         season_url = f'{constants.LEADERBOARD_DB_URL}meta.json'
-        print(f'[GET] {season_url}')
+        logging.debug(f'[GET] {season_url}')
 
         season_number_request = requests.get(season_url)
         current_season_number = season_number_request.json()['season']
@@ -24,7 +25,7 @@ class LeaderboardCommandHandler:
         while (fetched_pages < 5):
             json_url = f'{song_url}{instrument.lb_code}_{fetched_pages}.json'
             try:
-                print(f'[GET] {json_url}')
+                logging.debug(f'[GET] {json_url}')
 
                 response = requests.get(json_url)
                 response.raise_for_status()
@@ -32,7 +33,7 @@ class LeaderboardCommandHandler:
                 fetched_entries.extend(data['entries'])
                 fetched_pages += 1
             except Exception as e: # No more entries, the leaderboard isn't full yet
-                print(f'There aren\'t enough entries to fetch: {e}')
+                logging.warning(f'There aren\'t enough entries to fetch', exc_info=e)
                 return fetched_entries
         else: # 5 pages have been fetched
             return fetched_entries
@@ -74,7 +75,7 @@ class LeaderboardCommandHandler:
             else:
                 specific_entries = []
                 specific_entries.extend([entry for entry in leaderboard_entries if entry['rank'] == rank] if rank else [])
-                specific_entries.extend([entry for entry in leaderboard_entries if username.lower() in entry['userName'].lower()] if username else [])
+                specific_entries.extend([entry for entry in leaderboard_entries if username.lower() in str(entry.get('userName', 'N/A')).lower()] if username else [])
                 specific_entries.extend([entry for entry in leaderboard_entries if entry['teamId'] == account_id] if account_id else [])
                 specific_entries_unique = []
                 for entry in specific_entries: 

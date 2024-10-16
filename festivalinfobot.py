@@ -1,6 +1,6 @@
-import asyncio
+import difflib
+import logging
 from datetime import datetime
-import json
 import time
 from discord.ext import commands, tasks
 import discord
@@ -8,29 +8,29 @@ from discord import app_commands
 from configparser import ConfigParser
 
 from bot import config, constants, embeds
+from bot.log import setup as setup_log
 from bot.admin import AdminCog, TestCog
 from bot.config import Config
+from bot.graph import GraphCommandsHandler
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
+from bot.status import StatusHandler
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, GamblingHandler
 
 class FestivalInfoBot(commands.Bot):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
     async def on_ready(self):
         # Setup all the subscription commands
-        print("Setting up admin commands...")
+        logging.debug("Setting up admin commands...")
         # Apparently this works, dont know why but
         # it is possible to await this function here
         await self.setup_admin_commands()
         
-        print(f'Logged in as {self.user.name}')
+        logging.info(f'Logged in as {self.user.name}')
 
-        print("Bot now active on:")
-        print("No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date")
+        logging.info("Bot going active on:")
+        logging.info(' '.join(["No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date"]))
         
         # Sort guilds by the bot's join date
         sorted_guilds = sorted(
@@ -44,38 +44,47 @@ class FestivalInfoBot(commands.Bot):
                 guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
                 if guild.me.joined_at else "Unknown"
             )
-            print(
-                str(index).ljust(5),
-                guild.name.ljust(30), 
-                str(guild.id).ljust(20), 
-                join_date
+            logging.info(
+                ' '.join([str(index).ljust(5),
+                    guild.name.ljust(30), 
+                    str(guild.id).ljust(20), 
+                    join_date
+                ])
             )
 
-        print("Syncing slash command tree...")
+        logging.debug("Syncing slash command tree...")
         await self.tree.sync()
 
-        print("Setting activity...")
-        # Set up the rich presence activity
-        activity = discord.Activity(
-            type=discord.ActivityType.playing, 
-            name=f"/help"
-        )
-
-        # Apply the activity
-        await self.change_presence(activity=activity, status=discord.Status.online)
-
+        logging.debug(f"Registering background task every {self.CHECK_FOR_SONGS_INTERVAL}min")
         @tasks.loop(minutes=self.CHECK_FOR_SONGS_INTERVAL)
         async def check_for_new_songs():
             await self.check_handler.handle_task()
+
         if self.CHECK_FOR_NEW_SONGS:
             check_for_new_songs.start()
 
-        print("Bot is now running!")
+        @tasks.loop(minutes=5)
+        async def activity_task():
+            await self.check_handler.handle_activity_task()
+
+        @activity_task.before_loop
+        async def wait_thing(): 
+            # This prewents the task from running before the bot can finish logging in
+            # Was recommended to do this by StackOverflow
+            await self.wait_until_ready()
+
+        activity_task.start()
+
+        logging.info("Bot is now running!")
 
     def __init__(self):
         # Load configuration from config.ini
+        setup_log()
+
         config = ConfigParser()
         config.read('config.ini')
+
+        self.config : Config = None
 
         def reload_config():
            self.config = Config(config_file="channels.json", reload_callback=reload_config) 
@@ -100,8 +109,7 @@ class FestivalInfoBot(commands.Bot):
         intents.message_content = True  # Enable message content intent
 
         super().__init__(
-            # Prefix must be set, but no commands are in the 'text command list' so it wont do anything
-            command_prefix="!",
+            command_prefix=commands.when_mentioned_or('ft!'),
             help_command=None,
             intents=intents
         )
@@ -115,13 +123,26 @@ class FestivalInfoBot(commands.Bot):
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
         self.gambling_handler = GamblingHandler()
+        self.graph_handler = GraphCommandsHandler()
+        self.lightswitch_handler = StatusHandler()
 
         self.setup_commands()
         self.setup_subscribe_commands()
 
-        self.run(DISCORD_TOKEN)
+        self.run(DISCORD_TOKEN, log_handler=None)
 
     def setup_commands(self):
+
+        # This command is secret; it can be used to inmediately check if Festival Tracker
+        # is online without having to go through application commands
+        # Invokable by "ft!online"
+        @self.command(name="online")
+        async def checkonline_command(ctx):
+            if ctx.message.channel.permissions_for(ctx.message.channel.guild.me).add_reactions:
+                await ctx.message.add_reaction("✅")
+            else:
+                await ctx.send(f"{ctx.message.channel.guild.me.display_name} is online.")
+
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.describe(query = "A search query: an artist, song name, or shortname.")
         async def search_command(interaction: discord.Interaction, query:str):
@@ -169,6 +190,11 @@ class FestivalInfoBot(commands.Bot):
         @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
         @app_commands.describe(account_id = "An Epic Games account ID.")
         async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = None, username:str = None, account_id:str = None):
+            if rank or username or account_id:
+                if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
+                    await interaction.response.send_message(content="You must be in a channel where I can send messages to view specific entries.", ephemeral=True)
+                    return
+            
             await self.lb_handler.handle_interaction(
                 interaction,
                 song=song,
@@ -181,9 +207,14 @@ class FestivalInfoBot(commands.Bot):
         @self.tree.command(name="path", description="Generates an Overdrive path for a song using CHOpt.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         @app_commands.describe(instrument = "The instrument to view the path of.")
-        @app_commands.describe(squeeze_percent = "Squeeze Percent value")
-        @app_commands.describe(difficulty = "The difficulty to view the path for")
-        async def path_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
+        @app_commands.describe(difficulty = "The difficulty to view the path for.")
+        @app_commands.describe(squeeze_percent = "Change CHOpt's Squeeze parameter.")
+        @app_commands.describe(lefty_flip = "Enable CHOpt to render in Lefty Flip mode.")
+        @app_commands.describe(act_opacity = "Set the opacity of activations in images.")
+        @app_commands.describe(no_bpms = "If set to True, CHOpt will not draw BPMs.")
+        @app_commands.describe(no_solos = "If set to True, CHOpt will not draw Solo Sections.")
+        @app_commands.describe(no_time_signatures = "If set to True, CHOpt will not draw Time Signatures.")
+        async def path_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
             if not self.PATHING_ALLOWED or not self.DECRYPTION_ALLOWED:
                 await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
                 return
@@ -193,7 +224,14 @@ class FestivalInfoBot(commands.Bot):
                 song=song,
                 instrument=instrument,
                 squeeze_percent=squeeze_percent,
-                difficulty=difficulty
+                difficulty=difficulty,
+                extra_args=[
+                    lefty_flip,
+                    act_opacity,
+                    no_bpms,
+                    no_solos,
+                    no_time_signatures
+                ]
             )
 
         @self.tree.command(name="history", description="View the history of a Jam Track.")
@@ -202,13 +240,77 @@ class FestivalInfoBot(commands.Bot):
             if not self.CHART_COMPARING_ALLOWED or not self.DECRYPTION_ALLOWED:
                 await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
                 return
+            
+            if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
+                await interaction.response.send_message(content="You must be in a channel where I can send messages to use this command.", ephemeral=True)
+                return
     
             await self.history_handler.handle_interaction(interaction=interaction, song=song)
 
         @self.tree.command(name="metahistory", description="View the metadata history of a Jam Track.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         async def metahistory_command(interaction: discord.Interaction, song:str):
+            if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
+                await interaction.response.send_message(content="You must be in a channel where I can send messages to use this command.", ephemeral=True)
+                return
+
             await self.history_handler.handle_metahistory_interaction(interaction=interaction, song=song)
+
+        @self.tree.command(name="graph_note_counts", description="Graph the note counts for a specific song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+
+            await self.graph_handler.handle_pdi_interaction(interaction=interaction, song=song)
+
+        @self.tree.command(name="graph_lifts", description="Graph the lift counts for a specific song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            
+            await self.graph_handler.handle_lift_interaction(interaction=interaction, song=song)
+
+        @self.tree.command(name="graph_nps", description="Graph the NPS (Notes per second) for a specific song, instrument, and difficulty.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(instrument = "The instrument to view the NPS of.")
+        @app_commands.describe(difficulty = "The difficulty to view the NPS for.")
+        async def graph_nps_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            
+            await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
+
+        @self.tree.command(name="graph_lanes", description="Graph the number of notes for each lane in a specific song, instrument, and difficulty.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(instrument = "The instrument to view the #notes of.")
+        @app_commands.describe(difficulty = "The difficulty to view the #notes for.")
+        async def graph_lanes_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            
+            await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
+
+        @self.tree.command(name="fortnitestatus", description="See if Fortnite is currently online or offline.")
+        async def fortnitestatus_command(interaction: discord.Interaction):
+            await self.lightswitch_handler.handle_fortnitestatus_interaction(interaction=interaction)
+
+        @self.tree.command(name="mainstage", description="View information about Festival Main Stage.")
+        async def mainstage_command(interaction: discord.Interaction):
+            await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction)
+
+        @self.tree.command(name="battlestage", description="View information about Festival Battle Stage.")
+        async def battlestage_command(interaction: discord.Interaction):
+            await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Battle Stage")
+
+        @self.tree.command(name="jamstage", description="View information about Festival Jam Stage.") 
+        async def jamstage_command(interaction: discord.Interaction):
+            await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Jam Stage")
 
         @self.tree.command(name="stats", description="Displays Festival Tracker stats")
         async def bot_stats(interaction: discord.Interaction):
@@ -230,7 +332,7 @@ class FestivalInfoBot(commands.Bot):
             # Timestamps
             last_update_timestamp = handler.iso_to_unix_timestamp(last_update)
             if last_update_timestamp:
-                last_update_formatted = f"<t:{last_update_timestamp}:R>"  # Use Discord's relative time format
+                last_update_formatted = discord.utils.format_dt(last_update_timestamp, style="R")  # Use Discord's relative time format
             else:
                 last_update_formatted = "Unknown"
 
@@ -262,7 +364,8 @@ class FestivalInfoBot(commands.Bot):
                 # Add command to embed
                 if isinstance(_command, discord.app_commands.commands.Group):
                     for group_command in _command.commands:
-                        if group_command.guild_only and isinstance(interaction.channel, discord.DMChannel):
+                        # Only the group can have the guild only attribute
+                        if _command.guild_only and isinstance(interaction.channel, discord.DMChannel):
                             continue
                         commands.append({
                             "name":f"`/{_command.name} {group_command.name}`",
@@ -283,7 +386,7 @@ class FestivalInfoBot(commands.Bot):
                         if isinstance(found_command, discord.app_commands.commands.Group):
                             found_command = found_command.get_command(command.split(' ')[1])
                     except Exception as e:
-                        print(e)
+                        logging.error(exc_info=e)
                         await interaction.response.send_message(content=f"No command found with the name \"{command}\"", ephemeral=True)
                         return
                     
@@ -313,7 +416,14 @@ class FestivalInfoBot(commands.Bot):
 
                     await interaction.response.send_message(embed=embed)
                 else:
-                    await interaction.response.send_message(content=f"No command found with the name \"{command}\"", ephemeral=True)
+                    command_list = [str(command.qualified_name) for command in self.tree.get_commands()]
+                    close_match = difflib.get_close_matches(command, command_list, n=1, cutoff=0.7)
+                    tip = ""
+                    if close_match:
+                        if len(close_match) > 0:
+                            tip = f"\n*Did you mean: `{close_match[0]}`?*"
+
+                    await interaction.response.send_message(content=f"No command found with the name \"{command}\"{tip}", ephemeral=True)
                     return
             else:
                 embeds = []
@@ -357,7 +467,7 @@ class FestivalInfoBot(commands.Bot):
             else:
                 for i, _user in enumerate(user_list):
                     if i > 0:
-                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
 
                     subscribed_user_events = self.config.users[self.config.users.index(_user)].events
                     if len(subscribed_user_events) == len(config.JamTrackEvent.get_all_events()):
@@ -385,7 +495,7 @@ class FestivalInfoBot(commands.Bot):
             else:
                 for i, _user in enumerate(user_list):
                     if i > 0:
-                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
                     try:
                         self.config.users.remove(_user)
                     except ValueError as e:
@@ -411,7 +521,7 @@ class FestivalInfoBot(commands.Bot):
             else:
                 for i, _user in enumerate(user_list):
                     if i > 0:
-                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
 
                     subscribed_events = self.config.users[self.config.users.index(_user)].events
                     if chosen_event in subscribed_events:
@@ -440,7 +550,7 @@ class FestivalInfoBot(commands.Bot):
             else:
                 for i, _user in enumerate(user_list):
                     if i > 0:
-                        print(f'Found another user for {interaction.user.id}?\nUser no. {i}')
+                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
 
                     subscribed_events = self.config.users[self.config.users.index(_user)].events
 

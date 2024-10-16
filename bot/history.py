@@ -2,7 +2,9 @@ import asyncio
 from datetime import datetime, timezone
 import hashlib
 import json
+import logging
 import os
+import random
 import shutil
 import subprocess
 import discord
@@ -15,9 +17,11 @@ from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tracks import JamTrackHandler
 
+import sparks_tracks
+
 def save_known_songs_to_disk(songs):
     # Fetch jam tracks using the API call
-    print(f'[GET] {constants.CONTENT_API}')
+    logging.debug(f'[GET] {constants.CONTENT_API}')
     response = requests.get(constants.CONTENT_API)
     response.raise_for_status()
 
@@ -66,23 +70,23 @@ def save_known_songs_to_disk(songs):
     # Always update the root known_tracks.json (for full songs) or known_songs.json (for shortnames)
     with open(known_tracks_file_path, 'w') as known_tracks_file:
         json.dump(current_tracks_data, known_tracks_file, indent=4)
-    print(f"Updated: {known_tracks_file_path}")
+    logging.info(f"Updated: {known_tracks_file_path}")
 
     with open(known_songs_file_path, 'w') as known_songs_file:
         json.dump(current_songs_data, known_songs_file, indent=4)
-    print(f"Updated: {known_songs_file_path}")
+    logging.info(f"Updated: {known_songs_file_path}")
 
     # Check if any of the 3 most recent files match the current data
     for content in recent_files_content:
         if json.dumps(content, sort_keys=True) == json.dumps(data, sort_keys=True):
-            print(f"No new sparks-tracks.json changes to save. Matches {file_name}.")
+            logging.info(f"No new sparks-tracks.json changes to save. Matches {file_name}.")
             return  # Exit without saving if there's a match
 
     # Save the new JSON file if no match was found
     file_path = os.path.join(folder_path, file_name)
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
-    print(f"New file saved as {file_name}")
+    logging.info(f"New file saved as {file_name}")
 
 def load_known_songs_from_disk(shortnames:bool = False):
     path = constants.SONGS_FILE if not shortnames else constants.SHORTNAME_FILE
@@ -102,14 +106,14 @@ class HistoryHandler():
         midi_file_changes = []
         seen_midi_files = {}
         json_files = [f for f in json_files if f.endswith('.json')]
-        print(f"Total JSON files to process: {len(json_files)}")
+        logging.debug(f"Total JSON files to process: {len(json_files)}")
 
         try:
             for idx, json_file in enumerate(json_files):
                 file_path = os.path.join(constants.LOCAL_JSON_FOLDER, json_file)
                 file_content = constants.load_json_from_file(file_path)
                 if not file_content:
-                    print(f"Failed to load content from {file_path}, skipping to next file.")
+                    logging.error(f"Failed to load content from {file_path}, skipping to next file.")
                     continue
 
                 song_data = file_content.get(shortname)
@@ -125,21 +129,21 @@ class HistoryHandler():
                     midi_file_changes.append((last_modified, local_midi_file))
 
         except Exception as e:
-            print(f"Error processing {json_file}: {e}")
+            logging.error(f"Error processing {json_file}", exc_info=e)
         
         return midi_file_changes
     
     def track_meta_changes(self, json_files, shortname, session_hash):
         changes = []
         json_files = [f for f in json_files if f.endswith('.json')]
-        print(f"Total JSON files to process: {len(json_files)}")
+        logging.debug(f"Total JSON files to process: {len(json_files)}")
 
         try:
             for idx, json_file in enumerate(json_files):
                 file_path = os.path.join(constants.LOCAL_JSON_FOLDER, json_file)
                 file_content = constants.load_json_from_file(file_path)
                 if not file_content:
-                    print(f"Failed to load content from {file_path}, skipping to next file.")
+                    logging.error(f"Failed to load content from {file_path}, skipping to next file.")
                     continue
 
                 song_data = file_content.get(shortname)
@@ -156,7 +160,7 @@ class HistoryHandler():
                         changes.append((last_modified, change))
 
         except Exception as e:
-            print(f"Error processing {json_file}: {e}")
+            logging.error(f"Error processing {json_file}", exc_info=e)
 
         grouped_changes = {}
         for item in changes:
@@ -193,7 +197,7 @@ class HistoryHandler():
                     try:
                         await channel.send(content=f"Comparison failed with error: {result.stderr}")
                     except Exception as e:
-                        print(f"Error sending message to channel {channel.id}: {e}")
+                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
                 return
 
@@ -212,7 +216,7 @@ class HistoryHandler():
                         try:
                             await channel.send(content=f"Found {len(comparison_images)} MIDI Track changes:")
                         except Exception as e:
-                            print(f"Error sending message to channel {channel.id}: {e}")
+                            logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
                     # do not use edit_original_response here
                     for image in comparison_images:
@@ -232,10 +236,11 @@ class HistoryHandler():
                             else:
                                 img_message = await channel.send(embed=embed, file=file)
 
-                            if img_message.channel.is_news():
-                                await img_message.publish()
+                            if isinstance(img_message.channel, discord.TextChannel):
+                                if img_message.channel.is_news():
+                                    await img_message.publish()
                         except Exception as e:
-                            print(f"Error sending embed to channel {channel.id if channel else 'N/A'}: {e}")
+                            logging.error(f"Error sending embed to channel {channel.id if channel else 'N/A'}", exc_info=e)
                     constants.delete_session_files(session_hash)
                 else:
                     if not channel:
@@ -243,10 +248,11 @@ class HistoryHandler():
                     else:
                         try:
                             message = await channel.send(content=f"Comparison between `{last_modified_old_str}` and `{last_modified_new_str}` shows seemingly no visual changes.")
-                            if message.channel.is_news():
-                                await message.publish()
+                            if isinstance(message.channel, discord.TextChannel):
+                                if message.channel.is_news():
+                                    await message.publish()
                         except Exception as e:
-                            print(f"Error sending message to channel {channel.id}: {e}")
+                            logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
                     constants.delete_session_files(session_hash)
             else:
                 if not channel:
@@ -255,7 +261,7 @@ class HistoryHandler():
                     try:
                         message = await channel.send(content="MIDI comparison did not complete successfully.")
                     except Exception as e:
-                        print(f"Error sending message to channel {channel.id}: {e}")
+                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
                 constants.delete_session_files(session_hash)
         else:
             if not channel:
@@ -264,7 +270,7 @@ class HistoryHandler():
                 try:
                     await channel.send(content="Failed to decrypt MIDI files.")
                 except Exception as e:
-                    print(f"Error sending message to channel {channel.id}: {e}")
+                    logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             constants.delete_session_files(session_hash)
 
     def fetch_local_history(self):
@@ -274,13 +280,13 @@ class HistoryHandler():
                 if file_name.endswith('.json'):
                     json_files.append(file_name)
         except Exception as e:
-            print(f"Error reading local JSON files: {e}")
+            logging.error(f"Error reading local JSON files", exc_info=e)
         return sorted(json_files)
 
     async def handle_interaction(self, interaction: discord.Interaction, song:str, channel : discord.channel.TextChannel = None, use_channel:bool = False):
         user_id = interaction.user.id
         session_hash = constants.generate_session_hash(user_id, song)
-        print(f"Generated session hash: {session_hash} for user: {user_id}")
+        logging.debug(f"Generated session hash: {session_hash} for user: {user_id}")
 
         # Fetch track data from the API
         tracks = self.jam_track_handler.get_jam_tracks()
@@ -291,20 +297,20 @@ class HistoryHandler():
                 try:
                     await channel.send(content="Could not fetch tracks.")
                 except Exception as e:
-                    print(f"Error sending message to channel {channel.id}: {e}")
+                    logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             return
 
         # Perform fuzzy search to find the matching song
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
-            print(f"No tracks found matching {song}.")
+            logging.error(f"No tracks found matching {song}.")
             if not use_channel:
                 await interaction.response.send_message(content=f"No tracks found for '{song}'.")
             else:
                 try:
                     await channel.send(content=f"No tracks found for '{song}'.")
                 except Exception as e:
-                    print(f"Error sending message to channel {channel.id}: {e}")
+                    logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             return
         
         if not use_channel:
@@ -325,11 +331,11 @@ class HistoryHandler():
                 try:
                     await channel.send(content=f"No local history files found.")
                 except Exception as e:
-                    print(f"Error sending message to channel {channel.id}: {e}")
+                    logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             return
 
         midi_file_changes = self.track_midi_changes(json_files, shortname, session_hash)
-        print(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
+        logging.info(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
 
         if len(midi_file_changes) <= 1:
             if not use_channel:
@@ -338,7 +344,7 @@ class HistoryHandler():
                 try:
                     await channel.send(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
                 except Exception as e:
-                    print(f"Error sending message to channel {channel.id}: {e}")
+                    logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             return
 
         for i in range(1, len(midi_file_changes)):
@@ -358,7 +364,7 @@ class HistoryHandler():
     async def handle_metahistory_interaction(self, interaction: discord.Interaction, song:str):
         user_id = interaction.user.id
         session_hash = constants.generate_session_hash(user_id, song)
-        print(f"Generated session hash: {session_hash} for user: {user_id}")
+        logging.debug(f"Generated session hash: {session_hash} for user: {user_id}")
 
         # Fetch track data from the API
         tracks = self.jam_track_handler.get_jam_tracks()
@@ -369,7 +375,7 @@ class HistoryHandler():
         # Perform fuzzy search to find the matching song
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
-            print(f"No tracks found matching {song}.")
+            logging.error(f"No tracks found matching {song}.")
             await interaction.response.send_message(content=f"No tracks found for '{song}'.")
             return
         
@@ -410,7 +416,7 @@ class HistoryHandler():
                 prev_date = prev[0]
                 prev_properties = prev[1]
 
-                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n<t:{StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date)}:D> to <t:{StatsCommandEmbedHandler().iso_to_unix_timestamp(date)}:D>", color=0x8927A1)
+                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n{discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date), style='R')} to {discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(date), style='R')}", color=0x8927A1)
 
                 for pk, pv in properties_that_changed.items():
                     previous_property = None
@@ -451,7 +457,7 @@ class HistoryHandler():
     async def handle_interaction(self, interaction: discord.Interaction, song:str, channel : discord.channel.TextChannel = None, use_channel:bool = False):
         user_id = interaction.user.id
         session_hash = constants.generate_session_hash(user_id, song)
-        print(f"Generated session hash: {session_hash} for user: {user_id}")
+        logging.info(f"Generated session hash: {session_hash} for user: {user_id}")
 
         # Fetch track data from the API
         tracks = self.jam_track_handler.get_jam_tracks()
@@ -462,7 +468,7 @@ class HistoryHandler():
         # Perform fuzzy search to find the matching song
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
-            print(f"No tracks found matching {song}.")
+            logging.error(f"No tracks found matching {song}.")
             await interaction.response.send_message(content=f"No tracks found for '{song}'.")
             return
         
@@ -482,7 +488,7 @@ class HistoryHandler():
             return
 
         midi_file_changes = self.track_midi_changes(json_files, shortname, session_hash)
-        print(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
+        logging.info(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
 
         if len(midi_file_changes) <= 1:
             await interaction.edit_original_response(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
@@ -507,14 +513,38 @@ class LoopCheckHandler():
         self.midi_tools = MidiArchiveTools()
         self.jam_track_handler = JamTrackHandler()
 
+    async def handle_activity_task(self):
+        tracks = self.jam_track_handler.get_jam_tracks()
+        num_tracks = len(tracks)
+        random_jam_track = random.choice(tracks)
+
+        servers = random.choice([True, False])
+
+        logging.debug("Creating activity...")
+        activity = discord.Activity(
+            type=discord.ActivityType.watching if servers else discord.ActivityType.playing,
+            name=f"{len(self.bot.guilds)} servers" if servers else f"{num_tracks} Jam Tracks",
+            state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']} | /help",
+        )
+
+        # Apply the activity
+        logging.debug("Applying activity...")
+        await self.bot.change_presence(activity=activity, status=discord.Status.online)
+
     async def handle_task(self):
         if not self.bot.config:
-            print(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
+            logging.warning(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
+            return
+        
+        tracks = self.jam_track_handler.get_jam_tracks()
+
+        if not tracks:
+            logging.error('Could not fetch tracks.')
             return
 
         # Remove duplicates from self.bot.config.channels and self.bot.config.users
         def remove_duplicates_by_id(items):
-            print("Attempting to remove duplicates...")
+            logging.debug("Attempting to remove duplicates...")
             seen_ids = set()
             unique_items = []
             for item in items:
@@ -531,26 +561,19 @@ class LoopCheckHandler():
         self.bot.config.users = remove_duplicates_by_id(self.bot.config.users)
 
         if len(self.bot.config.channels) != original_channel_count or len(self.bot.config.users) != original_user_count:
-            print("Duplicates found in config; cleaning up and saving.")
+            logging.warning("Duplicates found in config; cleaning up and saving.")
             self.bot.config.save_config()
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)  # Unique session identifier
 
-        print("Checking for new songs...")
+        logging.info("Checking for new songs...")
 
         # Run sparks_tracks.py alongside this script
         try:
-            subprocess.Popen(["python", "sparks_tracks.py"])
-            print("Running sparks_tracks.py")
+            sparks_tracks.main()
+            logging.debug("Running sparks_tracks.py")
         except Exception as e:
-            print(f"Failed to run sparks_tracks.py: {e}")
-
-        # Fetch current jam tracks
-        tracks = self.jam_track_handler.get_jam_tracks()
-
-        if not tracks:
-            print('Could not fetch tracks.')
-            return
+            logging.error(f"Failed to run sparks_tracks.py", exc_info=e)
 
         # Dynamically reload known tracks and shortnames from disk each time the task runs
         known_tracks = load_known_songs_from_disk()  # Reload known_tracks.json
@@ -587,7 +610,7 @@ class LoopCheckHandler():
         for channel_to_send in combined_channels:
             # check for duplicates
             if channel_to_send.id in already_sent_to:
-                print(f'DUPLICATE DETECTED: {channel_to_send.id}')
+                logging.warning(f'DUPLICATE DETECTED: {channel_to_send.id}')
                 duplicates.append(channel_to_send.id)
                 continue
             else:
@@ -601,7 +624,7 @@ class LoopCheckHandler():
                 channel = None
 
             if not channel:
-                print(f"Channel with ID {channel_to_send.id} not found.")
+                logging.error(f"Channel with ID {channel_to_send.id} not found.")
                 continue
 
             content = ""
@@ -612,7 +635,7 @@ class LoopCheckHandler():
                 content = " ".join(role_pings)
 
             if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
-                print(f"New songs detected!")
+                logging.info(f"New songs detected!")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
                     try:
@@ -622,11 +645,11 @@ class LoopCheckHandler():
                                 await message.publish()
                         await asyncio.sleep(2)
                     except Exception as e:
-                        print(f"Error sending message to channel {channel.id}: {e}")
+                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
                 save_known_songs_to_disk(tracks)
 
             if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
-                print(f"Removed songs detected!")
+                logging.info(f"Removed songs detected!")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
                     try:
@@ -636,11 +659,11 @@ class LoopCheckHandler():
                                 await message.publish()
                         await asyncio.sleep(2)
                     except Exception as e:
-                        print(f"Error sending message to channel {channel.id}: {e}")
+                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
                 save_known_songs_to_disk(tracks)
 
             if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
-                print(f"Modified songs detected!")
+                logging.info(f"Modified songs detected!")
                 for old_song, new_song in modified_songs:
                     old_url = old_song['track'].get('mu', '')
                     new_url = new_song['track'].get('mu', '')
@@ -654,12 +677,12 @@ class LoopCheckHandler():
                     local_midi_file_new = self.midi_tools.download_and_archive_midi_file(new_url, short_name)
 
                     if (old_url != new_url) and self.bot.DECRYPTION_ALLOWED and self.bot.CHART_COMPARING_ALLOWED:
-                        print(f"Chart URL changed:")
-                        print(f"Old: {local_midi_file_old}")
-                        print(f"New: {local_midi_file_new}")
+                        logging.info(f"Chart URL changed:")
+                        logging.info(f"Old: {local_midi_file_old}")
+                        logging.info(f"New: {local_midi_file_new}")
 
                         # Pass the track name to the process_chart_url_change function
-                        print(f"Running process_chart_url_change for {local_midi_file_old} and {local_midi_file_new}")
+                        logging.debug(f"Running process_chart_url_change for {local_midi_file_old} and {local_midi_file_new}")
                         await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, interaction=None, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash, channel=channel)
 
                     embed = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
@@ -670,12 +693,13 @@ class LoopCheckHandler():
                                 await message.publish()
                         await asyncio.sleep(2)
                     except Exception as e:
-                        print(f"Error sending message to channel {channel.id}: {e}")
+                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
                 save_known_songs_to_disk(tracks)
 
         if len(duplicates) > 0:
-            print('Warning: Duplicates detected!')
-            print('Please check!\n' * 10)
-            print('Duplicates: ' + ', '.join([str(_id) for _id in duplicates]))
+            logging.warning('Duplicates detected!')
+            for i in range(10):
+                logging.warning('Please check!')
+            logging.warning('Duplicates: ' + ', '.join([str(_id) for _id in duplicates]))
 
-        print(f"Done checking for new songs:\nNew: {len(new_songs)}\nModified: {len(modified_songs)}\nRemoved: {len(removed_songs)}")
+        logging.info(f"Done checking for new songs: New: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")

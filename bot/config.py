@@ -1,6 +1,7 @@
 from datetime import datetime
 import enum
 import json
+import logging
 import os
 import copy
 
@@ -86,7 +87,7 @@ class Config:
 
         except Exception as e:
             open(self.file, 'w').write(previous_file_content)
-            print(f'RECOVERED CONFIG FILE: {e}\nRaising an Exception')
+            logging.critical(f'RECOVERED CONFIG FILE, Raising an Exception', exc_info=e)
             raise Exception
         
         with open(os.path.join(constants.BACKUP_FOLDER, self.create_backup_name()), 'w') as backup_file:
