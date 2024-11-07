@@ -330,6 +330,16 @@ class TestCog(commands.Cog):
     # Define the base 'admin' group command
     test_group = app_commands.Group(name="test", description="Test commands")
 
+    @test_group.command(name="set_suggestions", description="Change if suggestions are enabled or not.")
+    async def set_suggestions_command(self, interaction: discord.Interaction, enabled: bool):
+        if not (interaction.user.id in [734822755224125451, 960524988824313876]):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        text = f"Suggestions are now turned {'ON' if enabled else 'OFF'}. Previously, they were {'ON' if self.bot.suggestions_enabled else 'OFF'}."
+        self.bot.suggestions_enabled = enabled
+        await interaction.response.send_message(content=text, ephemeral=True)
+
     @test_group.command(name="notifs", description="Only the bot host can run this command. Tests subscriber notifications.")
     async def test_command(self, interaction: discord.Interaction):
         if interaction.user.id != 960524988824313876:
@@ -343,7 +353,7 @@ class TestCog(commands.Cog):
             channel = self.bot.get_channel(channel_to_search.id)
             if channel:
                 try:
-                    await channel.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
+                    await channel.send(content="**Suggestions now enabled!**\nSuggest new features for Festival Tracker with the `/suggestion` command.\n*Much appreciated!*\n\n-# Apologies for the disruption.\n-# -tposejank")
                 except Exception as e:
                     logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
             else:
@@ -354,7 +364,7 @@ class TestCog(commands.Cog):
             user = self.bot.get_user(user_to_send.id)
             if user:
                 try:
-                    await user.send(content="This is a test notification to ensure the bot is properly notifiying all subscribed channels and users.\nThis is only a test.\nApologies for the disruption. - jnack")
+                    await user.send(content="**Suggestions now enabled!**\nSuggest new features for Festival Tracker with the `/suggestion` command.\n*Much appreciated!*\n\n-# Apologies for the disruption.\n-# -tposejank")
                 except Exception as e:
                     logging.error(f"Error sending message to user {user.id}", exc_info=e)
             else:
