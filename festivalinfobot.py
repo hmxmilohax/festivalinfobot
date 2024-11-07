@@ -85,6 +85,7 @@ class FestivalInfoBot(commands.Bot):
         config.read('config.ini')
 
         self.config : Config = None
+        self.suggestions_enabled = False
 
         def reload_config():
            self.config = Config(config_file="channels.json", reload_callback=reload_config) 
@@ -311,6 +312,21 @@ class FestivalInfoBot(commands.Bot):
         @self.tree.command(name="jamstage", description="View information about Festival Jam Stage.") 
         async def jamstage_command(interaction: discord.Interaction):
             await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Jam Stage")
+
+        @self.tree.command(name="suggestion", description="Suggest a feature for Festival Tracker")
+        @app_commands.describe(suggestion = "Your suggestion is private and only you see the interaction message.")
+        async def suggestion_command(interaction: discord.Interaction, suggestion: str):
+            try:
+                if not self.suggestions_enabled:
+                    await interaction.response.send_message(f"Sorry; Suggestions are currently not enabled.", ephemeral=True)
+                    return
+                else:
+                    user = self.get_user(734822755224125451)
+                    sug_content = f"# New Suggestion\n> {suggestion}\n\n-# In ||**{interaction.guild.name if interaction.guild else 'DMs'}**||, by ||**@{interaction.user.display_name}** ({interaction.user.id})||"
+                    await user.send(sug_content)
+                    await interaction.response.send_message(f"Your suggestion has been submitted successfully!", ephemeral=True)
+            except Exception as e:
+                await interaction.response.send_message(f'Unable to send the suggestion: {e}', ephemeral=True)
 
         @self.tree.command(name="stats", description="Displays Festival Tracker stats")
         async def bot_stats(interaction: discord.Interaction):
