@@ -114,10 +114,10 @@ class SearchCommandHandler:
             imacat_data = json.load(imacat_file)
         embed = self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
-        await interaction.response.send_message(embed=embed)
+        await interaction.edit_original_response(embed=embed)
 
     async def handle_interaction(self, interaction: discord.Interaction, query:str):
-        await interaction.response.defer()
+        await interaction.response.defer() # edit_original_response
 
         # Special case for "I'm A Cat"
         if query.lower() in {"i'm a cat", "im a cat", "imacat"}:
@@ -126,7 +126,7 @@ class SearchCommandHandler:
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            await interaction.edit_original_response(content='Could not get tracks.', ephemeral=True)
             return
 
         daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
@@ -135,7 +135,7 @@ class SearchCommandHandler:
         # Perform fuzzy search
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, query)
         if not matched_tracks:
-            await interaction.response.send_message(content=f'No tracks were found matching \"{query}\"')
+            await interaction.edit_original_response(content=f'No tracks were found matching \"{query}\"')
             return
         
         def add_fields(track_devname, embed):
@@ -162,8 +162,7 @@ class SearchCommandHandler:
             track_devname = _track['track']['sn']
             add_fields(track_devname=track_devname, embed=embed)
             
-            await interaction.edit_original_response(embed=embed)
-            message = await interaction.original_response()
+            message = await interaction.edit_original_response(embed=embed)
         else:
             message, chosen_track = await self.prompt_user_for_selection(interaction=interaction, matched_tracks=matched_tracks)
             track = chosen_track

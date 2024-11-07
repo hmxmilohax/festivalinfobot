@@ -17,7 +17,7 @@ from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
 from bot.status import StatusHandler
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, GamblingHandler
+from bot.helpers import DailyCommandHandler, OneButtonSimpleView, ShopCommandHandler, TracklistHandler, GamblingHandler
 
 class FestivalInfoBot(commands.Bot):
     async def on_ready(self):
@@ -314,8 +314,17 @@ class FestivalInfoBot(commands.Bot):
 
         @self.tree.command(name="stats", description="Displays Festival Tracker stats")
         async def bot_stats(interaction: discord.Interaction):
+            await interaction.response.defer()
+
             # Get the number of servers the bot is in
             server_count = len(self.guilds)
+            channel_count = 0
+            users_count = 0
+            for guild in self.guilds:
+                served_members = [m for m in guild.members if m != guild.me]
+                served_channels = [c for c in guild.channels if isinstance(c, discord.TextChannel)]
+                channel_count += len(served_channels)
+                users_count += len(served_members)
             handler = embeds.StatsCommandEmbedHandler()
             
             # Get the bot uptime
@@ -345,15 +354,20 @@ class FestivalInfoBot(commands.Bot):
                 description="",
                 color=0x8927A1
             )
-            embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
             embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
-            embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
+            embed.add_field(name="Channels", value=f"{channel_count} channels", inline=True)
+            embed.add_field(name="Users", value=f"{users_count} users", inline=True)
+            embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
+            embed.add_field(name="Uptime", value=f"{uptime}", inline=True)
             embed.add_field(name="Latest Upstream Info", value=f"[`{latest_commit_hash[:7]}`]({upstream_commit_url}) {last_update_formatted}", inline=False)
             embed.add_field(name="Local Commit Info", value=f"[`{branch_name}`]({remote_branch_url}) [`{local_commit_hash[:7]}`]({local_commit_url}) ({commit_status})", inline=False)
             if len(dirtyness) > 0:
                 embed.add_field(name="Local Changes", value=f"```{dirtyness}```", inline=False)
 
-            await interaction.response.send_message(embed=embed)
+            view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://festivaltracker.github.io", False)
+            view.message = await interaction.original_response()
+
+            await interaction.edit_original_response(embed=embed, view=view)
 
         @self.tree.command(name="help", description="Show the help message")
         @app_commands.describe(command = "The command to view help about.")
