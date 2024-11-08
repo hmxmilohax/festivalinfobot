@@ -174,6 +174,7 @@ class PathCommandHandler():
                 embed.add_field(name="Overlaps", value=overlaps)
                 embed.add_field(name="No OD Score", value=no_sp_score)
                 embed.add_field(name="Total Score", value=total_score)
+                embed.set_footer(text="Tip: Use /suggestions to suggest new features for Festival Tracker!")
 
                 embed.set_image(url=f"attachment://{output_image}")
                 embed.set_thumbnail(url=album_art_url)
