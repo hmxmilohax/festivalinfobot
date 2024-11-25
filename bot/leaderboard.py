@@ -83,10 +83,14 @@ class LeaderboardCommandHandler:
                         specific_entries_unique.append(entry)
 
                 if len(specific_entries_unique) > 0:
-                    await interaction.edit_original_response(content=f"Found {len(specific_entries_unique)} entries matching these parameters:")
+                    specific_entries = []
 
                     for entry in specific_entries_unique:
-                        await interaction.channel.send(embed=self.leaderboard_embed_handler.generate_leaderboard_embed(matched_track, entry, chosen_instrument.english))
+                        specific_entries.append(self.leaderboard_embed_handler.generate_leaderboard_embed(matched_track, entry, chosen_instrument.english))
+
+                    # why did i not think of this before
+                    view = constants.PaginatorView(specific_entries, interaction.user.id)
+                    view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
                 else:
                     await interaction.edit_original_response(content=f"No entries were found matching these parameters.")
         else:

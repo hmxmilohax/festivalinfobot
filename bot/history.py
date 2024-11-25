@@ -7,12 +7,13 @@ import os
 import random
 import shutil
 import subprocess
+from typing import List, Union
 import discord
 from discord.ext import commands
 import requests
 
 from bot import constants, history_tools
-from bot.config import JamTrackEvent
+from bot.config import JamTrackEvent, SubscriptionChannel, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tracks import JamTrackHandler
@@ -504,7 +505,7 @@ class LoopCheckHandler():
                 if current_track != known_track:
                     modified_songs.append((known_track, current_track))
 
-        combined_channels = self.bot.config.channels + self.bot.config.users
+        combined_channels: List[Union[SubscriptionChannel, SubscriptionUser]] = self.bot.config.channels + self.bot.config.users
 
         already_sent_to = []
         duplicates = []

@@ -3,6 +3,7 @@ import json
 import logging
 import subprocess
 import discord
+import numpy
 import requests
 
 from bot import constants
@@ -15,7 +16,7 @@ class DailyCommandEmbedHandler():
         embeds = []
         
         for i in range(0, len(daily_tracks), chunk_size):
-            embed = discord.Embed(title="Daily Rotation Tracks", color=0x8927A1)
+            embed = discord.Embed(title="Weekly Rotation Tracks", color=0x8927A1)
             chunk = daily_tracks[i:i + chunk_size]
             
             for entry in chunk:
@@ -199,8 +200,8 @@ class SearchEmbedHandler:
     def format_date(self, date_string):
         if date_string:
             date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return date_ts.strftime("%B %d, %Y")
-        return "Currently in the shop!"
+            return discord.utils.format_dt(date_ts, 'D')
+        return "Unknown"
     
     def create_track_embeds(self, track_list, title, chunk_size=10, shop=False, jam_tracks=None):
         embeds = []
@@ -283,8 +284,7 @@ class SearchEmbedHandler:
 
         # Add Last Modified field if it exists and format it to be more human-readable
         if 'lastModified' in track_data:
-            last_modified = datetime.fromisoformat(track_data['lastModified'].replace('Z', '+00:00'))
-            human_readable_date = last_modified.strftime("%B %d, %Y")
+            human_readable_date = self.format_date(track_data['lastModified'])
             embed.add_field(name="Last Modified", value=human_readable_date, inline=True)
         
         # Add Song Rating
@@ -307,6 +307,17 @@ class SearchEmbedHandler:
         pro_guitar_diff = track['in'].get('pg', 0)
         pro_bass_diff = track['in'].get('pb', 0)
         pro_drums_diff = track['in'].get('pd', 0)
+
+        avg_diff = numpy.average([
+            vocals_diff, guitar_diff,
+            bass_diff, drums_diff,
+            pro_guitar_diff, pro_bass_diff, 
+            pro_drums_diff
+        ])
+
+        embed.add_field(name="Creative Code", value=track.get('jc', 'N/A'))
+        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
+        embed.add_field(name="Released", value=self.format_date(track_data.get('_activeDate')))
 
         # Construct the vertical difficulty bars
         difficulties = (

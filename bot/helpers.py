@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+import difflib
 import logging
 import random
+import re
 
 import discord
 import requests
@@ -228,6 +230,78 @@ class TracklistHandler:
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
+    async def handle_artist_interaction(self, interaction: discord.Interaction, artist:str):
+        await interaction.response.defer()
+
+        tracks = constants.get_jam_tracks()
+        if not tracks:
+            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            return
+
+        track_list = self.shop_handler.prepare_track_list(tracks)
+
+        if not track_list:
+            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
+            return
+
+        matched = []
+
+        for track in track_list:            
+            if artist in track['track']['an'].lower():
+                matched.append(track)
+            # Use fuzzy matching for close but not exact matches
+            elif any(difflib.get_close_matches(artist, [track['track']['an'].lower()], n=1, cutoff=0.7)):
+                matched.append(track)
+
+        total_tracks = len(matched)
+        title = f"Filtered tracks for {artist} (Total: {total_tracks})"
+
+        embeds = self.search_embed_handler.create_track_embeds(matched, title)
+        
+        view = constants.PaginatorView(embeds, interaction.user.id)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
+    async def handle_regex_interaction(self, interaction: discord.Interaction, regex:str, matched:str):
+        if not regex:
+            embed = discord.Embed(colour=0x8927A1, title="Regex help")
+            embed.add_field(name="`regex` parameter", value="This is a common Regular expression. To match any song with \"Metallica\" on the matched queries `%an - %tt`, Provide `\\bMetallica\\b` in this parameter.", inline=False)
+            embed.add_field(name="`query` parameter", value="This is the pattern, or query that the `regex` will be applied in.\nYou can provide any value, but we provide multiple *placeholders* for you.\nThese are as follows:\n\n- `tt` - Track Title\n- `mm` - Music Scale\n- `ry` - Release Year\n- `mt` - BPM\n- `mu` - Chart URL\n- `dn` - Duration\n- `isrc` - ISRC Code\n- `an` - Artist Name\n- `ar` - Rating\n- `au` - Album Art\n- `ti` - Song Item ID\n- `qi` - Streaming Metadata\n- `ld` - Lipsync Data URL\n- `jc` - Creative Join Code\n- `sn` - Shortname\n- `mk` - Music Key\n- `siv` - Vocals Instrument\n- `sib` - Bass Instrument\n- `sig` - Lead Instrument\n- `sid` - Drums Instrument\n\nBy default, `%an - %tt` is used. This means that your regex expression will be matched on \"Epic Games - Butter Barn Hoedown\", \"Epic Games - OG (Future Remix)\", etc.\nThese must be prefixed with `%`.", inline=False)
+            embed.set_author(name="Festival Tracker")
+
+            await interaction.response.send_message(embed=embed)
+            return
+
+        await interaction.response.defer()
+
+        tracks = constants.get_jam_tracks()
+        if not tracks:
+            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            return
+
+        track_list = self.shop_handler.prepare_track_list(tracks)
+
+        if not track_list:
+            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
+            return
+
+        # Escape the regex string to treat it as a literal string
+        regex_pattern = re.compile(regex)
+
+        # Create an empty list to store matching songs
+        matching_songs = []
+
+        # Iterate over the song list and apply the regex pattern
+        for track in track_list:
+            track_data = track['track']
+            queried = matched.replace('%an', str(track_data.get('an'))).replace('%tt', str(track_data.get('tt'))).replace('%mm', str(track_data.get('mm'))).replace('%ry', str(track_data.get('ry'))).replace('%mt', str(track_data.get('mt'))).replace('%siv', str(track_data.get('siv'))).replace('%mu', str(track_data.get('mu'))).replace('%dn', str(track_data.get('dn'))).replace('%isrc', str(track_data.get('isrc'))).replace('%sib', str(track_data.get('sib'))).replace('%sig', str(track_data.get('sig'))).replace('%sid', str(track_data.get('sid'))).replace('%ar', str(track_data.get('ar'))).replace('%au', str(track_data.get('au'))).replace('%ti', str(track_data.get('ti'))).replace('%qi', str(track_data.get('qi'))).replace('%ld', str(track_data.get('ld'))).replace('%jc', str(track_data.get('jc'))).replace('%sn', str(track_data.get('sn'))).replace('%mk', str(track_data.get('mk')))
+            if re.search(regex_pattern, queried):
+                matching_songs.append(track)
+
+        embeds = self.search_embed_handler.create_track_embeds(matching_songs, f"Matched tracklist result\nRegex: `{regex}`\nQuery: `{matched}`\nTotal: {len(matching_songs)}")
+        
+        view = constants.PaginatorView(embeds, interaction.user.id)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
 class OneButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')
@@ -261,6 +335,9 @@ class OneButtonSimpleView(discord.ui.View):
         self.add_item(OneButton(user_id=self.user_id, style=discord.ButtonStyle.primary, label=self.label_text, disabled=False, emoji=self.btn_emoji, url=self.link))
 
     async def on_timeout(self):
+        if self.link != None:
+            return
+
         try:
             for item in self.children:
                 item.disabled = True
@@ -279,14 +356,11 @@ class GamblingHandler:
     def format_date(self, date_string):
         if date_string:
             date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return date_ts.strftime("%B %d, %Y")
+            return discord.utils.format_dt(date_ts, 'D')
         return "Currently in the shop!"
 
-    async def handle_random_track_interaction(self, interaction: discord.Interaction):
-        tracks = constants.get_jam_tracks()
-        if not tracks:
-            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
-            return
+    async def handle_random_track_interaction(self, interaction: discord.Interaction, shop: bool = False, daily: bool = False):
+        await interaction.response.defer()
 
         track_list = constants.get_jam_tracks()
 
@@ -294,7 +368,19 @@ class GamblingHandler:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        await interaction.response.defer()
+        if shop:
+            shop_tracks = self.shop_handler.fetch_shop_tracks()
+            def inshop(obj):
+                return obj['track']['sn'] in shop_tracks
+
+            track_list = list(filter(inshop, track_list))
+
+        if daily:
+            daily_tracks = self.daily_handler.fetch_daily_shortnames()
+            def indaily(obj):
+                return obj['track']['sn'] in daily_tracks
+
+            track_list = list(filter(indaily, track_list))
 
         daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
         shop_tracks = self.shop_handler.fetch_shop_tracks()
@@ -322,23 +408,34 @@ class GamblingHandler:
 
         await re_roll()
 
-    async def handle_random_setlist_interaction(self, interaction: discord.Interaction):
-        tracks = constants.get_jam_tracks()
-        if not tracks:
-            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
-            return
+    async def handle_random_setlist_interaction(self, interaction: discord.Interaction, shop:bool = False, daily: bool = False, limit:int = 4):
+        await interaction.response.defer()
 
         track_list = constants.get_jam_tracks()
-
         if not track_list:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        await interaction.response.defer()
+        if shop:
+            shop_tracks = self.shop_handler.fetch_shop_tracks()
+            def inshop(obj):
+                return obj['track']['sn'] in shop_tracks
+
+            track_list = list(filter(inshop, track_list))
+
+        if daily:
+            daily_tracks = self.daily_handler.fetch_daily_shortnames()
+            def indaily(obj):
+                return obj['track']['sn'] in daily_tracks
+
+            track_list = list(filter(indaily, track_list))
 
         async def re_roll():
-            chosen_tracks = [random.choice(track_list),random.choice(track_list),random.choice(track_list),random.choice(track_list)]
-            embed = discord.Embed(title="Your random setlist!", description="The 4 tracks are...", color=0x8927A1)
+            chosen_tracks = []
+            for i in range(limit):
+                chosen_tracks.append(random.choice(track_list))
+
+            embed = discord.Embed(title="Your random setlist!", description=f"The {limit} tracks are...", color=0x8927A1)
             embed.add_field(name="", value="\n".join([f'- **{str(track["track"]["tt"])}** - *{str(track["track"]["an"])}*' for track in chosen_tracks]))
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 
