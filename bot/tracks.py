@@ -106,7 +106,7 @@ class SearchCommandHandler:
     def format_date(self, date_string):
         if date_string:
             date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return date_ts.strftime("%B %d, %Y")
+            return discord.utils.format_dt(date_ts, 'D')
         return "Currently in the shop!"
     
     async def handle_imacat_search(self, interaction: discord.Interaction):

@@ -130,7 +130,10 @@ class AdminCog(commands.Cog):
         
         await interaction.response.send_message(f"The channel {channel.mention} has been unsubscribed from all Jam Track events.")
 
-    @admin_group.command(name="add_event", description="Add a Jam Track event to a channel")
+    add_subcommand_group = app_commands.Group(name="add", description="Add commands", parent=admin_group)
+    remove_subcommand_group = app_commands.Group(name="remove", description="Add commands", parent=admin_group)
+
+    @add_subcommand_group.command(name="event", description="Add a Jam Track event to a channel")
     @app_commands.describe(channel = "The channel to add a Jam Track event to")
     @app_commands.describe(event = "The event to add")
     @app_commands.checks.has_permissions(administrator=True)
@@ -166,7 +169,7 @@ class AdminCog(commands.Cog):
         
         await interaction.response.send_message(f'The channel {channel.mention} has been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".')
 
-    @admin_group.command(name="remove_event", description="Remove a Jam Track event from a channel")
+    @remove_subcommand_group.command(name="event", description="Remove a Jam Track event from a channel")
     @app_commands.describe(channel = "The channel to remove a Jam Track event from")
     @app_commands.describe(event = "The event to remove")
     @app_commands.checks.has_permissions(administrator=True)
@@ -211,7 +214,7 @@ class AdminCog(commands.Cog):
         
         await interaction.response.send_message(f'The channel {channel.mention} has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".')
 
-    @admin_group.command(name="add_role", description="Add a role ping to a channel's subscription messages")
+    @add_subcommand_group.command(name="role", description="Add a role ping to a channel's subscription messages")
     @app_commands.describe(channel = "The channel to add a role ping to")
     @app_commands.describe(role = "The role to add a ping for")
     @app_commands.checks.has_permissions(administrator=True)
@@ -243,7 +246,7 @@ class AdminCog(commands.Cog):
         
         await interaction.response.send_message(f'The channel {channel.mention} has been assigned to ping this role on future Jam Track events.')
 
-    @admin_group.command(name="remove_role", description="Remove a role ping from a channel's subscription messages")
+    @remove_subcommand_group.command(name="role", description="Remove a role ping from a channel's subscription messages")
     @app_commands.describe(channel = "The channel to remove a role ping from")
     @app_commands.describe(role = "The role to remove a ping for")
     @app_commands.checks.has_permissions(administrator=True)
@@ -328,7 +331,7 @@ class TestCog(commands.Cog):
         self.bot = bot
 
     # Define the base 'admin' group command
-    test_group = app_commands.Group(name="test", description="Test commands")
+    test_group = app_commands.Group(name="test", description="Test commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 
     @test_group.command(name="set_suggestions", description="Change if suggestions are enabled or not.")
     async def set_suggestions_command(self, interaction: discord.Interaction, enabled: bool):
@@ -340,7 +343,7 @@ class TestCog(commands.Cog):
         self.bot.suggestions_enabled = enabled
         await interaction.response.send_message(content=text, ephemeral=True)
 
-    @test_group.command(name="notifs", description="Only the bot host can run this command. Tests subscriber notifications.")
+    @test_group.command(name="notifications", description="Only the bot host can run this command. Tests subscriber notifications.")
     async def test_command(self, interaction: discord.Interaction):
         if interaction.user.id != 960524988824313876:
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)

@@ -84,5 +84,5 @@ class StatusHandler():
 
             await interaction.edit_original_response(embed=embed, view=view)
         else:
-            embed = discord.Embed(title=search_for, description="Island not found", color=0x8927A1)
+            embed = discord.Embed(title=search_for, description="The island is currently not available in the API.", color=0x8927A1)
             await interaction.edit_original_response(embed=embed)

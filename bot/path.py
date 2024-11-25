@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import subprocess
@@ -14,10 +15,14 @@ class PathCommandHandler():
 
     # Function to call chopt.exe and capture its output
     def run_chopt(self, midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: constants.Instrument = None, difficulty: str = 'expert', extra_args: list = []):
+        engine = 'fnf'
+        if instrument.midi == 'PLASTIC DRUMS':
+            engine = 'ch'
+
         chopt_command = [
             'chopt.exe', 
             '-f', midi_file, 
-            '--engine', 'fnf', 
+            '--engine', engine, 
             '--squeeze', str(squeeze_percent),
             '--early-whammy', '0',
             '--diff', difficulty
@@ -174,7 +179,7 @@ class PathCommandHandler():
                 embed.add_field(name="Overlaps", value=overlaps)
                 embed.add_field(name="No OD Score", value=no_sp_score)
                 embed.add_field(name="Total Score", value=total_score)
-                embed.set_footer(text="Tip: Use /suggestions to suggest new features for Festival Tracker!")
+                embed.set_footer(text="Tip: Use /suggestion to suggest new features!")
 
                 embed.set_image(url=f"attachment://{output_image}")
                 embed.set_thumbnail(url=album_art_url)
@@ -186,6 +191,7 @@ class PathCommandHandler():
             constants.delete_session_files(session_hash)  # Clean up session files like MIDI and images
 
         except Exception as e:
+            logging.error("An error ocurred", exc_info=e)
             await interaction.edit_original_response(content=f"An error occurred: {str(e)}")
 
         # await interaction.edit_original_response(content="Check ur console: " + song)

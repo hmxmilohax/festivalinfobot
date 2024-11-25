@@ -1,23 +1,29 @@
+import asyncio
 import difflib
 import logging
 from datetime import datetime
 import time
+from typing import Union
 from discord.ext import commands, tasks
 import discord
 from discord import app_commands
 from configparser import ConfigParser
 
 from bot import config, constants, embeds
+from bot.festrpc import FestRPCCog
+from bot.fortnitecog import FortniteCog
 from bot.log import setup as setup_log
 from bot.admin import AdminCog, TestCog
 from bot.config import Config
-from bot.graph import GraphCommandsHandler
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
-from bot.status import StatusHandler
+from bot.randomcog import RandomCog
+from bot.subcog import SubscriptionCog
+from bot.suggestions import SuggestionModal
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, OneButtonSimpleView, ShopCommandHandler, TracklistHandler, GamblingHandler
+from bot.helpers import DailyCommandHandler, OneButtonSimpleView, ShopCommandHandler, TracklistHandler
+from bot.graph import GraphCommandsHandler
 
 class FestivalInfoBot(commands.Bot):
     async def on_ready(self):
@@ -25,7 +31,7 @@ class FestivalInfoBot(commands.Bot):
         logging.debug("Setting up admin commands...")
         # Apparently this works, dont know why but
         # it is possible to await this function here
-        await self.setup_admin_commands()
+        await self.setup_cogs()
         
         logging.info(f'Logged in as {self.user.name}')
 
@@ -63,7 +69,7 @@ class FestivalInfoBot(commands.Bot):
         if self.CHECK_FOR_NEW_SONGS:
             check_for_new_songs.start()
 
-        @tasks.loop(minutes=5)
+        @tasks.loop(minutes=2.5)
         async def activity_task():
             await self.check_handler.handle_activity_task()
 
@@ -123,12 +129,10 @@ class FestivalInfoBot(commands.Bot):
         self.path_handler = PathCommandHandler()
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
-        self.gambling_handler = GamblingHandler()
         self.graph_handler = GraphCommandsHandler()
-        self.lightswitch_handler = StatusHandler()
 
         self.setup_commands()
-        self.setup_subscribe_commands()
+        # self.setup_subscribe_commands()
 
         self.run(DISCORD_TOKEN, log_handler=None)
 
@@ -145,31 +149,48 @@ class FestivalInfoBot(commands.Bot):
                 await ctx.send(f"{ctx.message.channel.guild.me.display_name} is online.")
 
         @self.tree.command(name="search", description="Search a song.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(query = "A search query: an artist, song name, or shortname.")
         async def search_command(interaction: discord.Interaction, query:str):
             await self.search_handler.handle_interaction(interaction=interaction, query=query)
 
-        @self.tree.command(name="random_track", description="Get a random Jam Track from the list of available Jam Tracks!")
-        async def random_track_command(interaction: discord.Interaction):
-            await self.gambling_handler.handle_random_track_interaction(interaction=interaction)
-
-        @self.tree.command(name="random_setlist", description="Get a random setlist from the list of available Jam Tracks!")
-        async def random_setlist_command(interaction: discord.Interaction):
-            await self.gambling_handler.handle_random_setlist_interaction(interaction=interaction)
-
-        @self.tree.command(name="daily", description="Display the tracks currently in daily rotation.")
+        @self.tree.command(name="weekly", description="Display the tracks currently in weekly rotation.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def daily_command(interaction: discord.Interaction):
             await self.daily_handler.handle_interaction(interaction=interaction)
 
-        @self.tree.command(name="tracklist", description="Browse the full list of available Jam Tracks.")
+        tracklist_group = app_commands.Group(name="tracklist", description="Tracklist commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
+
+        filter_group = app_commands.Group(name="filter", description="Tracklist commands", parent=tracklist_group)
+
+        @tracklist_group.command(name="all", description="Browse the full list of available Jam Tracks.")
         async def tracklist_command(interaction: discord.Interaction):
             await self.tracklist_handler.handle_interaction(interaction=interaction)
 
+        @filter_group.command(name="artist", description="Browse the list of available Jam Tracks that match a queried artist.")
+        @app_commands.describe(artist = "A search query to use in the song name.")
+        async def tracklist_command(interaction: discord.Interaction, artist:str):
+            await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
+
+        @filter_group.command(name="regex", description="Browse the list of available Jam Tracks that match a Regex pattern in a customizable query format.")
+        @app_commands.describe(regex = "A Regular Expression (Regex) to match. Leave empty to show help with this command.")
+        @app_commands.describe(query = "A query that the Regex will match.")
+        async def tracklist_command(interaction: discord.Interaction, regex:str = None, query:str = "%an - %tt"):
+            await self.tracklist_handler.handle_regex_interaction(interaction=interaction, regex=regex, matched=query)
+
+        self.tree.add_command(tracklist_group)
+
         @self.tree.command(name="shop", description="Display the tracks currently in the shop.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def shop_command(interaction: discord.Interaction):
             await self.shop_handler.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def count_command(interaction: discord.Interaction):
             track_list = JamTrackHandler().get_jam_tracks()
             if not track_list:
@@ -184,28 +205,28 @@ class FestivalInfoBot(commands.Bot):
 
             await interaction.response.send_message(embed=embed)
 
-        @self.tree.command(name="leaderboard", description="View the leaderboard of a song.")
+        lb_group = app_commands.Group(name="leaderboard", description="Leaderboard commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
+
+        @lb_group.command(name="view", description="View the leaderboards of a song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments):
+            await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument)
+
+        @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
         @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
         @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
         @app_commands.describe(account_id = "An Epic Games account ID.")
-        async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = None, username:str = None, account_id:str = None):
-            if rank or username or account_id:
-                if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
-                    await interaction.response.send_message(content="You must be in a channel where I can send messages to view specific entries.", ephemeral=True)
-                    return
-            
-            await self.lb_handler.handle_interaction(
-                interaction,
-                song=song,
-                instrument=instrument,
-                rank=rank,
-                username=username,
-                account_id=account_id
-            )
+        async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
+            await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
+
+        self.tree.add_command(lb_group)
 
         @self.tree.command(name="path", description="Generates an Overdrive path for a song using CHOpt.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         @app_commands.describe(instrument = "The instrument to view the path of.")
         @app_commands.describe(difficulty = "The difficulty to view the path for.")
@@ -235,100 +256,40 @@ class FestivalInfoBot(commands.Bot):
                 ]
             )
 
-        @self.tree.command(name="history", description="View the history of a Jam Track.")
+        history_group = app_commands.Group(name="history", description="History commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
+
+        @history_group.command(name="chart", description="View the chart history of a Jam Track.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         async def history_command(interaction: discord.Interaction, song:str):
             if not self.CHART_COMPARING_ALLOWED or not self.DECRYPTION_ALLOWED:
                 await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
                 return
-            
-            if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
-                await interaction.response.send_message(content="You must be in a channel where I can send messages to use this command.", ephemeral=True)
-                return
     
             await self.history_handler.handle_interaction(interaction=interaction, song=song)
 
-        @self.tree.command(name="metahistory", description="View the metadata history of a Jam Track.")
+        @history_group.command(name="metadata", description="View the metadata history of a Jam Track.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         async def metahistory_command(interaction: discord.Interaction, song:str):
-            if not interaction.channel.permissions_for(interaction.guild.me).view_channel:
-                await interaction.response.send_message(content="You must be in a channel where I can send messages to use this command.", ephemeral=True)
-                return
-
             await self.history_handler.handle_metahistory_interaction(interaction=interaction, song=song)
 
-        @self.tree.command(name="graph_note_counts", description="Graph the note counts for a specific song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-
-            await self.graph_handler.handle_pdi_interaction(interaction=interaction, song=song)
-
-        @self.tree.command(name="graph_lifts", description="Graph the lift counts for a specific song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            
-            await self.graph_handler.handle_lift_interaction(interaction=interaction, song=song)
-
-        @self.tree.command(name="graph_nps", description="Graph the NPS (Notes per second) for a specific song, instrument, and difficulty.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the NPS of.")
-        @app_commands.describe(difficulty = "The difficulty to view the NPS for.")
-        async def graph_nps_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            
-            await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
-
-        @self.tree.command(name="graph_lanes", description="Graph the number of notes for each lane in a specific song, instrument, and difficulty.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the #notes of.")
-        @app_commands.describe(difficulty = "The difficulty to view the #notes for.")
-        async def graph_lanes_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            
-            await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
-
-        @self.tree.command(name="fortnitestatus", description="See if Fortnite is currently online or offline.")
-        async def fortnitestatus_command(interaction: discord.Interaction):
-            await self.lightswitch_handler.handle_fortnitestatus_interaction(interaction=interaction)
-
-        @self.tree.command(name="mainstage", description="View information about Festival Main Stage.")
-        async def mainstage_command(interaction: discord.Interaction):
-            await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction)
-
-        @self.tree.command(name="battlestage", description="View information about Festival Battle Stage.")
-        async def battlestage_command(interaction: discord.Interaction):
-            await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Battle Stage")
-
-        @self.tree.command(name="jamstage", description="View information about Festival Jam Stage.") 
-        async def jamstage_command(interaction: discord.Interaction):
-            await self.lightswitch_handler.handle_gamemode_interaction(interaction=interaction, search_for="Festival Jam Stage")
+        self.tree.add_command(history_command)
 
         @self.tree.command(name="suggestion", description="Suggest a feature for Festival Tracker")
-        @app_commands.describe(suggestion = "Your suggestion is private and only you see the interaction message.")
-        async def suggestion_command(interaction: discord.Interaction, suggestion: str):
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def suggestion_command(interaction: discord.Interaction):
             try:
                 if not self.suggestions_enabled:
                     await interaction.response.send_message(f"Sorry; Suggestions are currently not enabled.", ephemeral=True)
                     return
                 else:
-                    user = self.get_user(734822755224125451)
-                    sug_content = f"# New Suggestion\n> {suggestion}\n\n-# In ||**{interaction.guild.name if interaction.guild else 'DMs'}**||, by ||**@{interaction.user.display_name}** ({interaction.user.id})||"
-                    await user.send(sug_content)
-                    await interaction.response.send_message(f"Your suggestion has been submitted successfully!", ephemeral=True)
+                    await interaction.response.send_modal(SuggestionModal(self))
             except Exception as e:
                 await interaction.response.send_message(f'Unable to send the suggestion: {e}', ephemeral=True)
 
         @self.tree.command(name="stats", description="Displays Festival Tracker stats")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def bot_stats(interaction: discord.Interaction):
             await interaction.response.defer()
 
@@ -337,8 +298,8 @@ class FestivalInfoBot(commands.Bot):
             channel_count = 0
             users_count = 0
             for guild in self.guilds:
-                served_members = [m for m in guild.members if m != guild.me]
-                served_channels = [c for c in guild.channels if isinstance(c, discord.TextChannel)]
+                served_members = [m for m in guild.members]
+                served_channels = [c for c in guild.channels]
                 channel_count += len(served_channels)
                 users_count += len(served_members)
             handler = embeds.StatsCommandEmbedHandler()
@@ -373,8 +334,10 @@ class FestivalInfoBot(commands.Bot):
             embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
             embed.add_field(name="Channels", value=f"{channel_count} channels", inline=True)
             embed.add_field(name="Users", value=f"{users_count} users", inline=True)
+            embed.add_field(name="Subscriptions", value=f"{len(self.config.users)} users, {len(self.config.channels)} channels", inline=True)
             embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
-            embed.add_field(name="Uptime", value=f"{uptime}", inline=True)
+            embed.add_field(name="Up Since", value=f"{discord.utils.format_dt(datetime.fromtimestamp(self.start_time), 'R')}", inline=True)
+            embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
             embed.add_field(name="Latest Upstream Info", value=f"[`{latest_commit_hash[:7]}`]({upstream_commit_url}) {last_update_formatted}", inline=False)
             embed.add_field(name="Local Commit Info", value=f"[`{branch_name}`]({remote_branch_url}) [`{local_commit_hash[:7]}`]({local_commit_url}) ({commit_status})", inline=False)
             if len(dirtyness) > 0:
@@ -386,40 +349,35 @@ class FestivalInfoBot(commands.Bot):
             await interaction.edit_original_response(embed=embed, view=view)
 
         @self.tree.command(name="help", description="Show the help message")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(command = "The command to view help about.")
         async def help_command(interaction: discord.Interaction, command:str = None):
-            _commands = self.tree.get_commands()
             commands = []
-            for _command in _commands:
-                # Add command to embed
-                if isinstance(_command, discord.app_commands.commands.Group):
-                    for group_command in _command.commands:
-                        # Only the group can have the guild only attribute
-                        if _command.guild_only and isinstance(interaction.channel, discord.DMChannel):
-                            continue
+
+            for _command in self.tree.get_commands():
+                # Define a recursive function to traverse commands and subcommands
+                def recurse_inner(c: Union[app_commands.Command, app_commands.Group]):
+                    if isinstance(c, app_commands.Group):
+                        # Loop through subcommands in the group
+                        for group_command in c.commands:
+                            recurse_inner(group_command)  # Recurse on each subcommand
+                    else:
+                        # If it's not a group, add it to the commands list
+                        if c.parent and c.parent.guild_only and isinstance(interaction.channel, discord.DMChannel):
+                            return  # Skip if guild-only and in a DM
                         commands.append({
-                            "name":f"`/{_command.name} {group_command.name}`",
-                            "value":group_command.description or "No description",
-                            "inline":False
+                            "name": f"{c.qualified_name}",
+                            "value": c.description or "No description",
+                            "inline": False
                         })
-                else:
-                    commands.append({
-                        "name":f"`/{_command.name}`",
-                        "value":_command.description or "No description",
-                        "inline":False
-                    })
+
+                recurse_inner(_command)
 
             if command:
-                if self.tree.get_command(command.split(' ')[0]):
-                    found_command = self.tree.get_command(command.split(' ')[0])
-                    try:
-                        if isinstance(found_command, discord.app_commands.commands.Group):
-                            found_command = found_command.get_command(command.split(' ')[1])
-                    except Exception as e:
-                        logging.error(exc_info=e)
-                        await interaction.response.send_message(content=f"No command found with the name \"{command}\"", ephemeral=True)
-                        return
-                    
+                found = discord.utils.find(lambda c: c['name'] == command, commands)
+                if found:
+                    found_command = self.find_command_by_string(found['name'])
                     parameters = " ".join([f'<{"" if param.required else "?"}{param.name}>' for param in found_command.parameters])
                     usage = f"`/{found_command.qualified_name}" + (f" {parameters}" if len(parameters) > 0 else "") + "`"
 
@@ -434,19 +392,27 @@ class FestivalInfoBot(commands.Bot):
                     description += '\n*(Server-only command)*' if found_command.guild_only else ''
 
                     embed = discord.Embed(
-                        title="Festival Tracker Help",
-                        description=f"A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)",
+                        title="",
+                        description=f"A powerful bot for Fortnite Festival song data.",
                         color=0x8927A1
                     )
+                    embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
+                    embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
+                    embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
                     embed.add_field(name=f"Help with `/{found_command.qualified_name}`", value=description, inline=False)
+
+                    embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
+                    embed.set_thumbnail(url=self.user.avatar.url)
 
                     if any(not param.required for param in found_command.parameters):
                         embed.set_footer(text="Tip: Parameters with \"?\" mean they're optional.")
                     embed.add_field(name="Usage", value=usage, inline=False)
 
-                    await interaction.response.send_message(embed=embed)
+                    view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://festivaltracker.github.io", False)
+                    await interaction.response.send_message(embed=embed, view=view)
+                    view.message = await interaction.original_response()
                 else:
-                    command_list = [str(command.qualified_name) for command in self.tree.get_commands()]
+                    command_list = [command['name'] for command in commands]
                     close_match = difflib.get_close_matches(command, command_list, n=1, cutoff=0.7)
                     tip = ""
                     if close_match:
@@ -461,153 +427,113 @@ class FestivalInfoBot(commands.Bot):
                 for i in range(0, len(commands), 5):
                     embed = discord.Embed(
                         title="Festival Tracker Help",
-                        description=f"A simple and powerful bot to check Fortnite Festival song data. [Source code](https://github.com/hmxmilohax/festivalinfobot)\nUse `/help <command>` to get more information on a specific command.",
+                        description=f"A powerful bot for Fortnite Festival song data.\nUse `/help <command>` to get more information on a specific command.",
                         color=0x8927A1
                     )
+                    embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
+                    embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
+                    embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
+                    embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://festivaltracker.github.io)', inline=False)
                     chunk = commands[i:i + 5]
-                    # Walk through all commands registered in self.tree
 
                     for command in chunk:
-                        embed.add_field(name=command['name'], value=command['value'], inline=command['inline'])
+                        embed.add_field(name=f'`/{command["name"]}`', value=command['value'], inline=command['inline'])
                     
+                    embed.set_thumbnail(url=self.user.avatar.url)
+
                     embeds.append(embed)
 
                 view = constants.PaginatorView(embeds, interaction.user.id)
                 await interaction.response.send_message(embed=view.get_embed(), view=view)
                 view.message = await interaction.original_response()
 
-    async def setup_admin_commands(self):
+        graph_group = app_commands.Group(name="graph", description="Graph Command Group.", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
+
+        graph_notes_group = app_commands.Group(name="counts", description="Graph the note and lift counts for a specific song.", parent=graph_group)
+        @graph_notes_group.command(name="all", description="Graph the note counts for a specific song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            await self.graph_handler.handle_pdi_interaction(interaction=interaction, song=song)
+
+        @graph_notes_group.command(name="lifts", description="Graph the lift counts for a specific song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            
+            await self.graph_handler.handle_lift_interaction(interaction=interaction, song=song)
+
+        @graph_group.command(name="nps", description="Graph the NPS (Notes per second) for a specific song, instrument, and difficulty.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(instrument = "The instrument to view the NPS of.")
+        @app_commands.describe(difficulty = "The difficulty to view the NPS for.")
+        async def graph_nps_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            
+            await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
+
+        @graph_group.command(name="lanes", description="Graph the number of notes for each lane in a specific song, instrument, and difficulty.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(instrument = "The instrument to view the #notes of.")
+        @app_commands.describe(difficulty = "The difficulty to view the #notes for.")
+        async def graph_lanes_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
+            if not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+            
+            await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
+
+        self.tree.add_command(graph_group)
+
+    async def setup_cogs(self):
         admin_cog = AdminCog(self)
         await self.add_cog(admin_cog)
-        # await self.tree.add_command(admin_cog.admin_group)
 
         test_cog = TestCog(self)
         await self.add_cog(test_cog)
 
-    def setup_subscribe_commands(self):
-        # User DM subscriptions
+        fort_cog = FortniteCog(self)
+        await self.add_cog(fort_cog)
 
-        @self.tree.command(name="subscribe", description="Subscribe yourself to Jam Track events")
-        async def dm_subscribe(interaction: discord.Interaction):
-            user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
-            user_exists = len(user_list) > 0
+        sub_cog = SubscriptionCog(self)
+        await self.add_cog(sub_cog)
 
-            if not user_exists:
-                self.config.users.append(config.SubscriptionUser(interaction.user.id, config.JamTrackEvent.get_all_events()))
+        random_cog = RandomCog(self)
+        await self.add_cog(random_cog)
+
+        festrpc = FestRPCCog(self)
+        await self.add_cog(festrpc)
+
+    def find_command_by_string(self, command: str):
+        words = command.split()
+        if not words:
+            return None 
+
+        current_level = self.tree.get_commands()
+
+        for word in words:
+            found = None
+            for cmd in current_level:
+                if cmd.name == word:
+                    found = cmd
+                    break
+
+            if not found:
+                return None
+
+            if isinstance(found, app_commands.Group):
+                current_level = found.commands
             else:
-                for i, _user in enumerate(user_list):
-                    if i > 0:
-                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
+                if word != words[-1]:
+                    return None
+                return found
 
-                    subscribed_user_events = self.config.users[self.config.users.index(_user)].events
-                    if len(subscribed_user_events) == len(config.JamTrackEvent.get_all_events()):
-                        await interaction.response.send_message(f"You're already subscribed to all Jam Track events.", ephemeral=True)
-                    else:    
-                        await interaction.response.send_message(f"You're already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in subscribed_user_events])}\".", ephemeral=True)
-                    return
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to add you: {e}\nSubscription cancelled.", ephemeral=True)
-                return
-            
-            await interaction.response.send_message(f"You've been successfully added to the subscription list; I will now send you all Jam Track events.", ephemeral=True)
-            
-        @self.tree.command(name="unsubscribe", description="Unsubscribe yourself from Jam Track events")
-        async def dm_unsubscribe(interaction: discord.Interaction):
-            user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
-            user_exists = len(user_list) > 0
-
-            if not user_exists:
-                await interaction.response.send_message(f"You are not subscribed to any Jam Track events.", ephemeral=True)
-                return
-            else:
-                for i, _user in enumerate(user_list):
-                    if i > 0:
-                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
-                    try:
-                        self.config.users.remove(_user)
-                    except ValueError as e:
-                        await interaction.response.send_message(f"The bot's subscription list could not be updated to remove you: {e}\nUnsubscription cancelled.", ephemeral=True)
-                        return
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove you: {e}\nUnsubscription cancelled.", ephemeral=True)
-                return
-            
-            await interaction.response.send_message(f"You've been successfully removed from the subscription list; I will no longer send you any Jam Track events.", ephemeral=True)
-
-        @self.tree.command(name="add_event", description="Subscribe yourself to specific Jam Track events")
-        async def dm_add_event(interaction: discord.Interaction, event: config.JamTrackEvent):
-            user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
-            user_exists = len(user_list) > 0
-            chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
-
-            if not user_exists:
-                self.config.users.append(config.SubscriptionUser(interaction.user.id, [chosen_event]))
-            else:
-                for i, _user in enumerate(user_list):
-                    if i > 0:
-                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
-
-                    subscribed_events = self.config.users[self.config.users.index(_user)].events
-                    if chosen_event in subscribed_events:
-                        await interaction.response.send_message(f'You are already subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
-                        return
-                    else:
-                        self.config.users[self.config.users.index(_user)].events.append(chosen_event)
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to add the event \"{constants.EVENT_NAMES[chosen_event]}\" to you: {e}\nEvent subscription cancelled.", ephemeral=True)
-                return
-            
-            await interaction.response.send_message(f'You have been subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
-
-        @self.tree.command(name="remove_event", description="Unsubscribe yourself from Jam Track events")
-        async def dm_add_event(interaction: discord.Interaction, event: config.JamTrackEvent):
-            user_list = [subscribed_user for subscribed_user in self.config.users if subscribed_user.id == interaction.user.id]
-            user_exists = len(user_list) > 0
-            chosen_event = config.JamTrackEvent[str(event).replace('JamTrackEvent.', '')].value
-
-            if not user_exists:
-                await interaction.response.send_message(f'You are not subscribed to any events.', ephemeral=True)
-                return
-            else:
-                for i, _user in enumerate(user_list):
-                    if i > 0:
-                        logging.warning(f'Found another user for {interaction.user.id}? User no. {i}')
-
-                    subscribed_events = self.config.users[self.config.users.index(_user)].events
-
-                    if chosen_event in subscribed_events:
-                        try:
-                            self.config.users[self.config.users.index(_user)].events.remove(chosen_event)
-
-                            # Remove the channel from the subscription list if it isnt subscribed to any events
-                            if len(self.config.users[self.config.users.index(_user)].events) < 1:
-                                self.config.users.remove(_user)
-                                self.config.save_config()
-                                await interaction.response.send_message(f"You have been removed from the subscription list because you are no longer subscribed to any events.", ephemeral=True)
-                                return
-
-                        except Exception as e:
-                            await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from you: {e}\nEvent unsubscription cancelled.", ephemeral=True)
-                            return
-                    else:
-                        await interaction.response.send_message(f'You are not subscribed to the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
-                        return
-
-            try:
-                self.config.save_config()
-            except Exception as e:
-                await interaction.response.send_message(f"The bot's subscription list could not be updated to remove the event \"{constants.EVENT_NAMES[chosen_event]}\" from you: {e}\nEvent unsubscription cancelled.", ephemeral=True)
-                return
-            
-            await interaction.response.send_message(f'You have been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event]}".', ephemeral=True)
+        return found
 
 bot = FestivalInfoBot()
