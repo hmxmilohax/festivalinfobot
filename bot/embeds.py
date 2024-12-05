@@ -309,10 +309,10 @@ class SearchEmbedHandler:
         pro_drums_diff = track['in'].get('pd', 0)
 
         avg_diff = numpy.average([
-            vocals_diff, guitar_diff,
-            bass_diff, drums_diff,
-            pro_guitar_diff, pro_bass_diff, 
-            pro_drums_diff
+            vocals_diff+1, guitar_diff+1,
+            bass_diff+1, drums_diff+1,
+            pro_guitar_diff+1, pro_bass_diff+1, 
+            pro_drums_diff+1
         ])
 
         embed.add_field(name="Creative Code", value=track.get('jc', 'N/A'))
