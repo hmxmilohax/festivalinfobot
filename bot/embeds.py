@@ -313,7 +313,7 @@ class SearchEmbedHandler:
             bass_diff, drums_diff,
             pro_guitar_diff, pro_bass_diff, 
             pro_drums_diff
-        ])
+        ])+1
 
         embed.add_field(name="Creative Code", value=track.get('jc', 'N/A'))
         embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
