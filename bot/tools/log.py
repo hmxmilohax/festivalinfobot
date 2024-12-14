@@ -80,6 +80,7 @@ def setup() -> logging.RootLogger:
         logging.getLogger('discord').setLevel(logging.INFO)
     logging.getLogger('urllib3').setLevel(logging.INFO)
     logging.getLogger('matplotlib').setLevel(logging.INFO)
+    logging.getLogger('aiosqlite').setLevel(logging.INFO)
 
     # Set ourselves as the VIP.
     logger.setLevel(logging.DEBUG)

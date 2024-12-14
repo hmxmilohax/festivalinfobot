@@ -274,7 +274,7 @@ class TestCog(commands.Cog):
 
     @test_group.command(name="emit", description="Emit a message to all subscribed users.")
     @app_commands.describe(message = "A text file. This contains the message content.")
-    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment):
+    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -283,6 +283,12 @@ class TestCog(commands.Cog):
         
         logging.debug(f'[GET] {message.url}')
         text_content = requests.get(message.url).text
+
+        if image:
+            logging.debug(f'[GET] {image.url}')
+            
+        png = io.BytesIO(requests.get(image.url).content) if image else None
+        fname = image.filename if image else None
 
         bot_config: config.Config = self.bot.config
         all_channels = await bot_config.get_all()
@@ -297,13 +303,20 @@ class TestCog(commands.Cog):
 
             if channel:
                 try:
-                    await channel.send(content=text_content)
+                    if png:
+                        png.seek(0)
+                    await channel.send(content=text_content, file=discord.File(png, filename=fname) if png else None)
                 except Exception as e:
                     logging.error(f"Error sending message to {subscribed_channel.type} {channel.mention}", exc_info=e)
             else:
                 logging.error(f"{subscribed_channel.type} with ID {subscribed_channel.id} not found.")
+                
+        result_files = [discord.File(io.StringIO(text_content), "content.txt")]
+        if png: 
+            png.seek(0)
+            result_files.append(discord.File(png, filename=fname))
 
-        await interaction.followup.send(content="Test messages have been sent.\nSource attached below.", file=discord.File(io.StringIO(text_content), "content.txt"))
+        await interaction.followup.send(content="Test messages have been sent.\nSource attached below.", files=result_files)
 
     @test_group.command(name="migrate", description="Migrates channels.json to subscriptions.db")
     async def migrate(self, interaction: discord.Interaction):
@@ -378,8 +391,8 @@ class TestCog(commands.Cog):
         else:
             await interaction.edit_original_response(content="No channels to delete")
 
-    @delete_group.command(name="user_where", description="Delete a channel where user_id = ?")
-    async def channel_where(self, interaction: discord.Interaction, user_id: str):
+    @test_group.command(name="all_subscriptions", description="View all subscriptions")
+    async def all_subscriptions(self, interaction: discord.Interaction):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -388,8 +401,41 @@ class TestCog(commands.Cog):
 
         bot_config: config.Config = self.bot.config
 
-        count = await bot_config._count_channels_with_query(f'WHERE user_id = {user_id}')
-        chs = await bot_config._sel_channels_with_query(f'WHERE user_id = {user_id}')
+        chs = await bot_config.get_all()
+
+        if len(chs) != 0:
+            embeds = []
+            for i in range(0, len(chs), 10):
+                print(i)
+                embed = discord.Embed(title="Results", color=0x8927A1)
+                chunk = chs[i:i + 10]
+                embed.add_field(name="Subscriptions", value=f"{len(chs)} channel(s)", inline=False)
+                txt = ''
+                for sub in chunk:
+                    txt += f"\nType {sub.type} ID {sub.id} Events {sub.events}"
+                    if isinstance(sub, config.SubscriptionChannel):
+                        txt += f' Roles {sub.roles}'
+                
+                embed.add_field(name="List", value=f'```{txt}```', inline=False)
+                embeds.append(embed)
+
+            view = constants.PaginatorView(embeds, interaction.user.id)
+            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+        else:
+            await interaction.edit_original_response(content="No subscriptions to show")
+
+    @delete_group.command(name="user_where", description="Delete a channel where user_id = ?")
+    async def user_where(self, interaction: discord.Interaction, user_id: str):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+
+        bot_config: config.Config = self.bot.config
+
+        count = await bot_config._count_users_with_query(f'WHERE user_id = {user_id}')
+        chs = await bot_config._sel_users_with_query(f'WHERE user_id = {user_id}')
 
         if count != 0:
             embeds = []
