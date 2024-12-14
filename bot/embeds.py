@@ -7,136 +7,6 @@ import numpy
 import requests
 
 from bot import constants
-
-class DailyCommandEmbedHandler():
-    def __init__(self) -> None:
-        pass
-
-    def create_daily_embeds(self, daily_tracks, chunk_size=3):
-        embeds = []
-        
-        for i in range(0, len(daily_tracks), chunk_size):
-            embed = discord.Embed(title="Weekly Rotation Tracks", color=0x8927A1)
-            chunk = daily_tracks[i:i + chunk_size]
-            
-            for entry in chunk:
-                active_until_display = discord.utils.format_dt(datetime.fromtimestamp(entry['activeUntil']), style="R") if entry['activeUntil'] else "Unknown"
-                
-                embed.add_field(
-                    name="",
-                    value=f"**\\• {entry['title']}** - *{entry['artist']}* - Leaving: {active_until_display}\n"
-                        f"```{entry['difficulty']}```\n",
-                    inline=False
-                )
-            embeds.append(embed)
-
-        return embeds
-
-class LeaderboardEmbedHandler():
-    def __init__(self) -> None:
-        pass
-
-    def format_stars(self, stars:int = 6):
-        if stars > 5:
-            stars = 5
-            return '✪' * stars
-        else:
-            return '' + ('★' * stars) + ('☆' * (5-stars))
-
-    def generate_leaderboard_entry_embeds(self, entries, title, chunk_size=5):
-        embeds = []
-
-        for i in range(0, len(entries), chunk_size):
-            embed = discord.Embed(title=title, color=0x8927A1)
-            chunk = entries[i:i + chunk_size]
-            field_text = '```'
-            for entry in chunk:
-                try:
-                    # Prepare leaderboard entry details
-                    rank = f"#{entry['rank']}"
-                    username = entry.get('userName', '[Unknown]')
-                    difficulty = ['E', 'M', 'H', 'X'][entry['best_run']['difficulty']]
-                    accuracy = f"{entry['best_run']['accuracy']}%"
-                    stars = self.format_stars(entry['best_run']['stars'])
-                    score = f"{entry['best_run']['score']}"
-                    fc_status = "FC" if entry['best_run']['fullcombo'] else ""
-
-                    # Add the formatted line for this entry
-                    field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
-
-                except Exception as e:
-                    logging.error(f"Error in leaderboard entry formatting", exc_info=e)
-                field_text += '\n'
-            field_text += '```'
-
-            embed.add_field(name="", value=field_text, inline=False)
-            embeds.append(embed)
-
-        return embeds
-
-    def generate_leaderboard_embed(self, track_data, entry_data, instrument):
-        track = track_data['track']
-        title = track['tt']
-        embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
-
-        # Best Run information
-        difficulty = ['Easy', 'Medium', 'Hard', 'Expert'][entry_data['best_run']['difficulty']]
-        accuracy = f"{entry_data['best_run']['accuracy']}%"
-        stars = self.format_stars(entry_data['best_run']['stars'])
-        score = f"{entry_data['best_run']['score']}"
-        fc_status = "FC" if entry_data['best_run']['fullcombo'] else ""
-
-        # Add player info
-        embed.add_field(name="Player", value=entry_data.get('userName', '[Unknown]'), inline=True)
-        embed.add_field(name="Rank", value=f"#{entry_data['rank']}", inline=True)
-        embed.add_field(name="Instrument", value=instrument, inline=True)
-
-        # Add Best run info
-        difficulty = f'[{difficulty}]'
-        field_text = f"{difficulty:<18}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
-        embed.add_field(name="Best Run", value=f"```{field_text}```", inline=False)
-
-        # Session data (if present)
-        for session in entry_data.get('sessions', []):
-            session_field_text = '```'
-            is_solo = len(session['stats']['players']) == 1
-            for player in session['stats']['players']:
-                try:
-                    username = entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['L', 'B', 'V', 'D', 'PL', 'PB'][player['instrument']]}"
-                    difficulty = ['E', 'M', 'H', 'X'][player['difficulty']]
-                    accuracy = f"{player['accuracy']}%"
-                    stars = self.format_stars(player['stars'])
-                    score = f"{player['score']}"
-                    fc_status = "FC" if player['fullcombo'] else ""
-
-                    session_field_text += f"{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}\n"
-                except Exception as e:
-                    logging.error(f"Error in session formatting", exc_info=e)
-
-            # Band data
-            if not is_solo:
-                band = session['stats']['band']
-                name =     '[Band Score]'
-                accuracy = f'{band['accuracy']}%'
-                stars = self.format_stars(band['stars'])
-                base_score = band['scores']['base_score']
-                od_bonus = band['scores']['overdrive_bonus']
-                show_od_bonus = od_bonus > 0
-                total = band['scores']['total']
-                fc_status = "FC" if band['fullcombo'] else ""
-                session_field_text += f"{name:<20}{accuracy:<5}{fc_status:<3}{stars:<7}{base_score:>8}\n"
-                if show_od_bonus:
-                    name = '[OD Bonus]'
-                    od_bonus = f'+{od_bonus}'
-                    session_field_text += f"{name:<36}{od_bonus:>9}\n"
-
-                    name = '[Total Score]'
-                    session_field_text += f"{name:<35}{total:>10}\n"
-
-            session_field_text += '```'
-            embed.add_field(name=discord.utils.format_dt(datetime.fromtimestamp(int(session['time'])), style="R"), value=session_field_text, inline=False)
-
-        return embed
     
 class StatsCommandEmbedHandler():
     def __init__(self) -> None:
@@ -212,11 +82,9 @@ class SearchEmbedHandler:
 
             for track in chunk:
                 if shop:
-                    # Shop-specific fields
                     in_date_display = self.format_date(track['inDate'])
                     out_date_display = self.format_date(track['outDate'])
                     
-                    # Cross-reference with jam tracks for difficulty data
                     shortname = track['devName']
                     jam_track = [jt for jt in jam_tracks if jt['track']['sn'] == shortname][0] if jam_tracks else None
 
@@ -234,7 +102,6 @@ class SearchEmbedHandler:
                         inline=False
                     )
                 else:
-                    # Daily rotation or full list tracks
                     shortname = track['track']['sn']
                     embed.add_field(
                         name="",
@@ -256,17 +123,15 @@ class SearchEmbedHandler:
             title = f"Your Random Jam Track:\n{track['tt']}"
         else:
             title = f"{track['tt']}"
-        placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2)  # Extract the placeholder ID
+        placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2) 
         embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
         embed.set_footer(text="Festival Tracker")
 
-        # Add various fields to the embed
         embed.add_field(name="\n", value="", inline=False)
         embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
 
-        # Add Key and BPM to the embed
-        key = track.get('mk', 'Unknown')  # Get the key
-        mode = track.get('mm', 'Unknown')  # Get the mode
+        key = track.get('mk', 'Unknown') 
+        mode = track.get('mm', 'Unknown')
 
         key = f"{key} {mode}"
 
@@ -308,6 +173,7 @@ class SearchEmbedHandler:
         pro_bass_diff = track['in'].get('pb', 0)
         pro_drums_diff = track['in'].get('pd', 0)
 
+        # average diff
         avg_diff = numpy.average([
             vocals_diff, guitar_diff,
             bass_diff, drums_diff,
@@ -319,7 +185,6 @@ class SearchEmbedHandler:
         embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
         embed.add_field(name="Released", value=self.format_date(track_data.get('_activeDate')))
 
-        # Construct the vertical difficulty bars
         difficulties = (
             f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"
             f"Bass:      {constants.generate_difficulty_bar(bass_diff)}\n"
@@ -330,25 +195,21 @@ class SearchEmbedHandler:
             f"Pro Drums: {constants.generate_difficulty_bar(pro_drums_diff)}"
         )
 
-        # Add difficulties to embed
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
         
-        # Add the album art
         embed.set_thumbnail(url=track['au'])
         
         return embed
     
     def compare_qi_fields(self, old_qi, new_qi):
-        # Parse the qi fields if they are valid JSON strings
         try:
             old_qi_data = json.loads(old_qi)
             new_qi_data = json.loads(new_qi)
         except json.JSONDecodeError:
-            return None  # Return None if parsing fails
+            return None
 
         embed_fields = []
 
-        # Compare the direct fields like 'sid', 'pid', 'title'
         for field in ['sid', 'pid', 'stereoId', 'instrumentalId', 'title']:
             if old_qi_data.get(field) != new_qi_data.get(field):
                 embed_fields.append(
@@ -356,7 +217,6 @@ class SearchEmbedHandler:
                     f"```Old: {old_qi_data.get(field, '[N/A]')}\nNew: {new_qi_data.get(field, '[N/A]')}```"
                 )
 
-        # Compare the tracks part
         if 'tracks' in old_qi_data and 'tracks' in new_qi_data:
             old_tracks = old_qi_data['tracks']
             new_tracks = new_qi_data['tracks']
@@ -371,7 +231,6 @@ class SearchEmbedHandler:
             else:
                 embed_fields.append("Track length changed in 'tracks' field")
 
-        # Compare the preview part if exists
         if 'preview' in old_qi_data and 'preview' in new_qi_data:
             if old_qi_data['preview'].get('starttime') != new_qi_data['preview'].get('starttime'):
                 embed_fields.append(
@@ -393,7 +252,6 @@ class SearchEmbedHandler:
 
         extra_comparisons = constants.EXTRA_COMPARISONS
 
-        # Report changes in the simple fields
         for value, name in simple_comparisons.items():
             if old_track_data.get(value, '[N/A]') != new_track_data.get(value, '[N/A]'):
                 embed.add_field(
@@ -402,7 +260,6 @@ class SearchEmbedHandler:
                     inline=False
                 )
 
-        # Report changes in difficulty fields
         for value, name in difficulty_comparisons.items():
             if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
                 embed.add_field(
@@ -411,7 +268,7 @@ class SearchEmbedHandler:
                     inline=False
                 )
 
-        # Check for mismatched difficulty properties
+
         for key in new_track_data['in'].keys():
             if key not in difficulty_comparisons.keys() and key != '_type':
                 embed.add_field(
@@ -420,7 +277,6 @@ class SearchEmbedHandler:
                     inline=False
                 )
 
-        # Report `lastModified` change
         if old.get('lastModified') != new.get('lastModified'):
             embed.add_field(
                 name="Last Modified Date changed", 
@@ -428,7 +284,6 @@ class SearchEmbedHandler:
                 inline=False
             )
 
-        # Report `qi` change (JSON string difference)
         qi_comparisons = self.compare_qi_fields(old_track_data.get('qi', ''), new_track_data.get('qi', ''))
         if qi_comparisons:
             for field in qi_comparisons:

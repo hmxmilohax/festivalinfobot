@@ -1,15 +1,26 @@
+# legacy files
 channels.json
+backups/
+prefixes.json
+# configuration
 config.ini
+# tracking
 known_songs.json
 known_tracks.json
+# digital mistery
 fnf-midcrypt.py
+# folders
 out
-CHOpt.exe
-prefixes.json
 json
 midi_files
+# pycache & vscode
 **/__pycache__
-backups/
+**/.vscode
+# chopt stuff
+CHOpt.exe
 Qt6Core.dll
 Qt6Gui.dll
+# logs
 logs
+# databases
+*.db*

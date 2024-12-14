@@ -9,6 +9,7 @@ from discord.ext import commands
 import requests
 from bot import embeds
 import bot.constants as constants
+from bot.constants import OneButtonSimpleView
 from bot import helpers
 
 class JamTrackHandler:
@@ -19,8 +20,7 @@ class JamTrackHandler:
         return text.translate(str.maketrans('', '', string.punctuation.replace('_', '')))
 
     def fuzzy_search_tracks(self, tracks:list, search_term:str):
-        # Remove punctuation from the search term
-        search_term = self.remove_punctuation(search_term.lower())  # Case-insensitive search
+        search_term = self.remove_punctuation(search_term.lower())
 
         # Special case for 'i'
         if search_term == 'i':
@@ -38,10 +38,8 @@ class JamTrackHandler:
             title = self.remove_punctuation(track['track']['tt'].lower())
             artist = self.remove_punctuation(track['track']['an'].lower())
             
-            # Check for exact matches first
             if search_term in title or search_term in artist:
                 exact_matches.append(track)
-            # Use fuzzy matching for close but not exact matches
             elif any(get_close_matches(search_term, [title, artist], n=1, cutoff=0.7)):
                 fuzzy_matches.append(track)
         
@@ -72,7 +70,7 @@ class JamTrackHandler:
         return link.json().get('link')
 
     def get_jam_tracks(self):
-        return constants.get_jam_tracks() # Proxies into constants to fix circular imports
+        return constants.get_jam_tracks()
         
 class SearchCommandHandler:
     def __init__(self, bot: commands.Bot) -> None:
@@ -85,10 +83,16 @@ class SearchCommandHandler:
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
         options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
-        await interaction.edit_original_response(content=f"I found multiple tracks matching your search. Please choose the correct one by typing the number:\n{options_message}")
+        finalized_options_message = f"Found multiple tracks matching your query. Please choose the correct one by typing the number:\n{options_message}"
 
-        def check(m):
-            return m.author == interaction.user
+        if len(finalized_options_message) > 2000:
+            await interaction.edit_original_response(content="The result is too large. Please try another query, or use </tracklist filter artist:1287199873116143628>.")
+            return None, None
+
+        await interaction.edit_original_response(content=finalized_options_message)
+
+        def check(m: discord.Message):
+            return (m.author == interaction.user) and m.channel.id == interaction.channel.id
 
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
@@ -110,7 +114,7 @@ class SearchCommandHandler:
         return "Currently in the shop!"
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
-        with open('imacat.json', 'r') as imacat_file:
+        with open('bot/imacat.json', 'r') as imacat_file:
             imacat_data = json.load(imacat_file)
         embed = self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
@@ -119,14 +123,14 @@ class SearchCommandHandler:
     async def handle_interaction(self, interaction: discord.Interaction, query:str):
         await interaction.response.defer() # edit_original_response
 
-        # Special case for "I'm A Cat"
+        # meow case for im a cat
         if query.lower() in {"i'm a cat", "im a cat", "imacat"}:
             await self.handle_imacat_search(interaction=interaction)
             return
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.edit_original_response(content='Could not get tracks.', ephemeral=True)
+            await interaction.edit_original_response(content='Could not get Jam Tracks.', ephemeral=True)
             return
 
         daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
@@ -165,6 +169,9 @@ class SearchCommandHandler:
             message = await interaction.edit_original_response(embed=embed)
         else:
             message, chosen_track = await self.prompt_user_for_selection(interaction=interaction, matched_tracks=matched_tracks)
+            if not message:
+                return
+            
             track = chosen_track
 
             embed = self.embed_handler.generate_track_embed(chosen_track)
@@ -180,8 +187,8 @@ class SearchCommandHandler:
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
                     if spotify:
-                        view = helpers.OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
+                        view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
                         view.message = message
                         await message.edit(embed=embed, view=view)
         except Exception as e:
-            logging.error('Error attempting to add view | Spotify link to message', exc_info=e)
+            logging.error('Error attempting to add Spotify link to message:', exc_info=e)

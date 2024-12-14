@@ -1,9 +1,116 @@
+from datetime import datetime
 import logging
 import requests
 import bot.constants as constants
-from bot.embeds import LeaderboardEmbedHandler
 import discord
 from bot.tracks import JamTrackHandler
+
+class LeaderboardEmbedHandler():
+    def __init__(self) -> None:
+        pass
+
+    def format_stars(self, stars:int = 6):
+        if stars > 5:
+            stars = 5
+            return '✪' * stars
+        else:
+            return '' + ('★' * stars) + ('☆' * (5-stars))
+
+    def generate_leaderboard_entry_embeds(self, entries, title, chunk_size=5):
+        embeds = []
+
+        for i in range(0, len(entries), chunk_size):
+            embed = discord.Embed(title=title, color=0x8927A1)
+            chunk = entries[i:i + chunk_size]
+            field_text = '```'
+            for entry in chunk:
+                try:
+                    # Prepare leaderboard entry details
+                    rank = f"#{entry['rank']}"
+                    username = entry.get('userName', '[Unknown]')
+                    difficulty = ['E', 'M', 'H', 'X'][entry['best_run']['difficulty']]
+                    accuracy = f"{entry['best_run']['accuracy']}%"
+                    stars = self.format_stars(entry['best_run']['stars'])
+                    score = f"{entry['best_run']['score']}"
+                    fc_status = "FC" if entry['best_run']['fullcombo'] else ""
+
+                    # Add the formatted line for this entry
+                    field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
+
+                except Exception as e:
+                    logging.error(f"Error in leaderboard entry formatting", exc_info=e)
+                field_text += '\n'
+            field_text += '```'
+
+            embed.add_field(name="", value=field_text, inline=False)
+            embeds.append(embed)
+
+
+        return embeds
+
+    def generate_leaderboard_embed(self, track_data, entry_data, instrument):
+        track = track_data['track']
+        title = track['tt']
+        embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
+
+        # Best Run information
+        difficulty = ['Easy', 'Medium', 'Hard', 'Expert'][entry_data['best_run']['difficulty']]
+        accuracy = f"{entry_data['best_run']['accuracy']}%"
+        stars = self.format_stars(entry_data['best_run']['stars'])
+        score = f"{entry_data['best_run']['score']}"
+        fc_status = "FC" if entry_data['best_run']['fullcombo'] else ""
+
+        # Add player info
+        embed.add_field(name="Player", value=entry_data.get('userName', '[Unknown]'), inline=True)
+        embed.add_field(name="Rank", value=f"#{entry_data['rank']}", inline=True)
+        embed.add_field(name="Instrument", value=instrument, inline=True)
+
+        # Add Best run info
+        difficulty = f'[{difficulty}]'
+        field_text = f"{difficulty:<18}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
+        embed.add_field(name="Best Run", value=f"```{field_text}```", inline=False)
+
+        # Session data (if present)
+        for session in entry_data.get('sessions', []):
+            session_field_text = '```'
+            is_solo = len(session['stats']['players']) == 1
+            for player in session['stats']['players']:
+                try:
+                    username = entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['L', 'B', 'V', 'D', 'PL', 'PB'][player['instrument']]}"
+                    difficulty = ['E', 'M', 'H', 'X'][player['difficulty']]
+                    accuracy = f"{player['accuracy']}%"
+                    stars = self.format_stars(player['stars'])
+                    score = f"{player['score']}"
+                    fc_status = "FC" if player['fullcombo'] else ""
+
+                    session_field_text += f"{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}\n"
+                except Exception as e:
+                    logging.error(f"Error in session formatting", exc_info=e)
+
+            # Band data
+            if not is_solo:
+                band = session['stats']['band']
+                name =     '[Band Score]'
+                accuracy = f'{band['accuracy']}%'
+                stars = self.format_stars(band['stars'])
+                base_score = band['scores']['base_score']
+                od_bonus = band['scores']['overdrive_bonus']
+                show_od_bonus = od_bonus > 0
+                total = band['scores']['total']
+                fc_status = "FC" if band['fullcombo'] else ""
+                session_field_text += f"{name:<20}{accuracy:<5}{fc_status:<3}{stars:<7}{base_score:>8}\n"
+                if show_od_bonus:
+                    name = '[OD Bonus]'
+                    od_bonus = f'+{od_bonus}'
+                    session_field_text += f"{name:<36}{od_bonus:>9}\n"
+
+                    name = '[Total Score]'
+                    session_field_text += f"{name:<35}{total:>10}\n"
+
+            session_field_text += '```'
+            embed.add_field(name=discord.utils.format_dt(datetime.fromtimestamp(int(session['time'])), style="R"), value=session_field_text, inline=False)
+
+        return embed
 
 class LeaderboardCommandHandler:
     def __init__(self, bot:discord.ext.commands.Bot) -> None:

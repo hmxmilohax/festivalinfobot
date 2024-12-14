@@ -12,10 +12,12 @@ import discord
 from discord.ext import commands
 import requests
 
-from bot import constants, history_tools
-from bot.config import JamTrackEvent, SubscriptionChannel, SubscriptionUser
+from bot import constants
+from bot import config
+from bot.config import JamTrackEvent, SubscriptionChannel, SubscriptionObject, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
+from bot.tools import history as history_tools
 from bot.tracks import JamTrackHandler
 
 import sparks_tracks
@@ -27,48 +29,39 @@ def save_known_songs_to_disk(songs):
     response.raise_for_status()
 
     data = response.json()
-    # Generate timestamp in the required format (e.g., 2024-04-24T13.27.49)
     timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H.%M.%S')
     unique_id = hashlib.md5(timestamp.encode()).hexdigest()[:6]
 
-    # Generate the full filename based on the format (e.g., spark-tracks_2024-04-24T13.27.49Z_dcd7c.json)
     file_prefix = "spark-tracks"
     file_name = f"{file_prefix}_{timestamp}Z_{unique_id}.json"
     
-    # Ensure the folder exists, create if not
     folder_path = constants.LOCAL_JSON_FOLDER
     if not os.path.exists(folder_path):
-        os.makedirs(folder_path)  # Create the folder if it doesn't exist
+        os.makedirs(folder_path)
     
-    # Check the 3 most recent files in the folder
     json_files = sorted(
         [f for f in os.listdir(folder_path) if f.startswith("spark-tracks") and f.endswith(".json")],
         key=lambda x: os.path.getmtime(os.path.join(folder_path, x)),
         reverse=True
     )
 
-    # Load and compare the content of the most recent 3 files
     recent_files_content = [constants.load_json_from_file(os.path.join(folder_path, f)) for f in json_files[:3]]
 
     current_songs_data = [song['track']['sn'] for song in songs]
     current_tracks_data = songs
 
-    # Convert current data to JSON for comparison
     current_songs_json = json.dumps(current_songs_data, sort_keys=True)
 
-    # Ensure the master file (known_tracks.json or known_songs.json) is updated
     known_tracks_file_path = constants.SONGS_FILE
     known_songs_file_path = constants.SHORTNAME_FILE
     
-    # Ensure the master file exists and create it if it doesn't
     if not os.path.exists(known_tracks_file_path):
         with open(known_tracks_file_path, 'w') as known_tracks_file:
-            json.dump([], known_tracks_file, indent=4)  # Write an empty list initially
+            json.dump([], known_tracks_file, indent=4)
     if not os.path.exists(known_songs_file_path):
         with open(known_songs_file_path, 'w') as known_songs_file:
-            json.dump([], known_songs_file, indent=4)  # Write an empty list initially
+            json.dump([], known_songs_file, indent=4)
 
-    # Always update the root known_tracks.json (for full songs) or known_songs.json (for shortnames)
     with open(known_tracks_file_path, 'w') as known_tracks_file:
         json.dump(current_tracks_data, known_tracks_file, indent=4)
     logging.info(f"Updated: {known_tracks_file_path}")
@@ -77,13 +70,11 @@ def save_known_songs_to_disk(songs):
         json.dump(current_songs_data, known_songs_file, indent=4)
     logging.info(f"Updated: {known_songs_file_path}")
 
-    # Check if any of the 3 most recent files match the current data
     for content in recent_files_content:
         if json.dumps(content, sort_keys=True) == json.dumps(data, sort_keys=True):
             logging.info(f"No new sparks-tracks.json changes to save. Matches {file_name}.")
-            return  # Exit without saving if there's a match
+            return
 
-    # Save the new JSON file if no match was found
     file_path = os.path.join(folder_path, file_name)
     with open(file_path, 'w') as file:
         json.dump(data, file, indent=4)
@@ -176,21 +167,17 @@ class HistoryHandler():
         """
         this function now returns only a List[Tuple(Embed, File)]
         """
-        # Decrypt old .dat to .midi
         old_midi_file = self.midi_handler.decrypt_dat_file(old_url, session_hash)
 
-        # Decrypt new .dat to .midi
         new_midi_file = self.midi_handler.decrypt_dat_file(new_url, session_hash)
 
         if old_midi_file and new_midi_file:
-            # Copy both MIDI files to the out folder for further processing
             old_midi_out_path = os.path.join(constants.TEMP_FOLDER, f"{track_name}_old_{session_hash}.mid")
             new_midi_out_path = os.path.join(constants.TEMP_FOLDER, f"{track_name}_new_{session_hash}.mid")
 
             shutil.copy(old_midi_file, old_midi_out_path)
             shutil.copy(new_midi_file, new_midi_out_path)
 
-            # Run the comparison command and wait for it to finish
             comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash]
             result = subprocess.run(comparison_command, capture_output=True, text=True)
             # Check the output for errors, just in case
@@ -239,13 +226,11 @@ class HistoryHandler():
         session_hash = constants.generate_session_hash(user_id, song)
         logging.debug(f"Generated session hash: {session_hash} for user: {user_id}")
 
-        # Fetch track data from the API
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
             await interaction.response.send_message(content="Could not fetch tracks.")
             return
 
-        # Perform fuzzy search to find the matching song
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
             logging.error(f"No tracks found matching {song}.")
@@ -260,7 +245,6 @@ class HistoryHandler():
         actual_title = track_data['track'].get('tt', 'Unknown Title')
         actual_artist = track_data['track'].get('an', 'Unknown Artist')
 
-        # Fetch the local revision history of the song
         json_files = self.fetch_local_history()
         if not json_files:
             await interaction.edit_original_response(content=f"No local history files found.")
@@ -336,13 +320,11 @@ class HistoryHandler():
         session_hash = constants.generate_session_hash(user_id, song)
         logging.info(f"Generated session hash: {session_hash} for user: {user_id}")
 
-        # Fetch track data from the API
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
             await interaction.response.send_message(content="Could not fetch tracks.")
             return
 
-        # Perform fuzzy search to find the matching song
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
             logging.error(f"No tracks found matching {song}.")
@@ -357,7 +339,6 @@ class HistoryHandler():
         actual_title = track_data['track'].get('tt', 'Unknown Title')
         actual_artist = track_data['track'].get('an', 'Unknown Artist')
 
-        # Fetch the local revision history of the song
         json_files = self.fetch_local_history()
         if not json_files:
             await interaction.edit_original_response(content=f"No local history files found.")
@@ -434,6 +415,8 @@ class LoopCheckHandler():
         logging.debug("Applying activity...")
         await self.bot.change_presence(activity=activity, status=discord.Status.online)
 
+        logging.debug("Activity Applied")
+
     async def handle_task(self):
         if not self.bot.config:
             logging.warning(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
@@ -445,42 +428,18 @@ class LoopCheckHandler():
             logging.error('Could not fetch tracks.')
             return
 
-        # Remove duplicates from self.bot.config.channels and self.bot.config.users
-        def remove_duplicates_by_id(items):
-            logging.debug("Attempting to remove duplicates...")
-            seen_ids = set()
-            unique_items = []
-            for item in items:
-                if item.id not in seen_ids:
-                    seen_ids.add(item.id)
-                    unique_items.append(item)
-            return unique_items
-
-        # Clean up duplicates and save the config if changes were made
-        original_channel_count = len(self.bot.config.channels)
-        original_user_count = len(self.bot.config.users)
-
-        self.bot.config.channels = remove_duplicates_by_id(self.bot.config.channels)
-        self.bot.config.users = remove_duplicates_by_id(self.bot.config.users)
-
-        if len(self.bot.config.channels) != original_channel_count or len(self.bot.config.users) != original_user_count:
-            logging.warning("Duplicates found in config; cleaning up and saving.")
-            self.bot.config.save_config()
-
-        session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)  # Unique session identifier
+        session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
 
         logging.info("Checking for new songs...")
 
-        # Run sparks_tracks.py alongside this script
         try:
             sparks_tracks.main()
             logging.debug("Running sparks_tracks.py")
         except Exception as e:
             logging.error(f"Failed to run sparks_tracks.py", exc_info=e)
 
-        # Dynamically reload known tracks and shortnames from disk each time the task runs
-        known_tracks = load_known_songs_from_disk()  # Reload known_tracks.json
-        known_shortnames = load_known_songs_from_disk(shortnames=True)  # Reload known_songs.json
+        known_tracks = load_known_songs_from_disk()
+        known_shortnames = load_known_songs_from_disk(shortnames=True)
 
         save_known_songs_to_disk(tracks)
 
@@ -492,7 +451,6 @@ class LoopCheckHandler():
 
         removed_songs = []
 
-        # Check for removed songs
         for shortname, known_track in known_tracks_dict.items():
             if shortname not in current_tracks_dict:
                 removed_songs.append(known_track)
@@ -505,10 +463,9 @@ class LoopCheckHandler():
                 if current_track != known_track:
                     modified_songs.append((known_track, current_track))
 
-        combined_channels: List[Union[SubscriptionChannel, SubscriptionUser]] = self.bot.config.channels + self.bot.config.users
+        bot_config: config.Config = self.bot.config
 
-        already_sent_to = []
-        duplicates = []
+        combined_channels: list[SubscriptionObject] = await bot_config.get_all()
 
         session_hashes_all = [session_hash]
 
@@ -519,10 +476,10 @@ class LoopCheckHandler():
             session_hashes_all.append(session_hash)
             old_url = old_song['track'].get('mu', '')
             new_url = new_song['track'].get('mu', '')
-            track_name = new_song['track']['tt']  # Get track name for the embed
-            short_name = new_song['track']['sn']  # Get track name for the embed
-            artist_name = new_song['track']['an']  # Get track name for the embed
-            album_art_url = new_song['track']['au']  # Get track name for the embed
+            track_name = new_song['track']['tt']
+            short_name = new_song['track']['sn']
+            artist_name = new_song['track']['an']
+            album_art_url = new_song['track']['au']
             last_modified_old = old_song.get('lastModified', None)
             last_modified_new = new_song.get('lastModified', None)
             local_midi_file_old = self.midi_tools.download_and_archive_midi_file(old_url, short_name)
@@ -535,7 +492,6 @@ class LoopCheckHandler():
                 logging.info(f"Old: {local_midi_file_old}")
                 logging.info(f"New: {local_midi_file_new}")
 
-                # Pass the track name to the process_chart_url_change function
                 logging.debug(f"Running process_chart_url_change for {local_midi_file_old} and {local_midi_file_new}")
                 embed_list_diff = await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash) # this makes me dizzy lol
 
@@ -544,14 +500,6 @@ class LoopCheckHandler():
             modified_songs_data.append((embed, embed_list_diff))
 
         for channel_to_send in combined_channels:
-            # check for duplicates
-            if channel_to_send.id in already_sent_to:
-                logging.warning(f'DUPLICATE DETECTED: {channel_to_send.id}')
-                duplicates.append(channel_to_send.id)
-                continue
-            else:
-                already_sent_to.append(channel_to_send.id)
-
             if channel_to_send.type == 'channel':
                 channel = self.bot.get_channel(channel_to_send.id)
             elif channel_to_send.type == 'user':
@@ -560,11 +508,11 @@ class LoopCheckHandler():
                 channel = None
 
             if not channel:
-                logging.error(f"Channel with ID {channel_to_send.id} not found.")
+                logging.error(f"{channel_to_send.type.capitalize()} with ID {channel_to_send.id} not found.")
                 continue
 
             content = ""
-            if channel_to_send.roles:
+            if isinstance(channel_to_send, SubscriptionChannel):
                 role_pings = []
                 for role in channel_to_send.roles:
                     role_pings.append(f"<@&{role}>")
@@ -615,12 +563,6 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
                 save_known_songs_to_disk(tracks)
-
-        if len(duplicates) > 0:
-            logging.warning('Duplicates detected!')
-            for i in range(10):
-                logging.warning('Please check!')
-            logging.warning('Duplicates: ' + ', '.join([str(_id) for _id in duplicates]))
 
         logging.info(f"Done checking for new songs: New: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
 

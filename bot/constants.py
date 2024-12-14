@@ -1,3 +1,4 @@
+from configparser import ConfigParser
 import enum
 import hashlib
 import json
@@ -23,6 +24,14 @@ if not os.path.exists(TEMP_FOLDER):
 BACKUP_FOLDER = 'backups/'
 if not os.path.exists(BACKUP_FOLDER):
     os.makedirs(BACKUP_FOLDER)
+
+config = ConfigParser()
+config.read('config.ini')
+BOT_OWNERS: list[int] = [int(uid) for uid in config.get('bot', 'bot_owners', fallback="").split(', ')]
+TEST_GUILD: int = int(config.get('bot', 'testing_guild'))
+ERR_CHANNEL: int = int(config.get('bot', 'error_channel'))
+LOG_CHANNEL: int = int(config.get('bot', 'event_channel'))
+SUG_CHANNEL: int = int(config.get('bot', 'suggest_channel'))
 
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
@@ -194,6 +203,51 @@ class LastButton(discord.ui.Button):
         view.update_buttons()
         await interaction.response.edit_message(embed=embed, view=view)
 
+class OneButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: OneButtonSimpleView = self.view
+        if interaction.user.id != self.user_id and view.restrict:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        view.add_buttons()
+        if view.on_press:
+            await view.on_press()
+        await interaction.response.defer()
+
+class OneButtonSimpleView(discord.ui.View):
+    def __init__(self, on_press, user_id, label = "No label", emoji = "🔁", link = None, restrict_only_to_creator = True):
+        super().__init__(timeout=30)  # No timeout for the view
+        self.on_press = on_press
+        self.user_id = user_id
+        self.label_text = label
+        self.btn_emoji = emoji
+        self.message : discord.Message
+        self.link = link
+        self.restrict = restrict_only_to_creator
+        self.add_buttons()
+
+    def add_buttons(self):
+        self.clear_items()
+        
+        self.add_item(OneButton(user_id=self.user_id, style=discord.ButtonStyle.primary, label=self.label_text, disabled=False, emoji=self.btn_emoji, url=self.link))
+
+    async def on_timeout(self):
+        if self.link != None:
+            return
+
+        try:
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(view=self)
+        except discord.NotFound:
+            logging.error("Message was not found when trying to edit after timeout.")
+        except Exception as e:
+            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
+
 class Instrument:
     def __init__(self, english:str = "Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True) -> None:
         """Creates an instrument, for easier internal handling.
@@ -295,19 +349,16 @@ def generate_difficulty_string(difficulty_data):
     )
 
 def generate_difficulty_bar(difficulty, max_blocks=7):
-    # Map difficulty from a 0-6 range to a 1-7 range
-    scaled_difficulty = difficulty + 1  # Convert 0-6 range to 1-7
+    scaled_difficulty = difficulty + 1
     filled_blocks = '■' * scaled_difficulty
     empty_blocks = '□' * (max_blocks - scaled_difficulty)
     return filled_blocks + empty_blocks
 
 def generate_session_hash(user_id, song_name):
-    """Generate a unique hash based on the user ID and song name, truncated to 8 numeric digits."""
     # Generate the md5 hash and convert it to an integer
     hash_int = int(hashlib.md5(f"{user_id}_{song_name}".encode()).hexdigest(), 16)
-    
-    # Modulo the integer to get an 8-digit number
-    return str(hash_int % 10**8).zfill(8)  # Ensure it is zero-padded to 8 digits
+
+    return str(hash_int % 10**8).zfill(8)
 
 def delete_session_files(session_hash):
     try:

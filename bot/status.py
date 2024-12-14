@@ -5,7 +5,7 @@ import logging
 
 import requests
 
-from bot import helpers
+from bot.constants import OneButtonSimpleView
 
 class StatusHandler():
     def __init__(self) -> None:
@@ -79,7 +79,7 @@ class StatusHandler():
             embed.add_field(name="Rating", value=rating)
             embed.set_image(url=island_data['squareImgSrc'])
 
-            view = helpers.OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="View More", link=f"https://fortnite.com{island_data['islandUrl']}", emoji=None)
+            view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="View More", link=f"https://fortnite.com{island_data['islandUrl']}", emoji=None)
             view.message = await interaction.original_response()
 
             await interaction.edit_original_response(embed=embed, view=view)
