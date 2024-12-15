@@ -49,9 +49,7 @@ class CustomFormatter(logging.Formatter):
             return string + (' ' * (intended_length - len(string)))
 
     def format(self, record):
-        # Combine filename and line number into one field with padding
         file_line = f'{record.filename}:{record.lineno}'
-        # Set a fixed width for the combined field (e.g., 30 characters)
         padded_file_line = self.set_fixed_size(file_line, 25)
 
         level_color = YELLOW
@@ -70,7 +68,6 @@ class CustomFormatter(logging.Formatter):
         if self.no_ansi:
             log_format = f"{self.formatTime(record, self.datefmt)} {padded_file_line} %(levelname)-8s %(message)s"
         
-        # Update the format dynamically for this record
         formatter = logging.Formatter(log_format, "%Y-%m-%d %H:%M:%S")
         return formatter.format(record)
 
@@ -83,6 +80,7 @@ def setup() -> logging.RootLogger:
         logging.getLogger('discord').setLevel(logging.INFO)
     logging.getLogger('urllib3').setLevel(logging.INFO)
     logging.getLogger('matplotlib').setLevel(logging.INFO)
+    logging.getLogger('aiosqlite').setLevel(logging.INFO)
 
     # Set ourselves as the VIP.
     logger.setLevel(logging.DEBUG)

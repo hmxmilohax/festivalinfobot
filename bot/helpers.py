@@ -7,8 +7,33 @@ import re
 import discord
 import requests
 from bot import constants
+from bot.constants import OneButtonSimpleView
 from discord.ext import commands
-from bot.embeds import SearchEmbedHandler, DailyCommandEmbedHandler
+from bot.embeds import SearchEmbedHandler
+
+class DailyCommandEmbedHandler():
+    def __init__(self) -> None:
+        pass
+
+    def create_daily_embeds(self, daily_tracks, chunk_size=3):
+        embeds = []
+        
+        for i in range(0, len(daily_tracks), chunk_size):
+            embed = discord.Embed(title="Weekly Rotation Tracks", color=0x8927A1)
+            chunk = daily_tracks[i:i + chunk_size]
+            
+            for entry in chunk:
+                active_until_display = discord.utils.format_dt(datetime.fromtimestamp(entry['activeUntil']), style="R") if entry['activeUntil'] else "Unknown"
+                
+                embed.add_field(
+                    name="",
+                    value=f"**\\• {entry['title']}** - *{entry['artist']}* - Leaving: {active_until_display}\n"
+                        f"```{entry['difficulty']}```\n",
+                    inline=False
+                )
+            embeds.append(embed)
+
+        return embeds
 
 class DailyCommandHandler:
     def __init__(self) -> None:
@@ -24,10 +49,8 @@ class DailyCommandHandler:
             client_events_data = channels.get('client-events', {})
             states = client_events_data.get('states', [])
 
-            # Current date with timezone awareness
             current_time = datetime.now(timezone.utc)
             
-            # Filter and sort the states by validFrom date
             valid_states = [state for state in states if datetime.fromisoformat(state['validFrom'].replace('Z', '+00:00')) <= current_time]
             valid_states.sort(key=lambda x: datetime.fromisoformat(x['validFrom'].replace('Z', '+00:00')), reverse=True)
 
@@ -35,7 +58,6 @@ class DailyCommandHandler:
                 logging.error("No valid states found")
                 return None
 
-            # Get the activeEvents from the most recent valid state
             active_events = valid_states[0].get('activeEvents', [])
 
             daily_tracks = {}
@@ -44,12 +66,10 @@ class DailyCommandHandler:
                 active_since = event.get('activeSince', '')
                 active_until = event.get('activeUntil', '')
 
-                # Convert dates to timezone-aware datetime objects
                 active_since_date = datetime.fromisoformat(active_since.replace('Z', '+00:00')) if active_since else None
                 active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00')) if active_until else None
 
                 if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
-                    # Check if the current date falls within the active period
                     if active_since_date <= current_time <= active_until_date:
                         shortname = event_type.replace('PilgrimSong.', '')
                         daily_tracks[shortname] = {
@@ -297,55 +317,12 @@ class TracklistHandler:
             if re.search(regex_pattern, queried):
                 matching_songs.append(track)
 
-        embeds = self.search_embed_handler.create_track_embeds(matching_songs, f"Matched tracklist result\nRegex: `{regex}`\nQuery: `{matched}`\nTotal: {len(matching_songs)}")
-        
-        view = constants.PaginatorView(embeds, interaction.user.id)
-        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-
-class OneButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        view: OneButtonSimpleView = self.view
-        if interaction.user.id != self.user_id and view.restrict:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view.add_buttons()
-        if view.on_press:
-            await view.on_press()
-        await interaction.response.defer()
-
-class OneButtonSimpleView(discord.ui.View):
-    def __init__(self, on_press, user_id, label = "No label", emoji = "🔁", link = None, restrict_only_to_creator = True):
-        super().__init__(timeout=30)  # No timeout for the view
-        self.on_press = on_press
-        self.user_id = user_id
-        self.label_text = label
-        self.btn_emoji = emoji
-        self.message : discord.Message
-        self.link = link
-        self.restrict = restrict_only_to_creator
-        self.add_buttons()
-
-    def add_buttons(self):
-        self.clear_items()
-        
-        self.add_item(OneButton(user_id=self.user_id, style=discord.ButtonStyle.primary, label=self.label_text, disabled=False, emoji=self.btn_emoji, url=self.link))
-
-    async def on_timeout(self):
-        if self.link != None:
-            return
-
-        try:
-            for item in self.children:
-                item.disabled = True
-            await self.message.edit(view=self)
-        except discord.NotFound:
-            logging.error("Message was not found when trying to edit after timeout.")
-        except Exception as e:
-            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
+        if len(matching_songs) > 0:
+            embeds = self.search_embed_handler.create_track_embeds(matching_songs, f"Matched tracklist result\nRegex: `{regex}`\nQuery: `{matched}`\nTotal: {len(matching_songs)}")    
+            view = constants.PaginatorView(embeds, interaction.user.id)
+            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+        else:
+            await interaction.edit_original_response(content="There were no results! Try another pattern.")
 
 class GamblingHandler:
     def __init__(self) -> None:

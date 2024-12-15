@@ -2,6 +2,7 @@ import asyncio
 import difflib
 import logging
 from datetime import datetime
+import os
 import time
 from typing import Union
 from discord.ext import commands, tasks
@@ -9,24 +10,30 @@ import discord
 from discord import app_commands
 from configparser import ConfigParser
 
+from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
-from bot.festrpc import FestRPCCog
-from bot.fortnitecog import FortniteCog
-from bot.log import setup as setup_log
-from bot.admin import AdminCog, TestCog
+from bot.groups.festrpc import FestRPCCog
+from bot.groups.fortnitecog import FortniteCog
+from bot.tools.log import setup as setup_log
+from bot.groups.admin import AdminCog, TestCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
-from bot.randomcog import RandomCog
-from bot.subcog import SubscriptionCog
-from bot.suggestions import SuggestionModal
+from bot.groups.randomcog import RandomCog
+from bot.groups.subcog import SubscriptionCog
+from bot.groups.suggestions import SuggestionModal
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, OneButtonSimpleView, ShopCommandHandler, TracklistHandler
+from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.graph import GraphCommandsHandler
+
+import traceback
 
 class FestivalInfoBot(commands.Bot):
     async def on_ready(self):
+        logging.info("Creating Database Connection...")
+        await self.config.initialize()
+
         # Setup all the subscription commands
         logging.debug("Setting up admin commands...")
         # Apparently this works, dont know why but
@@ -60,6 +67,7 @@ class FestivalInfoBot(commands.Bot):
 
         logging.debug("Syncing slash command tree...")
         await self.tree.sync()
+        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
 
         logging.debug(f"Registering background task every {self.CHECK_FOR_SONGS_INTERVAL}min")
         @tasks.loop(minutes=self.CHECK_FOR_SONGS_INTERVAL)
@@ -72,6 +80,7 @@ class FestivalInfoBot(commands.Bot):
         @tasks.loop(minutes=2.5)
         async def activity_task():
             await self.check_handler.handle_activity_task()
+            
 
         @activity_task.before_loop
         async def wait_thing(): 
@@ -90,13 +99,8 @@ class FestivalInfoBot(commands.Bot):
         config = ConfigParser()
         config.read('config.ini')
 
-        self.config : Config = None
-        self.suggestions_enabled = False
-
-        def reload_config():
-           self.config = Config(config_file="channels.json", reload_callback=reload_config) 
-
-        reload_config()
+        self.config : Config = Config()
+        self.suggestions_enabled = True
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -132,9 +136,43 @@ class FestivalInfoBot(commands.Bot):
         self.graph_handler = GraphCommandsHandler()
 
         self.setup_commands()
+
+        self.tree.on_error = self.custom_on_error
         # self.setup_subscribe_commands()
 
         self.run(DISCORD_TOKEN, log_handler=None)
+
+    # CUSTOM ERROR HANDLER
+    async def custom_on_error(self, interaction: discord.Interaction, error: Exception):
+        command = interaction.command
+
+        try:
+            exc_text = f"Exception caught\n- Time: {discord.utils.format_dt(datetime.now(), 'F')}"
+            if command:
+                exc_text += f'\n- Command: /{command.qualified_name}'
+            onetry = ''.join(traceback.format_exception(error))
+
+            await self.get_channel(constants.ERR_CHANNEL).send(content=exc_text)
+            await self.get_channel(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
+
+            try:
+                if interaction.response.is_done():
+                    await interaction.edit_original_response(content=f"An error has occurred! Don't worry though, it has been reported.\n`{str(error)}`")
+                else:
+                    await interaction.response.send_message(content=f"An error has occurred! Don't worry though, it has been reported!\n`{str(error)}`", ephemeral=True)
+            except Exception as e:
+                logging.critical(exc_info=e)
+
+        except Exception as e:
+            logging.critical('We were not able to log the exception, we\'re truly cooked.', exc_info=e)
+
+        if command is not None:
+            if command._has_any_error_handlers():
+                return
+
+            logging.error('Ignoring exception in command %r', command.name, exc_info=error)
+        else:
+            logging.error('Ignoring exception in command tree', exc_info=error)
 
     def setup_commands(self):
 
@@ -334,7 +372,7 @@ class FestivalInfoBot(commands.Bot):
             embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
             embed.add_field(name="Channels", value=f"{channel_count} channels", inline=True)
             embed.add_field(name="Users", value=f"{users_count} users", inline=True)
-            embed.add_field(name="Subscriptions", value=f"{len(self.config.users)} users, {len(self.config.channels)} channels", inline=True)
+            embed.add_field(name="Subscriptions", value=f"{len(await self.config._users())} users, {len(await self.config._channels())} channels", inline=True)
             embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
             embed.add_field(name="Up Since", value=f"{discord.utils.format_dt(datetime.fromtimestamp(self.start_time), 'R')}", inline=True)
             embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
@@ -356,6 +394,9 @@ class FestivalInfoBot(commands.Bot):
             commands = []
 
             for _command in self.tree.get_commands():
+                if _command.name == 'test':
+                    continue
+
                 # Define a recursive function to traverse commands and subcommands
                 def recurse_inner(c: Union[app_commands.Command, app_commands.Group]):
                     if isinstance(c, app_commands.Group):
@@ -493,7 +534,7 @@ class FestivalInfoBot(commands.Bot):
 
     async def setup_cogs(self):
         admin_cog = AdminCog(self)
-        await self.add_cog(admin_cog)
+        self.tree.add_command(admin_cog.admin_group)
 
         test_cog = TestCog(self)
         await self.add_cog(test_cog)
