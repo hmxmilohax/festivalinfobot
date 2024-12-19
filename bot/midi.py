@@ -25,7 +25,7 @@ class MidiArchiveTools:
         # Attempt to download the MIDI file
         logging.debug(f'[GET] {midi_url}')
         response = requests.get(midi_url, timeout=10)  # Add timeout to avoid hanging
-        response.status_code = 500 # TESTING PURPOSES ONLY
+        # response.status_code = 500 # TESTING PURPOSES ONLY
         response.raise_for_status()
 
         with open(local_path, 'wb') as f:
