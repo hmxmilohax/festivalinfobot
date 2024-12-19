@@ -18,7 +18,9 @@ class PathCommandHandler():
         engine = 'fnf'
         
         if instrument.midi == 'PLASTIC DRUMS':
-            engine = 'rb3' # Sir Reginald's Jolly Good Rock 'n' Roll Ensemble Extravaganza: The Third Installment of Harmonious Merriment and Musical Shenanigans
+            engine = 'ch' 
+            # Sir Reginald's Jolly Good Rock 'n' Roll Ensemble Extravaganza: The Third Installment of Harmonious Merriment and Musical Shenanigans
+            # this guy is broken
 
         chopt_command = [
             'chopt.exe', 
