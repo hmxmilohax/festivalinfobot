@@ -57,6 +57,7 @@ class FestivalInfoBot(commands.Bot):
         async def analytics():
             await self.analytics_task()
 
+        self.analytic_loop = analytics
         self.activity_task = activity_task
 
         logging.debug("setup_hook finished!")
@@ -96,6 +97,9 @@ class FestivalInfoBot(commands.Bot):
     
         if not self.activity_task.is_running():
             self.activity_task.start()
+
+        if not self.analytic_loop.is_running():
+            self.analytic_loop.start()
 
         logging.debug("on_ready finished!")
 
