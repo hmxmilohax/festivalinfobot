@@ -81,7 +81,7 @@ def already_downloaded(commit_timestamp):
 
 def main():
     commit_history = get_commit_history()
-    logging.info(f"Updating local repo of spark-tracks jsons")
+    
     
     for commit in commit_history:
         commit_sha = commit["sha"]

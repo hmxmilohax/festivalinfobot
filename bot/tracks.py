@@ -106,6 +106,7 @@ class SearchCommandHandler:
 
         except TimeoutError:
             await interaction.edit_original_response(content="You didn't respond in time. Search cancelled.")
+            return None, None
 
     def format_date(self, date_string):
         if date_string:

@@ -1,4 +1,5 @@
 from configparser import ConfigParser
+from datetime import datetime
 import enum
 import hashlib
 import json
@@ -32,6 +33,7 @@ TEST_GUILD: int = int(config.get('bot', 'testing_guild'))
 ERR_CHANNEL: int = int(config.get('bot', 'error_channel'))
 LOG_CHANNEL: int = int(config.get('bot', 'event_channel'))
 SUG_CHANNEL: int = int(config.get('bot', 'suggest_channel'))
+ANALYTICS_CHANNEL: int = int(config.get('bot', 'analytics_channel'))
 
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
@@ -92,6 +94,29 @@ EXTRA_COMPARISONS = {
     '_locale': 'Locale',
     '_templateName': 'Template Name'
 }
+
+class Analytic:
+    def __init__(self, interaction: discord.Interaction):
+        self.guild_name: str = interaction.guild.name
+        self.guild_id: int = interaction.guild.id
+        self.command_name: str = None
+        if interaction.command:
+            self.command_name = interaction.command.qualified_name
+        self.guild_member_count: int = interaction.guild.member_count
+        self.interaction_language: str = interaction.locale
+        self.interaction_data: dict = interaction.data
+        self.time: datetime = interaction.created_at
+
+    def __str__(self) -> str:
+        return f"""
+        Guild Name: {self.guild_name}
+        Guild ID: {self.guild_id}
+        Command Name: {self.command_name}
+        Guild Member Count: {self.guild_member_count}
+        Interaction Language: {self.interaction_language}
+        Interaction Data: {self.interaction_data}
+        Time: {self.time}
+        """
 
 class PaginatorView(discord.ui.View):
     def __init__(self, embeds, user_id):
@@ -214,9 +239,9 @@ class OneButton(discord.ui.Button):
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view.add_buttons()
+        await interaction.response.defer()
         if view.on_press:
             await view.on_press()
-        await interaction.response.defer()
 
 class OneButtonSimpleView(discord.ui.View):
     def __init__(self, on_press, user_id, label = "No label", emoji = "🔁", link = None, restrict_only_to_creator = True):
