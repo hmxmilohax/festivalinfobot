@@ -1,10 +1,10 @@
 import asyncio
 import difflib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import time
-from typing import Union
+from typing import Optional, Union
 from discord.ext import commands, tasks
 import discord
 from discord import app_commands
@@ -30,16 +30,38 @@ from bot.graph import GraphCommandsHandler
 import traceback
 
 class FestivalInfoBot(commands.Bot):
-    async def on_ready(self):
-        logging.info("Creating Database Connection...")
+    async def setup_hook(self):
+        logging.info("Creating SQLite connection...")
         await self.config.initialize()
 
         # Setup all the subscription commands
-        logging.debug("Setting up admin commands...")
+        logging.debug("Setting up subcommands and groups...")
         # Apparently this works, dont know why but
         # it is possible to await this function here
         await self.setup_cogs()
-        
+
+        logging.debug(f"Registering new songs loop every {self.CHECK_FOR_SONGS_INTERVAL}min")
+        @tasks.loop(minutes=self.CHECK_FOR_SONGS_INTERVAL)
+        async def check_for_new_songs():
+            await self.check_handler.handle_task()
+
+        self.check_new_songs_task = check_for_new_songs
+
+        logging.debug(f"Registering activity loop every 2m30s")
+        @tasks.loop(minutes=2.5)
+        async def activity_task():
+            await self.check_handler.handle_activity_task()
+
+        logging.debug(f"Registering analytics loop every 1h")
+        @tasks.loop(hours=1)
+        async def analytics():
+            await self.analytics_task()
+
+        self.activity_task = activity_task
+
+        logging.debug("setup_hook finished!")
+
+    async def on_ready(self):
         logging.info(f'Logged in as {self.user.name}')
 
         logging.info("Bot going active on:")
@@ -69,28 +91,13 @@ class FestivalInfoBot(commands.Bot):
         await self.tree.sync()
         await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
 
-        logging.debug(f"Registering background task every {self.CHECK_FOR_SONGS_INTERVAL}min")
-        @tasks.loop(minutes=self.CHECK_FOR_SONGS_INTERVAL)
-        async def check_for_new_songs():
-            await self.check_handler.handle_task()
+        if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
+            self.check_new_songs_task.start()
+    
+        if not self.activity_task.is_running():
+            self.activity_task.start()
 
-        if self.CHECK_FOR_NEW_SONGS:
-            check_for_new_songs.start()
-
-        @tasks.loop(minutes=2.5)
-        async def activity_task():
-            await self.check_handler.handle_activity_task()
-            
-
-        @activity_task.before_loop
-        async def wait_thing(): 
-            # This prewents the task from running before the bot can finish logging in
-            # Was recommended to do this by StackOverflow
-            await self.wait_until_ready()
-
-        activity_task.start()
-
-        logging.info("Bot is now running!")
+        logging.debug("on_ready finished!")
 
     def __init__(self):
         # Load configuration from config.ini
@@ -113,6 +120,7 @@ class FestivalInfoBot(commands.Bot):
         self.CHART_COMPARING_ALLOWED = config.getboolean('bot', 'chart_comparing', fallback=True)
 
         self.start_time = time.time()
+        self.analytics: list[constants.Analytic] = []
 
         # Set up Discord bot with necessary intents
         intents = discord.Intents.default()
@@ -141,6 +149,18 @@ class FestivalInfoBot(commands.Bot):
         # self.setup_subscribe_commands()
 
         self.run(DISCORD_TOKEN, log_handler=None)
+
+    async def on_guild_join(self, guild: discord.Guild):
+        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+
+    async def on_guild_remove(self, guild: discord.Guild):
+        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+
+    async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
+        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {interaction.guild.name} (`{interaction.guild.id}`)")
+
+        analytic = constants.Analytic(interaction)
+        self.analytics.append(analytic)
 
     # CUSTOM ERROR HANDLER
     async def custom_on_error(self, interaction: discord.Interaction, error: Exception):
@@ -576,5 +596,46 @@ class FestivalInfoBot(commands.Bot):
                 return found
 
         return found
+    
+    async def analytics_task(self):
+        text = "This past hour, the following commands have been ran:\n"
+        all_commands_ran = []
+        for analytic in self.analytics:
+            if all_commands_ran.count(analytic.command_name) == 0:
+                all_commands_ran.append(analytic.command_name)
+                analytics_same_name = list(filter(lambda a: a.command_name == analytic.command_name, self.analytics))
+                text += f"- `/{analytic.command_name}`: {len(analytics_same_name)} times\n"
+
+        await self.get_channel(constants.ANALYTICS_CHANNEL).send(text)
+
+        guild_rank = "Guilds ranked by commands\n"
+        analytics = self.analytics
+        guilds = []
+        for analytic in analytics:
+            if not any(g[0] == analytic.guild_id for g in guilds):
+                guilds.append((analytic.guild_id, len(list(filter(lambda a: a.guild_id == analytic.guild_id, analytics)))))
+
+        guilds.sort(key=lambda g: g[1], reverse=True)
+        for i, guild in enumerate(guilds[:10]):
+            guild_rank += f"{i+1}. {self.get_guild(guild[0]).name} (`{guild[0]}`): {guild[1]} commands\n"
+
+        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
+
+        member_counts = []
+        for analytic in analytics:
+            if not any(g[0] == analytic.guild_id for g in member_counts):
+                member_counts.append((analytic.guild_id, analytic.guild_member_count))
+
+        member_counts.sort(key=lambda g: g[1], reverse=True)
+        guilds = [self.get_guild(g[0]) for g in member_counts]
+        guild_members = "Guilds ranked by members:\n"
+        for i, guild in enumerate(guilds[:10]):
+            guild_members += f"{i+1}. {guild.name} (`{guild.id}`): {guild.member_count} members\n"
+
+        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_members)
+
+        logging.info("Cleared analytics list.")
+
+        self.analytics = []
 
 bot = FestivalInfoBot()

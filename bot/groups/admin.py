@@ -540,3 +540,28 @@ class TestCog(commands.Cog):
             await msg.reply(mention_author=False, content=f"{len(failed)} channels have been deleted")
         except TimeoutError:
             pass
+
+    @test_group.command(name="force_analytics", description="Force analytics to run")
+    async def force_analytics(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        await self.bot.analytics_task()
+        await interaction.edit_original_response(content="Analytics have been run.")
+
+    @test_group.command(name="server_list_csv", description="Get all guilds joined as a csv attachment")
+    async def server_list_csv(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+
+        guilds = self.bot.guilds
+        csv = "ID,Name,Member Count\n"
+        for guild in guilds:
+            csv += f"{guild.id},{guild.name},{guild.member_count}\n"
+
+        await interaction.edit_original_response(content="", attachments=[discord.File(io.StringIO(csv), "servers.csv")])

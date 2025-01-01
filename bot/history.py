@@ -22,7 +22,7 @@ from bot.tracks import JamTrackHandler
 
 import sparks_tracks
 
-def save_known_songs_to_disk(songs):
+def save_known_songs(songs):
     # Fetch jam tracks using the API call
     logging.debug(f'[GET] {constants.CONTENT_API}')
     response = requests.get(constants.CONTENT_API)
@@ -64,15 +64,12 @@ def save_known_songs_to_disk(songs):
 
     with open(known_tracks_file_path, 'w') as known_tracks_file:
         json.dump(current_tracks_data, known_tracks_file, indent=4)
-    logging.info(f"Updated: {known_tracks_file_path}")
 
     with open(known_songs_file_path, 'w') as known_songs_file:
         json.dump(current_songs_data, known_songs_file, indent=4)
-    logging.info(f"Updated: {known_songs_file_path}")
 
     for content in recent_files_content:
         if json.dumps(content, sort_keys=True) == json.dumps(data, sort_keys=True):
-            logging.info(f"No new sparks-tracks.json changes to save. Matches {file_name}.")
             return
 
     file_path = os.path.join(folder_path, file_name)
@@ -80,7 +77,7 @@ def save_known_songs_to_disk(songs):
         json.dump(data, file, indent=4)
     logging.info(f"New file saved as {file_name}")
 
-def load_known_songs_from_disk(shortnames:bool = False):
+def load_known_songs(shortnames:bool = False):
     path = constants.SONGS_FILE if not shortnames else constants.SHORTNAME_FILE
     if os.path.exists(path):
         with open(path, 'r', encoding="utf-8") as file:
@@ -404,24 +401,17 @@ class LoopCheckHandler():
 
         servers = random.choice([True, False])
 
-        logging.debug("Creating activity...")
         activity = discord.Activity(
             type=discord.ActivityType.watching if servers else discord.ActivityType.playing,
             name=f"{len(self.bot.guilds)} servers" if servers else f"{num_tracks} Jam Tracks",
             state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']} | /help",
         )
 
-        # Apply the activity
-        logging.debug("Applying activity...")
         await self.bot.change_presence(activity=activity, status=discord.Status.online)
 
-        logging.debug("Activity Applied")
+        logging.info("Presence updated successfully.")
 
     async def handle_task(self):
-        if not self.bot.config:
-            logging.warning(f"No config provided; skipping the {self.bot.CHECK_FOR_SONGS_INTERVAL}-minute probe.")
-            return
-        
         tracks = self.jam_track_handler.get_jam_tracks()
 
         if not tracks:
@@ -434,21 +424,19 @@ class LoopCheckHandler():
 
         try:
             sparks_tracks.main()
-            logging.debug("Running sparks_tracks.py")
         except Exception as e:
-            logging.error(f"Failed to run sparks_tracks.py", exc_info=e)
+            logging.error(f"Failed to use the spark_tracks.py module", exc_info=e)
 
-        known_tracks = load_known_songs_from_disk()
-        known_shortnames = load_known_songs_from_disk(shortnames=True)
+        known_tracks = load_known_songs()
+        known_shortnames = load_known_songs(shortnames=True)
 
-        save_known_songs_to_disk(tracks)
+        save_known_songs(tracks)
 
         current_tracks_dict = {track['track']['sn']: track for track in tracks}
         known_tracks_dict = {track['track']['sn']: track for track in known_tracks}
 
         new_songs = []
         modified_songs = []
-
         removed_songs = []
 
         for shortname, known_track in known_tracks_dict.items():
@@ -466,6 +454,11 @@ class LoopCheckHandler():
         bot_config: config.Config = self.bot.config
 
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
+
+        start = datetime.now()
+
+        if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels a total of {(len(new_songs) + len(modified_songs) + len(removed_songs)) * len(combined_channels)} messages")
 
         session_hashes_all = [session_hash]
 
@@ -519,7 +512,7 @@ class LoopCheckHandler():
                 content = " ".join(role_pings)
 
             if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
-                logging.info(f"New songs detected!")
+                logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
                     try:
@@ -527,13 +520,12 @@ class LoopCheckHandler():
                         if isinstance(channel, discord.TextChannel):
                             if channel.is_news():
                                 await message.publish()
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.5)
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
-                save_known_songs_to_disk(tracks)
 
             if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
-                logging.info(f"Removed songs detected!")
+                logging.info(f"Removed songs sending to channel {channel.id}")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
                     try:
@@ -541,13 +533,12 @@ class LoopCheckHandler():
                         if isinstance(channel, discord.TextChannel):
                             if channel.is_news():
                                 await message.publish()
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.5)
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
-                save_known_songs_to_disk(tracks)
 
             if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
-                logging.info(f"Modified songs detected!")
+                logging.info(f"Modified songs sending to channel {channel.id}")
                 
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:
 
@@ -559,12 +550,14 @@ class LoopCheckHandler():
                         if isinstance(channel, discord.TextChannel):
                             if channel.is_news():
                                 await message.publish()
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.5)
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
-                save_known_songs_to_disk(tracks)
 
         logging.info(f"Done checking for new songs: New: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
+
+        if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending completed for {len(combined_channels)} channels! Took {(datetime.now() - start).seconds}s")
 
         for _hash in session_hashes_all:
             constants.delete_session_files(str(_hash))
