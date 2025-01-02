@@ -14,6 +14,7 @@ from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
 from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
+from bot.linking import AccountLinking
 from bot.tools.log import setup as setup_log
 from bot.groups.admin import AdminCog, TestCog
 from bot.config import Config
@@ -146,6 +147,7 @@ class FestivalInfoBot(commands.Bot):
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
         self.graph_handler = GraphCommandsHandler()
+        self.link_handler = AccountLinking(self)
 
         self.setup_commands()
 
@@ -555,6 +557,13 @@ class FestivalInfoBot(commands.Bot):
             await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
 
         self.tree.add_command(graph_group)
+
+        @self.tree.command(name="link", description="Link your Epic Games account to Festival Tracker.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def link_command(interaction: discord.Interaction):
+            print(interaction.user.avatar.url)
+            await self.link_handler.link_interaction(interaction=interaction)
 
     async def setup_cogs(self):
         admin_cog = AdminCog(self)

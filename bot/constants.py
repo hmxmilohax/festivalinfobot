@@ -35,6 +35,10 @@ LOG_CHANNEL: int = int(config.get('bot', 'event_channel'))
 SUG_CHANNEL: int = int(config.get('bot', 'suggest_channel'))
 ANALYTICS_CHANNEL: int = int(config.get('bot', 'analytics_channel'))
 
+SERVER_URL: str = config.get('bot', 'server_url')
+BOT_TOKEN: str = config.get('bot', 'bot_token')
+APP_TOKEN: str = config.get('bot', 'application_basic_auth')
+
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
@@ -262,6 +266,53 @@ class OneButtonSimpleView(discord.ui.View):
 
     async def on_timeout(self):
         if self.link != None:
+            return
+
+        try:
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(view=self)
+        except discord.NotFound:
+            logging.error("Message was not found when trying to edit after timeout.")
+        except Exception as e:
+            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
+
+class TwoButton(discord.ui.Button):
+    def __init__(self, onpress, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        self.onpress = onpress
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: TwoButtonSimpleView = self.view
+        if interaction.user.id != self.user_id and view.restrict:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        view.add_buttons()
+        await interaction.response.defer()
+        if self.onpress:
+            await self.onpress()
+
+class TwoButtonSimpleView(discord.ui.View):
+    def __init__(self, onpress1 = None, onpress2 = None, user_id = None, label1 = "Unknown", label2 = "Unknown", emoji1 = "✅", emoji2 = "❌", link1 = None, link2 = None, restrict_only_to_creator = True):
+        super().__init__(timeout=30)
+        self.onpress = [onpress1, onpress2]
+        self.user_id = user_id
+        self.labels = [label1, label2]
+        self.btn_emojis = [emoji1, emoji2]
+        self.message : discord.Message
+        self.link = [link1, link2]
+        self.restrict = restrict_only_to_creator
+        self.add_buttons()
+
+    def add_buttons(self):
+        self.clear_items()
+        
+        self.add_item(TwoButton(onpress=self.onpress[0], user_id=self.user_id, style=discord.ButtonStyle.success, label=self.labels[0], disabled=False, emoji=self.btn_emojis[0], url=self.link[0]))
+        self.add_item(TwoButton(onpress=self.onpress[1], user_id=self.user_id, style=discord.ButtonStyle.danger, label=self.labels[1], disabled=False, emoji=self.btn_emojis[1], url=self.link[1]))
+
+    async def on_timeout(self):
+        if self.link[0] != None and self.link[1] != None:
             return
 
         try:
