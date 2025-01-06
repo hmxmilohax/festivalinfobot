@@ -618,7 +618,7 @@ class FestivalInfoBot(commands.Bot):
         guilds = []
         for analytic in all_analytics:
             if not any(g[0] == analytic.guild_id for g in guilds):
-                guilds.append((analytic.guild_id, len(list(filter(lambda a: a.guild_id == analytic.guild_id, analytics)))))
+                guilds.append((analytic.guild_id, len(list(filter(lambda a: a.guild_id == analytic.guild_id, all_analytics)))))
 
         guilds.sort(key=lambda g: g[1], reverse=True)
         for i, guild in enumerate(guilds[:10]):
