@@ -603,19 +603,20 @@ class FestivalInfoBot(commands.Bot):
     
     async def analytics_task(self):
         text = "This past hour, the following commands have been ran:\n"
+        all_analytics = self.analytics.copy() # i hope this works
+        self.analytics = []
         all_commands_ran = []
-        for analytic in self.analytics:
+        for analytic in all_analytics:
             if all_commands_ran.count(analytic.command_name) == 0:
                 all_commands_ran.append(analytic.command_name)
-                analytics_same_name = list(filter(lambda a: a.command_name == analytic.command_name, self.analytics))
+                analytics_same_name = list(filter(lambda a: a.command_name == analytic.command_name, all_analytics))
                 text += f"- `/{analytic.command_name}`: {len(analytics_same_name)} times\n"
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(text)
 
         guild_rank = "Guilds ranked by commands\n"
-        analytics = self.analytics
         guilds = []
-        for analytic in analytics:
+        for analytic in all_analytics:
             if not any(g[0] == analytic.guild_id for g in guilds):
                 guilds.append((analytic.guild_id, len(list(filter(lambda a: a.guild_id == analytic.guild_id, analytics)))))
 
@@ -626,7 +627,7 @@ class FestivalInfoBot(commands.Bot):
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
 
         member_counts = []
-        for analytic in analytics:
+        for analytic in all_analytics:
             if not any(g[0] == analytic.guild_id for g in member_counts):
                 member_counts.append((analytic.guild_id, analytic.guild_member_count))
 
@@ -640,6 +641,5 @@ class FestivalInfoBot(commands.Bot):
 
         logging.info("Cleared analytics list.")
 
-        self.analytics = []
 
 bot = FestivalInfoBot()
