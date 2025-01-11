@@ -1,17 +1,19 @@
 
-# Festival Info Bot
+# Festival Tracker
 
-Festival Info is a Discord bot that tracks and reports new songs in Fortnite Festival. The bot checks every 15 minutes for new tracks and can also provide information about daily tracks and perform search queries for specific songs.
+Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every 7 minutes, among other features.
 
 ## Features
 
-- **Real-Time Song Tracking:** The bot checks Fortnite Festival every 7 minutes and reports new songs to specified Discord channels.
-- **Track Tracking:** The bot can show differences between track metadata edits.
-- **Chart Comparing:** The bot can compare charts across two different versions of the same track.
-- **Daily Tracks Report:** The bot can generate a list of daily tracks and display them in Discord.
-- **Search Functionality:** The bot allows users to search for songs by title or artist.
-- **Path Generating:** The bot can generate Overdrive paths to any songs using [CHOpt](https://github.com/GenericMadScientist/CHOpt).
-- **Leaderboard:** The bot can show the leaderboard of any song and instrument.
+- **Song Tracking:** Checking Fortnite's API every 7 minutes and can show you all the details about each track.
+- **Track Tracking:** Showing differences between track metadata edits.
+- **Chart Comparing:** Comparing MIDI charts across two different versions of the same track.
+- **Weekly Rotation:** Displaying a list of the weekly rotation.
+- **Searching:** Search for songs by title or artist, and advanced search.
+- **Path Generating:** Generating Paths ("Star-Power Optimisations") for any songs on-demand to rank higher in leaderboards with [CHOpt](https://github.com/GenericMadScientist/CHOpt).
+- **Leaderboard:** View the leaderboard of any track and instrument.
+- **Graphing:** Visually observe the ammount of notes in a song, or the notes per second as a song progresses.
+- **Subscriptions:** Create subscriptions to channels or subscribe yourself to receive Jam Track Events (e.g. when a Jam Track is added to the API.)
 
 ## Setup
 
@@ -20,8 +22,10 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
 - Python 3.8+
 - `discord.py` library
 - `requests` library
-- `mido` library
-- `matplotlib` library
+- `mido` library, for analising MIDI files
+- `matplotlib` library, for displaying graphs
+- `pandas` library, for data analisis
+- `aiosqlite` library, for managing subscriptions efficiently
 
 ### Installation
 
@@ -35,78 +39,55 @@ Festival Info is a Discord bot that tracks and reports new songs in Fortnite Fes
 2. Install the required Python packages:
 
     ```bash
-    pip install requests discord.py mido matplotlib
+    pip install requests discord.py mido matplotlib pandas aiosqlite
     ```
 
-3. Duplicate `config_default.ini` to `config.ini` file in the root directory of the project with the following content:
-
-    ```ini
-    ;copy this file to config.ini and fill out options
-    [discord]
-    # your bot token, duplicate this file to config.ini and add it there
-    token = YOUR_DISCORD_BOT_TOKEN_HERE
-    # the command prefix the bot will use
-    prefix = !
-    # the channel ids the bot is allowed to be triggered by a command in
-    command_channel_ids = 123456789012345678, 234567890123456789
-    # change this to true if you want the bot to be triggered only in the channels above
-    use_command_channels = false
-
-    [bot]
-    # change this to false if you don't want decryption
-    decryption = true
-    # change this to false if you don't want the bot to check for new songs
-    check_for_new_songs = true
-    # interval (minutes) which the bot checks for new songs 
-    # (requires check_for_new_songs)
-    check_new_songs_interval = 7
-    # change this to false if you don't want chart comparing 
-    # (requires decryption and check_for_new_songs)
-    chart_comparing = true
-    # change this to false if you don't want pathing 
-    # (requires decryption)
-    pathing = true
-    ```
-
+3. Duplicate `config_default.ini` to `config.ini` file in the root directory of the project:
    - Replace `YOUR_DISCORD_BOT_TOKEN` with your actual Discord bot token.
    - Follow the comments to customize the configuration more
 
 4. Run the bot:
-
     ```bash
     python festivalinfobot.py
     ```
 
+    To view `discord.py`'s DEBUG level logs, you may append `-discord-debug` to your arguments.
+
 ## Commands
 
-- `!count` - Show the total number of available tracks in Fortnite Festival.
-- `!daily` - Display the tracks currently in daily rotation.
-- `!leaderboard [shortname] [instrument] [rank/username]` - View the leaderboard of a specific song, and leaderboard entries.
-- `!path` - Generate a path for a given song and instrument.
-- `!search [query]` - Search for a track by name or artist.
-- `!shop` - Browse through the tracks currently available in the shop.
-- `!tracklist` - Browse through the full list of available tracks.
+- Run `/help` to view a list of all available commands.
+- Run `/stats` to view insights of the instance.
+- `/admin` commands may only be run in the following conditions:
+
+    User (who invokes the slash-command) must have been granted Administrator permission in the channel where the interaction (slash-command) is completed.
+
+    When adding a subscription to a channel, the bot may require to possess the following permissions in the destination channel: <br>
+      i. **View Channel** <br>
+      ii. **Send Messages** <br>
+      iii. If the destination channel is an Announcement channel, the bot will attempt to publish messages. For this, the **Manage Messages** permission is required. <br>
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License. For more information, view [LICENSE](./LICENSE)
 
 ## Contributing
 
-If you want to contribute to this project, feel free to fork the repository and submit a pull request.
+If you want to contribute to this project, feel free to fork the repository and submit a Pull Request.
 
 ## Issues
 
-If you encounter any issues, please open an issue on the GitHub repository.
+If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you may create a suggestion (`/suggestion`).
 
 # Dependencies
 
-This bot is currently only targetted to run for windows as that is my personal environment.
+This is currently only targetted to run for Windows as that is the environment it is developed and tested in.
 
 To be able to fetch and generate paths you will need two things:
 
-[CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the bot folder.
+- [CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the bot folder.
 
-fnf-midcrypt.py in the bot folder to decrypt midi files. This is not provided for you.
+    For newer CHOpt versions, Qt6 dlls may be required to be copied as well. These files are present in the .gitignore.
 
-The bot is unable to decrypt festival midis by itself.
+- `fnf-midcrypt.py` to decrypt MIDI files. This is not provided for you.
+
+    The bot is unable to decrypt Festival MIDIs by itself.
