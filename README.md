@@ -64,7 +64,6 @@ Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in F
     When adding a subscription to a channel, the bot may require to possess the following permissions in the destination channel: <br>
       i. **View Channel** <br>
       ii. **Send Messages** <br>
-      iii. If the destination channel is an Announcement channel, the bot will attempt to publish messages. For this, the **Manage Messages** permission is required. <br>
 
 ## License
 
