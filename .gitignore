@@ -24,3 +24,4 @@ Qt6Gui.dll
 logs
 # databases
 *.db*
+.stfolder/
