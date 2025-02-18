@@ -56,12 +56,6 @@ class AdminCog(commands.Cog):
         if not channel.permissions_for(channel.guild.me).send_messages:
             await interaction.response.send_message(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in {channel.mention}.')
             return False
-        
-        # If news channel, publish messages (Manage Messages permission!!!)
-        if channel.is_news():
-            if not channel.permissions_for(channel.guild.me).manage_messages:
-                await interaction.response.send_message(f'I can\'t publish messages in that Announcement channel! Please make sure I have the "Manage Messages" permission in {channel.mention}.')
-                return False
             
         # Possible, "Embed Links", "Attach Files?"
 
