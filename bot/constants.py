@@ -132,22 +132,27 @@ class PaginatorView(discord.ui.View):
         self.add_buttons()
         self.message : discord.Message
 
+    def update_buttons(self):
+        self.add_buttons()
+
     def add_buttons(self):
         self.clear_items()
         
         self.add_item(FirstButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='First', disabled=not (self.current_page > 0), user_id=self.user_id))
         self.add_item(PreviousButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
 
-        self.add_item(PageNumberButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
+        self.add_item(PaginatorButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
 
         self.add_item(NextButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
         self.add_item(LastButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Last', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
 
     def get_embed(self):
-        return self.embeds[self.current_page]
+        if self.current_page < 0:
+            self.current_page = 0
+        elif self.current_page > self.total_pages - 1:
+            self.current_page = self.total_pages - 1
 
-    def update_buttons(self):
-        self.add_buttons()
+        return self.embeds[self.current_page]
 
     async def on_timeout(self):
         try:
@@ -159,78 +164,39 @@ class PaginatorView(discord.ui.View):
         except Exception as e:
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
-class FirstButton(discord.ui.Button):
+class PaginatorButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')
         super().__init__(*args, **kwargs)
+
+    def update_page(self, view: PaginatorView):
+        pass
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
+        self.update_page(view)
+        embed = view.get_embed()
+        view.update_buttons()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class FirstButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page = 0
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
-class PreviousButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
+class PreviousButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page -= 1
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
-class PageNumberButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
-        embed = view.get_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-class NextButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
+class NextButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page += 1
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
-class LastButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
+class LastButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page = view.total_pages - 1
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
 class OneButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
@@ -277,44 +243,62 @@ class OneButtonSimpleView(discord.ui.View):
         except Exception as e:
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
-class TwoButton(discord.ui.Button):
-    def __init__(self, onpress, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        self.onpress = onpress
-        super().__init__(*args, **kwargs)
+class Button:
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+        self.on_press = on_press
+        self.label = label
+        self.emoji = emoji
+        self.restrict = restrict
+        self.url = url
+        self.style = style
+        self.disabled = disabled
+
+class ViewButton(discord.ui.Button):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+        self._on_press = on_press
+        self._restrict = restrict
+        self._url = url
+        self._style = style or discord.ButtonStyle.primary
+        self._label = label
+        self._emoji = emoji
+        self._disabled = disabled
+
+        super().__init__(style=self._style, label=self._label, url=self._url, emoji=self._emoji, disabled=self._disabled)
 
     async def callback(self, interaction: discord.Interaction):
-        view: TwoButtonSimpleView = self.view
-        if interaction.user.id != self.user_id and view.restrict:
+        view: ButtonedView = self.view
+        if interaction.user.id != view.user_id and self._restrict:
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view.add_buttons()
         await interaction.response.defer()
-        if self.onpress:
-            await self.onpress()
+        if self._on_press:
+            await self._on_press()
 
-class TwoButtonSimpleView(discord.ui.View):
-    def __init__(self, onpress1 = None, onpress2 = None, user_id = None, label1 = "Unknown", label2 = "Unknown", emoji1 = "✅", emoji2 = "❌", link1 = None, link2 = None, restrict_only_to_creator = True):
+class ButtonedView(discord.ui.View):
+    def __init__(self, user_id: int, buttons: list[Button]):
         super().__init__(timeout=30)
-        self.onpress = [onpress1, onpress2]
         self.user_id = user_id
-        self.labels = [label1, label2]
-        self.btn_emojis = [emoji1, emoji2]
+        self.buttons = buttons
         self.message : discord.Message
-        self.link = [link1, link2]
-        self.restrict = restrict_only_to_creator
+
         self.add_buttons()
 
     def add_buttons(self):
         self.clear_items()
-        
-        self.add_item(TwoButton(onpress=self.onpress[0], user_id=self.user_id, style=discord.ButtonStyle.success, label=self.labels[0], disabled=False, emoji=self.btn_emojis[0], url=self.link[0]))
-        self.add_item(TwoButton(onpress=self.onpress[1], user_id=self.user_id, style=discord.ButtonStyle.danger, label=self.labels[1], disabled=False, emoji=self.btn_emojis[1], url=self.link[1]))
+
+        for button in self.buttons:
+            self.add_item(ViewButton(
+                on_press=button.on_press,
+                label=button.label,
+                emoji=button.emoji,
+                url=button.url,
+                style=button.style,   
+                restrict=button.restrict,
+                disabled=button.disabled
+            ))
 
     async def on_timeout(self):
-        if self.link[0] != None and self.link[1] != None:
-            return
-
         try:
             for item in self.children:
                 item.disabled = True

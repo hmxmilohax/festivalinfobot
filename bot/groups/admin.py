@@ -1,7 +1,8 @@
 import asyncio
+import discord.ext.tasks as tasks
 import io
 import logging
-from typing import List, Union
+from typing import List, Literal, Union
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -551,7 +552,7 @@ class TestCog(commands.Cog):
         await self.bot.analytics_task()
         await interaction.edit_original_response(content="Analytics have been run.")
 
-    @test_group.command(name="server_list_csv", description="Get all guilds joined as a csv attachment")
+    @test_group.command(name="server_list_csv", description="Get all guilds joined as a csv file")
     async def server_list_csv(self, interaction: discord.Interaction):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
@@ -560,8 +561,92 @@ class TestCog(commands.Cog):
         await interaction.response.defer()
 
         guilds = self.bot.guilds
-        csv = "ID,Name,Member Count\n"
+        csv = "ID,Name,Member Count,Date Joined\n"
         for guild in guilds:
-            csv += f"{guild.id},{guild.name},{guild.member_count}\n"
+            csv += f"{guild.id},{guild.name},{guild.member_count},{guild.me.joined_at}\n"
 
         await interaction.edit_original_response(content="", attachments=[discord.File(io.StringIO(csv), "servers.csv")])
+
+    @test_group.command(name="leave_guild", description="Leave a guild")
+    @app_commands.describe(guild_id = "The ID of the guild to leave")
+    async def leave_guild(self, interaction: discord.Interaction, guild_id: int):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        guild = self.bot.get_guild(guild_id)
+        await guild.leave()
+        await interaction.edit_original_response(content=f"Successfully left {guild.name} (`{guild.id}`)")
+
+    @test_group.command(name="debug_tasks", description="Debug all tasks")
+    async def debug_tasks(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        text = "Tasks debug"
+        check: tasks.Loop = self.bot.check_new_songs_task
+        text += f"\nCheck for new songs: \n- Interval: {check.minutes}m\n- Is Running: {check.is_running()}\n- Iter: {check.current_loop}"
+        activity: tasks.Loop = self.bot.activity_task
+        text += f"\nActivity: \n- Interval: {activity.minutes}m\n- Is Running: {activity.is_running()}\n- Iter: {activity.current_loop}"
+        analytic: tasks.Loop = self.bot.analytic_loop
+        text += f"\nAnalytics: \n- Interval: {analytic.hours}h\n- Is Running: {analytic.is_running()}\n- Iter: {analytic.current_loop}"
+        
+        await interaction.response.send_message(content=text)
+
+    @test_group.command(name="stop_task", description="Stop a task (doesnt use .stop rather .cancel)")
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        check: tasks.Loop = self.bot.check_new_songs_task
+        activity: tasks.Loop = self.bot.activity_task
+        analytic: tasks.Loop = self.bot.analytic_loop
+
+        if task == 'Check':
+            check.cancel()
+        elif task == 'Activity':
+            activity.cancel()
+        elif task == 'Analytics':
+            analytic.cancel()
+
+        await interaction.response.send_message(content=f"Task \"{task}\" stopped")
+
+    @test_group.command(name="start_task", description="Start a task")
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        check: tasks.Loop = self.bot.check_new_songs_task
+        activity: tasks.Loop = self.bot.activity_task
+        analytic: tasks.Loop = self.bot.analytic_loop
+
+        if task == 'Check':
+            check.start()
+        elif task == 'Activity':
+            activity.start()
+        elif task == 'Analytics':
+            analytic.start()
+
+        await interaction.response.send_message(content=f"Task \"{task}\" started")
+
+    @test_group.command(name="restart_task", description="Restart a task (only reinitates it, doesnt start it if cancelled)")
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        check: tasks.Loop = self.bot.check_new_songs_task
+        activity: tasks.Loop = self.bot.activity_task
+        analytic: tasks.Loop = self.bot.analytic_loop
+
+        if task == 'Check':
+            check.restart()
+        elif task == 'Activity':
+            activity.restart()
+        elif task == 'Analytics':
+            analytic.restart()
+
+        await interaction.response.send_message(content=f"Task \"{task}\" restarted")
