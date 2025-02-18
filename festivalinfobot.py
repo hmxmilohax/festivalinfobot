@@ -103,6 +103,9 @@ class FestivalInfoBot(commands.Bot):
 
         logging.debug("on_ready finished!")
 
+        uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
+        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
+
     def __init__(self):
         # Load configuration from config.ini
         setup_log()
@@ -179,11 +182,15 @@ class FestivalInfoBot(commands.Bot):
             await self.get_channel(constants.ERR_CHANNEL).send(content=exc_text)
             await self.get_channel(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
 
+            embed = discord.Embed(colour=0xbe2625, title="<:error:1327736288807358629> An error has occurred!", description="Don't worry. This error has been reported.")
+            embed.add_field(name="", value=f"```{str(error)}```")
+            embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
+
             try:
                 if interaction.response.is_done():
-                    await interaction.edit_original_response(content=f"An error has occurred! Don't worry though, it has been reported.\n`{str(error)}`")
+                    await interaction.edit_original_response(embed=embed)
                 else:
-                    await interaction.response.send_message(content=f"An error has occurred! Don't worry though, it has been reported!\n`{str(error)}`", ephemeral=True)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
             except Exception as e:
                 logging.critical(exc_info=e)
 
@@ -622,7 +629,10 @@ class FestivalInfoBot(commands.Bot):
 
         guilds.sort(key=lambda g: g[1], reverse=True)
         for i, guild in enumerate(guilds[:10]):
-            guild_rank += f"{i+1}. {self.get_guild(guild[0]).name} (`{guild[0]}`): {guild[1]} commands\n"
+            try:
+                guild_rank += f"{i+1}. {self.get_guild(guild[0]).name} (`{guild[0]}`): {guild[1]} commands\n"
+            except:
+                pass
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
 
@@ -633,6 +643,7 @@ class FestivalInfoBot(commands.Bot):
 
         member_counts.sort(key=lambda g: g[1], reverse=True)
         guilds = [self.get_guild(g[0]) for g in member_counts]
+        guilds = list(filter(lambda guild: guild is not None, guilds))
         guild_members = "Guilds ranked by members:\n"
         for i, guild in enumerate(guilds[:10]):
             guild_members += f"{i+1}. {guild.name} (`{guild.id}`): {guild.member_count} members\n"
