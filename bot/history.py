@@ -379,6 +379,10 @@ class HistoryHandler():
 
         the_view_itself = history_tools.HistoryView(array_of_embeds_to_give_to_view, array_of_files_to_give_to_dpy, session_hash, interaction.user.id)
 
+        if len(the_view_itself.attachments) == 0:
+            await interaction.edit_original_response(content='There are no attachments to display.')
+            return
+
         message = await interaction.original_response()
         the_view_itself.message = message
 
@@ -517,9 +521,6 @@ class LoopCheckHandler():
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
                     try:
                         message = await channel.send(content=content, embed=embed)
-                        if isinstance(channel, discord.TextChannel):
-                            if channel.is_news():
-                                await message.publish()
                         await asyncio.sleep(0.5)
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
@@ -530,9 +531,6 @@ class LoopCheckHandler():
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
                     try:
                         message = await channel.send(content=content, embed=embed)
-                        if isinstance(channel, discord.TextChannel):
-                            if channel.is_news():
-                                await message.publish()
                         await asyncio.sleep(0.5)
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
@@ -547,9 +545,6 @@ class LoopCheckHandler():
 
                     try:
                         message = await channel.send(content=content, embed=song_metadata_diff_embed)
-                        if isinstance(channel, discord.TextChannel):
-                            if channel.is_news():
-                                await message.publish()
                         await asyncio.sleep(0.5)
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)

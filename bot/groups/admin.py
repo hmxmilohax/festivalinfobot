@@ -56,12 +56,6 @@ class AdminCog(commands.Cog):
         if not channel.permissions_for(channel.guild.me).send_messages:
             await interaction.response.send_message(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in {channel.mention}.')
             return False
-        
-        # If news channel, publish messages (Manage Messages permission!!!)
-        if channel.is_news():
-            if not channel.permissions_for(channel.guild.me).manage_messages:
-                await interaction.response.send_message(f'I can\'t publish messages in that Announcement channel! Please make sure I have the "Manage Messages" permission in {channel.mention}.')
-                return False
             
         # Possible, "Embed Links", "Attach Files?"
 
@@ -650,3 +644,11 @@ class TestCog(commands.Cog):
             analytic.restart()
 
         await interaction.response.send_message(content=f"Task \"{task}\" restarted")
+
+    @test_group.command(name="error", description="Invoke an error")
+    async def stop_task(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        raise ValueError("Error invoked here")
