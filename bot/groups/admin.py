@@ -650,3 +650,11 @@ class TestCog(commands.Cog):
             analytic.restart()
 
         await interaction.response.send_message(content=f"Task \"{task}\" restarted")
+
+    @test_group.command(name="error", description="Invoke an error")
+    async def stop_task(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        raise ValueError("Error invoked here")

@@ -379,6 +379,10 @@ class HistoryHandler():
 
         the_view_itself = history_tools.HistoryView(array_of_embeds_to_give_to_view, array_of_files_to_give_to_dpy, session_hash, interaction.user.id)
 
+        if len(the_view_itself.attachments) == 0:
+            await interaction.edit_original_response(content='There are no attachments to display.')
+            return
+
         message = await interaction.original_response()
         the_view_itself.message = message
 
