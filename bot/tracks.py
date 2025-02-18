@@ -188,7 +188,7 @@ class SearchCommandHandler:
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
                     if spotify:
-                        view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
+                        view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen on Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
                         view.message = message
                         await message.edit(embed=embed, view=view)
         except Exception as e:
