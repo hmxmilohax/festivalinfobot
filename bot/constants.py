@@ -101,26 +101,22 @@ EXTRA_COMPARISONS = {
 
 class Analytic:
     def __init__(self, interaction: discord.Interaction):
-        self.guild_name: str = interaction.guild.name
-        self.guild_id: int = interaction.guild.id
+        self.is_dm: bool = interaction.guild == None
+        self.guild_name: str = "DMs"
+        self.guild_id: int = None
         self.command_name: str = None
+        self.guild_member_count: int = 0
+        if not self.is_dm:
+            self.guild_name = interaction.guild.name
+        if not self.is_dm:
+            self.guild_id = interaction.guild.id
+        if not self.is_dm:
+            self.guild_member_count = interaction.guild.member_count
         if interaction.command:
             self.command_name = interaction.command.qualified_name
-        self.guild_member_count: int = interaction.guild.member_count
         self.interaction_language: str = interaction.locale
         self.interaction_data: dict = interaction.data
         self.time: datetime = interaction.created_at
-
-    def __str__(self) -> str:
-        return f"""
-        Guild Name: {self.guild_name}
-        Guild ID: {self.guild_id}
-        Command Name: {self.command_name}
-        Guild Member Count: {self.guild_member_count}
-        Interaction Language: {self.interaction_language}
-        Interaction Data: {self.interaction_data}
-        Time: {self.time}
-        """
 
 class PaginatorView(discord.ui.View):
     def __init__(self, embeds, user_id):

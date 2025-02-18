@@ -164,7 +164,10 @@ class FestivalInfoBot(commands.Bot):
         await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {interaction.guild.name} (`{interaction.guild.id}`)")
+        place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
+        if interaction.guild:
+            place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
+        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {place}")
 
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)
@@ -612,43 +615,51 @@ class FestivalInfoBot(commands.Bot):
         text = "This past hour, the following commands have been ran:\n"
         all_analytics = self.analytics.copy() # i hope this works
         self.analytics = []
-        all_commands_ran = []
+        command_counts = dict()
         for analytic in all_analytics:
-            if all_commands_ran.count(analytic.command_name) == 0:
-                all_commands_ran.append(analytic.command_name)
-                analytics_same_name = list(filter(lambda a: a.command_name == analytic.command_name, all_analytics))
-                text += f"- `/{analytic.command_name}`: {len(analytics_same_name)} times\n"
+            if command_counts.get(analytic.command_name, None):
+                command_counts[analytic.command_name] = command_counts.get(analytic.command_name) + 1
+            else:
+                command_counts[analytic.command_name] = 1
+            
+        text = "Command counts:\n"
+        for cmd, ammo in command_counts.items():
+            text += f'`/{cmd}`: {ammo}\n'
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(text)
 
-        guild_rank = "Guilds ranked by commands\n"
+        dm_commands = 0
+
+        guild_rank = "Guilds ranked by commands:\n"
         guilds = []
         for analytic in all_analytics:
+            if analytic.is_dm:
+                dm_commands += 1
+                continue
+
             if not any(g[0] == analytic.guild_id for g in guilds):
-                guilds.append((analytic.guild_id, len(list(filter(lambda a: a.guild_id == analytic.guild_id, all_analytics)))))
+                guilds.append((analytic.guild_id, len(
+                    list(
+                        filter(
+                            lambda a: a.guild_id == analytic.guild_id, all_analytics
+                            )
+                        )
+                    )
+                ))
+
+        # filter(lambda )
 
         guilds.sort(key=lambda g: g[1], reverse=True)
         for i, guild in enumerate(guilds[:10]):
-            try:
-                guild_rank += f"{i+1}. {self.get_guild(guild[0]).name} (`{guild[0]}`): {guild[1]} commands\n"
-            except:
-                pass
+            guild_obj = self.get_guild(guild[0])
+            if not guild_obj: 
+                continue
 
-        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
+            guild_rank += f"{i+1}. {guild_obj.name} (`{guild[0]}`): {guild[1]} commands\n"
 
-        member_counts = []
-        for analytic in all_analytics:
-            if not any(g[0] == analytic.guild_id for g in member_counts):
-                member_counts.append((analytic.guild_id, analytic.guild_member_count))
+            await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
 
-        member_counts.sort(key=lambda g: g[1], reverse=True)
-        guilds = [self.get_guild(g[0]) for g in member_counts]
-        guilds = list(filter(lambda guild: guild is not None, guilds))
-        guild_members = "Guilds ranked by members:\n"
-        for i, guild in enumerate(guilds[:10]):
-            guild_members += f"{i+1}. {guild.name} (`{guild.id}`): {guild.member_count} members\n"
-
-        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_members)
+        await self.get_channel(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
 
         logging.info("Cleared analytics list.")
 
