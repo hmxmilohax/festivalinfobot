@@ -14,8 +14,6 @@ from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
 from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
-from bot.groups.profile import ProfileCog
-from bot.linking import AccountLinking
 from bot.tools.log import setup as setup_log
 from bot.groups.admin import AdminCog, TestCog
 from bot.config import Config
@@ -151,7 +149,6 @@ class FestivalInfoBot(commands.Bot):
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
         self.graph_handler = GraphCommandsHandler()
-        self.link_handler = AccountLinking(self)
 
         self.setup_commands()
 
@@ -566,18 +563,6 @@ class FestivalInfoBot(commands.Bot):
 
         self.tree.add_command(graph_group)
 
-        @self.tree.command(name="link", description="Link your Epic Games account to Festival Tracker.")
-        @app_commands.allowed_installs(guilds=True, users=True)
-        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def link_command(interaction: discord.Interaction):
-            await self.link_handler.link_interaction(interaction=interaction)
-
-        @self.tree.command(name="unlink", description="Unlink your Epic Games account to Festival Tracker.")
-        @app_commands.allowed_installs(guilds=True, users=True)
-        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def unlink_command(interaction: discord.Interaction):
-            await self.link_handler.unlink_interaction(interaction=interaction)
-
     async def setup_cogs(self):
         admin_cog = AdminCog(self)
         self.tree.add_command(admin_cog.admin_group)
@@ -596,9 +581,6 @@ class FestivalInfoBot(commands.Bot):
 
         festrpc = FestRPCCog(self)
         await self.add_cog(festrpc)
-
-        profile = ProfileCog(self)
-        await self.add_cog(profile)
 
     def find_command_by_string(self, command: str):
         words = command.split()
