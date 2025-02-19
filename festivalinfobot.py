@@ -52,8 +52,8 @@ class FestivalInfoBot(commands.Bot):
         async def activity_task():
             await self.check_handler.handle_activity_task()
 
-        logging.debug(f"Registering analytics loop every 1h")
-        @tasks.loop(hours=1)
+        logging.debug(f"Registering analytics loop every 2h")
+        @tasks.loop(hours=2)
         async def analytics():
             try:
                 await self.analytics_task()
@@ -615,7 +615,7 @@ class FestivalInfoBot(commands.Bot):
         return found
     
     async def analytics_task(self):
-        text = "This past hour, the following commands have been ran:\n"
+        text = "In this analytics cycle:\n"
         all_analytics = self.analytics.copy() # i hope this works
         self.analytics = []
         command_counts = dict()
@@ -625,7 +625,7 @@ class FestivalInfoBot(commands.Bot):
             else:
                 command_counts[analytic.command_name] = 1
             
-        text = "Command counts:\n"
+        text += "Command counts:\n"
         for cmd, ammo in command_counts.items():
             text += f'`/{cmd}`: {ammo}\n'
 
