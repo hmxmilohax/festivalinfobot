@@ -31,7 +31,7 @@ def get_commit_history():
         url = f'{COMMITS_URL}?' + '&'.join([f'{k}={v}' for k, v in params.items()])
         logging.debug(f'[GET] {url}')
         response = requests.get(url, headers=headers)
-        print(response.headers)
+        # print(response.headers)
         response.raise_for_status()
         commits = response.json()
         
