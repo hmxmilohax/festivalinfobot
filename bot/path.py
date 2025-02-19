@@ -68,6 +68,8 @@ class PathCommandHandler():
         return sum_phrases, sum_overlaps
 
     async def handle_interaction(self, interaction:discord.Interaction, song:str, instrument:constants.Instruments, extra_args:list, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
+        await interaction.response.defer()
+
         extra_arguments = []
         field_argument_descriptors = []
         if extra_args[0]: # Lefty Flip
@@ -93,15 +95,14 @@ class PathCommandHandler():
 
         tracklist = self.jam_track_handler.get_jam_tracks()
         if not tracklist:
-            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            await interaction.edit_original_response(content=f"Could not get tracks.", ephemeral=True)
             return
         
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            await interaction.edit_original_response(content=f"The search query \"{song}\" did not give any results.")
             return
 
-        await interaction.response.defer()
 
         user_id = interaction.user.id
         session_hash = constants.generate_session_hash(user_id, song)
