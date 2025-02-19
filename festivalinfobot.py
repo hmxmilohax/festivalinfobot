@@ -55,7 +55,10 @@ class FestivalInfoBot(commands.Bot):
         logging.debug(f"Registering analytics loop every 1h")
         @tasks.loop(hours=1)
         async def analytics():
-            await self.analytics_task()
+            try:
+                await self.analytics_task()
+            except Exception as e:
+                logging.error('Analytics task could not be finished', exc_info=e)
 
         self.analytic_loop = analytics
         self.activity_task = activity_task
