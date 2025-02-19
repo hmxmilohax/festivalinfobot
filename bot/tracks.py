@@ -9,7 +9,7 @@ from discord.ext import commands
 import requests
 from bot import embeds
 import bot.constants as constants
-from bot.constants import OneButtonSimpleView
+from bot.constants import Button, ButtonedView
 from bot import helpers
 
 class JamTrackHandler:
@@ -53,21 +53,41 @@ class JamTrackHandler:
         return result_unique
     
     def get_spotify_link(self, isrc: str, session : str):
-        url = "https://fnlookup-apiv2.vercel.app/api/?isrc=" + isrc
-        logging.debug(f'[GET] {url}')
+        url = "https://accounts.spotify.com/api/token"
+        logging.debug(f'[POST] {url}')
 
-        rand_div = random.randint(0, len(session))
-        permission = session[:rand_div] + '+8*' + session[rand_div:]
-        logging.debug(f'[HEADER] ftperms = {permission}')
+        authorize = requests.post(url, data=f"grant_type=client_credentials&client_id={constants.SPOTIFY_CLIENT_ID}&client_secret={constants.SPOTIFY_CLIENT_PASS}&state={session}", headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
-        link = requests.get(url, headers={'ftperms': permission})
+        song_url = f'https://api.spotify.com/v1/search?q=isrc%3A{isrc}&type=track&limit=1&offset=0'
+        client_token = authorize.json()['access_token']
+        logging.debug(f'[GET] {song_url}')
+        link = requests.get(song_url, headers={'Authorization': f'Bearer {client_token}'})
+
         try:
             link.raise_for_status()
         except Exception as e:
             logging.error(f'Spotify Link GET returned {link.status_code}', exc_info=e)
             return None
         
-        return link.json().get('link')
+        result = link.json()
+        items = result['tracks']['items']
+        if len(items) > 0:
+            return items[0]['external_urls'].get('spotify', None)
+        
+    def get_song_link_odesli(self, spotify_url: str):
+        url = f"https://api.odesli.co/resolve?url={spotify_url}"
+        logging.debug(f'[GET] {url}')
+
+        odesli = requests.get(url)
+
+        try:
+            odesli.raise_for_status()
+        except Exception as e:
+            logging.error(f'Odesli Link GET returned {odesli.status_code}', exc_info=e)
+            return None
+        
+        result = odesli.json()
+        return f'https://{result["type"]}.link/s/{result["id"]}'
 
     def get_jam_tracks(self):
         return constants.get_jam_tracks()
@@ -188,7 +208,14 @@ class SearchCommandHandler:
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
                     if spotify:
-                        view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen on Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
+                        view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
+
+                        song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
+                        if song_dot_link:
+                            view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
+
+                        view = ButtonedView(user_id=interaction.user.id, buttons=view_buttons)
+
                         view.message = message
                         await message.edit(embed=embed, view=view)
         except Exception as e:
