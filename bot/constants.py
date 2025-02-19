@@ -41,6 +41,8 @@ BOT_TOKEN: str = config.get('bot', 'bot_token')
 SPOTIFY_CLIENT_ID: str = config.get('bot', 'spotify_api_client')
 SPOTIFY_CLIENT_PASS: str = config.get('bot', 'spotify_api_secret')
 
+GITHUB_PAT: str = config.get('bot', 'github_pat')
+
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
