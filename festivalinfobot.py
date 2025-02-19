@@ -660,7 +660,7 @@ class FestivalInfoBot(commands.Bot):
 
             guild_rank += f"{i+1}. {guild_obj.name} (`{guild[0]}`): {guild[1]} commands\n"
 
-            await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
+        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
 
