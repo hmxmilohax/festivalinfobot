@@ -1,3 +1,4 @@
+import base64
 import logging
 import os
 import subprocess
@@ -6,6 +7,8 @@ import mido
 import requests
 
 from bot import constants
+
+import Crypto.Cipher.AES as AES
 
 
 class MidiArchiveTools:
@@ -30,14 +33,13 @@ class MidiArchiveTools:
 
         with open(local_path, 'wb') as f:
             f.write(response.content)
-        logging.info(f"Downloaded and saved {local_filename}")
         return local_path
         
     def decrypt_dat_file(self, dat_url_or_path, output_file):
         if os.path.exists(dat_url_or_path):
             dat_file_path = dat_url_or_path
         else:
-            logging.info(f"Downloading file from: {dat_url_or_path}")
+            # logging.info(f"Downloading file from: {dat_url_or_path}")
             dat_file_path = os.path.join(constants.TEMP_FOLDER, output_file)
             # Download the .dat file
             logging.debug(f'[GET] {dat_url_or_path}')
@@ -52,10 +54,12 @@ class MidiArchiveTools:
         decrypted_midi_path = dat_file_path.replace('.dat', '.mid')
         
         if not os.path.exists(decrypted_midi_path):
-            logging.info(f"Decrypting {dat_file_path} to {decrypted_midi_path}...")
-            result = subprocess.run(['python', 'fnf-midcrypt.py', '-d', dat_file_path], capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"Decryption failed: {result.stderr}")
+            midi_key = base64.b64decode(constants.SPARKS_MIDI_KEY)
+            cipher = AES.new(midi_key, AES.MODE_ECB)
+            with open(dat_file_path, 'rb') as f:
+                decrypted_data = cipher.decrypt(f.read())
+                with open(decrypted_midi_path, 'wb') as f:
+                    f.write(decrypted_data)
         else:
             #print(f"Decrypted MIDI file already exists: {decrypted_midi_path}")
             return decrypted_midi_path

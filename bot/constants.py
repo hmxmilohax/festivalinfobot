@@ -47,6 +47,8 @@ EPIC_ACCOUNT_ID: str = config.get('bot', 'epic_account_id')
 EPIC_DEVICE_ID: str = config.get('bot', 'epic_device_id')
 EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
 
+SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
+
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames

@@ -192,8 +192,11 @@ class FestivalInfoBot(commands.Bot):
             await self.get_channel(constants.ERR_CHANNEL).send(content=exc_text)
             await self.get_channel(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
 
+            err_text: str = str(error)
+            err_text.replace(constants.SPARKS_MIDI_KEY, 'nothing to see here')
+
             embed = discord.Embed(colour=0xbe2625, title="<:error:1327736288807358629> An error has occurred!", description="Don't worry. This error has been reported.")
-            embed.add_field(name="", value=f"```{str(error)}```")
+            embed.add_field(name="", value=f"```{str(err_text)}```")
             embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
 
             try:
