@@ -106,7 +106,7 @@ class SearchCommandHandler:
         finalized_options_message = f"Found multiple tracks matching your query. Please choose the correct one by typing the number:\n{options_message}"
 
         if len(finalized_options_message) > 2000:
-            await interaction.edit_original_response(content="The result is too large. Please try another query, or use </tracklist filter artist:1287199873116143628>.")
+            await interaction.edit_original_response(embed=constants.common_error_embed("The result is too large. Please try another query, or use </tracklist filter artist:1287199873116143628>."))
             return None, None
 
         await interaction.edit_original_response(content=finalized_options_message)
@@ -117,7 +117,7 @@ class SearchCommandHandler:
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
             if not msg.content.isdigit() or not 1 <= int(msg.content) <= len(matched_tracks):
-                await interaction.edit_original_response(content="Search cancelled.")
+                await interaction.edit_original_response(embed=constants.common_error_embed("Search cancelled."))
                 return
 
             chosen_index = int(msg.content) - 1
@@ -125,7 +125,7 @@ class SearchCommandHandler:
             return msg, chosen_track
 
         except TimeoutError:
-            await interaction.edit_original_response(content="You didn't respond in time. Search cancelled.")
+            await interaction.edit_original_response(embed=constants.common_error_embed("You didn't respond in time. Search cancelled."))
             return None, None
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
@@ -145,7 +145,7 @@ class SearchCommandHandler:
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.edit_original_response(content='Could not get Jam Tracks.', ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'), ephemeral=True)
             return
 
         weekly_tracks = self.daily_handler.fetch_daily_shortnames()
@@ -153,7 +153,7 @@ class SearchCommandHandler:
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, query)
         if not matched_tracks:
-            await interaction.edit_original_response(content=f'No tracks were found matching \"{query}\"')
+            await interaction.edit_original_response(embed=constants.common_error_embed(f'No tracks were found matching \"{query}\"'))
             return
 
         track = None

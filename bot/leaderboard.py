@@ -323,18 +323,18 @@ class LeaderboardCommandHandler:
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
 
         if not chosen_instrument.lb_enabled:
-            await interaction.response.send_message(content=f"Instrument \"{chosen_instrument.english}\" cannot be used for leaderboards.")
+            await interaction.response.send_message(embed=constants.common_error_embed(f"Instrument \"{chosen_instrument.english}\" cannot be used for leaderboards."))
             return
 
         tracklist = self.jam_track_handler.get_jam_tracks()
         if not tracklist:
-            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
             return
 
         # Perform fuzzy search
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
             return
 
         await interaction.response.defer() # Makes the bot say Thinking...
@@ -372,6 +372,6 @@ class LeaderboardCommandHandler:
                     view = constants.PaginatorView(specific_entries, interaction.user.id)
                     view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
                 else:
-                    await interaction.edit_original_response(content=f"No entries were found matching these parameters.")
+                    await interaction.edit_original_response(embed=constants.common_error_embed(f"No entries were found matching these parameters."))
         else:
-            await interaction.edit_original_response(content=f"There are no entries in this leaderboard.") 
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"There are no entries in this leaderboard."))

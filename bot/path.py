@@ -95,12 +95,12 @@ class PathCommandHandler():
 
         tracklist = self.jam_track_handler.get_jam_tracks()
         if not tracklist:
-            await interaction.edit_original_response(content=f"Could not get tracks.", ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
             return
         
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.edit_original_response(content=f"The search query \"{song}\" did not give any results.")
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
             return
 
 
@@ -121,21 +121,13 @@ class PathCommandHandler():
 
         dat_file = f"{session_hash}_{short_name}.dat"
         local_midi_file = self.midi_tool.download_and_archive_midi_file(song_url, short_name)  # Download the .dat file
-
-        if not local_midi_file:
-            await interaction.edit_original_response(content=f"Failed to download the MIDI file for '{song}'.")
-            return
-
         midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
-        if not midi_file:
-            await interaction.edit_original_response(content=f"Failed to decrypt the .dat file for '{song}'.")
-            return
 
         modified_midi_file = None
         if chosen_instrument.replace != None:
             modified_midi_file = self.midi_tool.modify_midi_file(midi_file, chosen_instrument, session_hash, short_name)
             if not modified_midi_file:
-                await interaction.edit_original_response(content=f"Failed to modify MIDI for '{instrument}'.")
+                await interaction.edit_original_response(embed=constants.common_error_embed(f"Failed to modify MIDI for '{instrument}'."))
                 return
             midi_file = modified_midi_file
 
@@ -180,8 +172,6 @@ class PathCommandHandler():
             embed.set_thumbnail(url=album_art_url)
             await interaction.edit_original_response(embed=embed, attachments=[file])
         else:
-            await interaction.edit_original_response(content=f"Failed to generate the path image for '{track_title}'.")
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"Failed to generate the path image for '{track_title}'."))
 
         constants.delete_session_files(session_hash)
-
-        # await interaction.edit_original_response(content="Check ur console: " + song)

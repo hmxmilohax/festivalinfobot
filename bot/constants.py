@@ -482,3 +482,9 @@ def add_fields(track_data, embed, weekly_tracks, shop_tracks):
     if shop_entry:
         out_date = shop_entry['meta'].get('outDate')
         embed.add_field(name="Item Shop", value=f"Currently in the shop until {format_date(out_date)}.", inline=False)
+    
+def common_error_embed(text) -> discord.Embed:
+    return discord.Embed(colour=0xbe2625, title="Error", description=f"<:error:1327736288807358629> {text}")
+
+def common_success_embed(text) -> discord.Embed:
+    return discord.Embed(colour=0xbe2625, title="Success", description=f"<:error:1327738579287412897> {text}")

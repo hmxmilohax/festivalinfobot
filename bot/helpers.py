@@ -84,7 +84,7 @@ class DailyCommandHandler:
         weekly_songs = self.fetch_daily_shortnames()
 
         if not tracks or not weekly_songs:
-            await interaction.response.send_message(content='Could not fetch tracks.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
 
         daily_tracks = []
@@ -107,14 +107,11 @@ class DailyCommandHandler:
                 'activeUntil': song['activeUntil']
             })
 
-        if daily_tracks:
-            await interaction.response.defer() # Makes it say thinking, and also avoids a timeout error on PaginatorView
+        await interaction.response.defer()
 
-            embeds = self.create_daily_embeds(daily_tracks)
-            view = constants.PaginatorView(embeds, interaction.user.id)
-            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-        else:
-            await interaction.response.send_message(content="No daily tracks found.")
+        embeds = self.create_daily_embeds(daily_tracks)
+        view = constants.PaginatorView(embeds, interaction.user.id)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
         
 class ShopCommandHandler:
     def __init__(self, bot: commands.Bot) -> None:
@@ -161,7 +158,7 @@ class ShopCommandHandler:
         await interaction.response.defer()
 
         if not shop_tracks:
-            await interaction.edit_original_response(content='Could not fetch tracks in the Item Shop.')
+            await interaction.edit_original_response(embed=constants.common_error_embed('Could not fetch tracks in the Item Shop.'))
             return
 
         def title_from_template_id(template_id) -> str:
@@ -201,7 +198,7 @@ class TracklistHandler:
     async def handle_interaction(self, interaction: discord.Interaction):
         tracks = constants.get_jam_tracks()
         if not tracks:
-            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
 
         track_list = constants.sort_track_list(tracks)
@@ -220,7 +217,7 @@ class TracklistHandler:
 
         tracks = constants.get_jam_tracks()
         if not tracks:
-            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
             return
         
         track_list = constants.sort_track_list(tracks)
@@ -255,7 +252,7 @@ class TracklistHandler:
 
         tracks = constants.get_jam_tracks()
         if not tracks:
-            await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
             return
 
         track_list = constants.sort_track_list(tracks)
@@ -277,7 +274,7 @@ class TracklistHandler:
             view = constants.PaginatorView(embeds, interaction.user.id)
             view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
         else:
-            await interaction.edit_original_response(content="There were no results! Try another pattern.")
+            await interaction.edit_original_response(embed=constants.common_error_embed('There were no results.'))
 
 class GamblingHandler:
     def __init__(self, bot) -> None:
@@ -291,7 +288,7 @@ class GamblingHandler:
         track_list = constants.get_jam_tracks()
 
         if not track_list:
-            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
         
         shop_tracks = self.shop_handler.fetch_shop_tracks()
@@ -323,7 +320,7 @@ class GamblingHandler:
 
         track_list = constants.get_jam_tracks()
         if not track_list:
-            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
+            await interaction.response.send_message(cembed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
         
         shop_tracks = self.shop_handler.fetch_shop_tracks()

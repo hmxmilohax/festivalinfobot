@@ -225,13 +225,13 @@ class HistoryHandler():
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.response.send_message(content="Could not fetch tracks.")
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'))
             return
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
             logging.error(f"No tracks found matching {song}.")
-            await interaction.response.send_message(content=f"No tracks found for '{song}'.")
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not give any results.'))
             return
         
         await interaction.response.defer()
@@ -244,12 +244,12 @@ class HistoryHandler():
 
         json_files = self.fetch_local_history()
         if not json_files:
-            await interaction.edit_original_response(content=f"No local history files found.")
+            await interaction.edit_original_response(embed=constants.common_error_embed("No local history files found."))
             return
 
         metadata_changes = self.track_meta_changes(json_files, shortname, session_hash)
         if len(metadata_changes.keys()) <= 1: # You won't be able to get here
-            await interaction.edit_original_response(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the metadata exists.")
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the metadata exists."))
             return
         
         changes = []
@@ -319,13 +319,13 @@ class HistoryHandler():
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.response.send_message(content="Could not fetch tracks.")
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'))
             return
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
             logging.error(f"No tracks found matching {song}.")
-            await interaction.response.send_message(content=f"No tracks found for '{song}'.")
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not give any results.'))
             return
         
         await interaction.response.defer()
@@ -338,16 +338,16 @@ class HistoryHandler():
 
         json_files = self.fetch_local_history()
         if not json_files:
-            await interaction.edit_original_response(content=f"No local history files found.")
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"No local history files found."))
             return
 
         midi_file_changes = self.track_midi_changes(json_files, shortname, session_hash)
         logging.info(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
 
-        await interaction.edit_original_response(content=f"Processing the diff for **{actual_title}** - *{actual_artist}*, please wait...\n-# This operation can take more than a minute.")
+        await interaction.edit_original_response(embed=constants.common_error_embed(f"Processing the diff for **{actual_title}** - *{actual_artist}*, please wait...\n-# This operation can take more than a minute."))
 
         if len(midi_file_changes) <= 1:
-            await interaction.edit_original_response(content=f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists.")
+            await interaction.edit_original_response(embed=constants.common_error_embed("No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists."))
             return
         
         array_of_tuples_of_embeds_and_files = [] # [(embed, file), (embed, file)]
@@ -380,7 +380,7 @@ class HistoryHandler():
         the_view_itself = history_tools.HistoryView(array_of_embeds_to_give_to_view, array_of_files_to_give_to_dpy, session_hash, interaction.user.id)
 
         if len(the_view_itself.attachments) == 0:
-            await interaction.edit_original_response(content='There are no attachments to display.')
+            await interaction.edit_original_response(embed=constants.common_error_embed('There are no attachments to display.'))
             return
 
         message = await interaction.original_response()

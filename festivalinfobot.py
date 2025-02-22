@@ -276,7 +276,7 @@ class FestivalInfoBot(commands.Bot):
         async def count_command(interaction: discord.Interaction):
             track_list = JamTrackHandler().get_jam_tracks()
             if not track_list:
-                await interaction.response.send_message(content="Could not get tracks.", ephemeral=True)
+                await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
                 return
 
             embed = discord.Embed(
