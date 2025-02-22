@@ -406,12 +406,12 @@ def get_jam_tracks():
     
 def generate_difficulty_string(difficulty_data):
     return (
-        f"Lead:      {generate_difficulty_bar(difficulty_data.get('gr', 0))} "
-        f"Bass:      {generate_difficulty_bar(difficulty_data.get('ba', 0))} "
-        f"Drums:     {generate_difficulty_bar(difficulty_data.get('ds', 0))}\n"
-        f"Pro Lead:  {generate_difficulty_bar(difficulty_data.get('pg', 0))} "
-        f"Pro Bass:  {generate_difficulty_bar(difficulty_data.get('pb', 0))} "
-        f"Vocals:    {generate_difficulty_bar(difficulty_data.get('vl', 0))}"
+        f"<:lead:1327742677856420003> {difficulty_data.get('gr', 0) + 1}/7 "
+        f"<:bass:1327742687025168555> {difficulty_data.get('ba', 0) + 1}/7 "
+        f"<:drums:1327742563762835598> {difficulty_data.get('ds', 0) + 1}/7 "
+        f"<:proguitar:1327742543571583179> {difficulty_data.get('pg', 0) + 1}/7 "
+        f"<:probass:1327742553558093858> {difficulty_data.get('pb', 0) + 1}/7 "
+        f"<:vocals:1327742697695350936> {difficulty_data.get('vl', 0) + 1}/7"
     )
 
 def generate_difficulty_bar(difficulty, max_blocks=7):

@@ -15,7 +15,7 @@ class DailyCommandHandler:
     def __init__(self) -> None:
         pass
 
-    def create_daily_embeds(self, daily_tracks, chunk_size=3):
+    def create_daily_embeds(self, daily_tracks, chunk_size=8):
         embeds = []
         
         for i in range(0, len(daily_tracks), chunk_size):
@@ -23,12 +23,9 @@ class DailyCommandHandler:
             chunk = daily_tracks[i:i + chunk_size]
             
             for entry in chunk:
-                active_until_display = discord.utils.format_dt(datetime.fromtimestamp(entry['activeUntil']), style="R") if entry['activeUntil'] else "Unknown"
-                
                 embed.add_field(
                     name="",
-                    value=f"**\\• {entry['title']}** - *{entry['artist']}* - {active_until_display}\n"
-                        f"```{entry['difficulty']}```\n",
+                    value=f"**\\• {entry['title']}** - *{entry['artist']}*\n{entry['difficulty']}",
                     inline=False
                 )
             embeds.append(embed)
@@ -143,7 +140,7 @@ class ShopCommandHandler:
                 embed.add_field(
                     name="",
                     value=f"**\\• {jam_track['track']['tt']}** - *{jam_track['track']['an']}*\nAvailable {in_date_display} through {out_date_display}\n"
-                        f"```{difficulty_str}```",
+                        f"{difficulty_str}",
                     inline=False
                 )
 
