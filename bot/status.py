@@ -12,17 +12,13 @@ class StatusHandler():
         pass
 
     async def handle_fortnitestatus_interaction(self, interaction: discord.Interaction):
-        lightswitch_url = 'https://raw.githubusercontent.com/FNLookup/data/main/nitestats/light_switch.json'
-        timestamp_url = 'https://raw.githubusercontent.com/FNLookup/data/refs/heads/main/nitestats/timestamp.json'
+        lightswitch_url = 'https://api.nitestats.com/v1/epic/lightswitch'
         logging.debug(f'[GET] {lightswitch_url}')
-        logging.debug(f'[GET] {timestamp_url}')
 
         await interaction.response.defer()
 
         response = requests.get(lightswitch_url)
         data = response.json()[0]
-
-        timestamp = requests.get(timestamp_url).json()['timestamp']
 
         is_fortnite_online = data['status'] == 'UP'
         status_unknown = False
@@ -37,8 +33,6 @@ class StatusHandler():
             colour = 0xff7a08 # orange (perhaps)
 
         embed = discord.Embed(title="Fortnite Status", description=data['message'], colour=colour)
-        date = dt.fromtimestamp(float(timestamp), datetime.timezone.utc).strftime('%B %d, %Y at %I:%M:%S %p UTC')
-        embed.set_footer(text=f"Last Updated: {date}")
 
         await interaction.edit_original_response(embed=embed)
 

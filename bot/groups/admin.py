@@ -9,7 +9,9 @@ from discord.ext import commands
 import requests
 
 from bot import config, constants
+from bot.groups.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
+from bot.leaderboard import LeaderboardPaginatorView
 
 class AdminCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -652,3 +654,52 @@ class TestCog(commands.Cog):
             return
         
         raise ValueError("Error invoked here")
+    
+    @test_group.command(name="autocomplete", description="Test account username autocomplete")
+    @app_commands.describe(username = "The Epic Account Username to search for")
+    async def autocomplete(self, interaction: discord.Interaction, username: str):
+        await interaction.response.send_message(content=f"Account id is: {username}")
+
+    @autocomplete.autocomplete('username')
+    async def autocomplete_callback(self, interaction: discord.Interaction, current: str):
+        # Do stuff with the "current" parameter, e.g. querying it search results...
+
+        oauth: OAuthManager = self.bot.oauth_manager
+        try:
+            account = await oauth.get_account_from_display_name(current)
+            return [
+                app_commands.Choice(name=account.display_name, value=account.account_id)
+            ]
+        except Exception as e:
+            logging.error(f'Account {current} not found', exc_info=e)
+            return [
+                app_commands.Choice(name='No results, please type your entire username.', value='NORESULTS')
+            ]
+        
+    @test_group.command(name="new_leaderboards", description="Test new leaderboards")
+    async def new_leaderboards(self, interaction: discord.Interaction, song: str, instrument: constants.Instruments):
+        oauth: OAuthManager = self.bot.oauth_manager
+
+        chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
+
+        if not chosen_instrument.lb_enabled:
+            await interaction.response.send_message(content=f"Instrument \"{chosen_instrument.english}\" cannot be used for leaderboards.")
+            return
+
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            return
+
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            return
+
+        await interaction.response.defer() # Makes the bot say Thinking...
+
+        matched_track = matched_tracks[0]
+
+        view = LeaderboardPaginatorView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, oauth, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)

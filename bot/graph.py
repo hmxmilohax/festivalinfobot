@@ -197,9 +197,6 @@ class GraphCommandsHandler():
             return
 
         midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
-        if not midi_file:
-            await interaction.edit_original_response(content=f"Failed to decrypt the .dat file for '{song}'.")
-            return
         
         image_path = f'{short_name}_lanes_graph_{session_hash}.png'
         GraphingFuncs().generate_lanes_chart(midi_path=midi_file, spath=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)

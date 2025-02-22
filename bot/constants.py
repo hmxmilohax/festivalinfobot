@@ -43,6 +43,10 @@ SPOTIFY_CLIENT_PASS: str = config.get('bot', 'spotify_api_secret')
 
 GITHUB_PAT: str = config.get('bot', 'github_pat')
 
+EPIC_ACCOUNT_ID: str = config.get('bot', 'epic_account_id')
+EPIC_DEVICE_ID: str = config.get('bot', 'epic_device_id')
+EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
+
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
@@ -50,8 +54,8 @@ SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 # APIs which the bot uses to source its information
 CONTENT_API = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
 DAILY_API = 'https://api.nitestats.com/v1/epic/modes-smart'
-SHOP_API = 'https://fortnite-api.com/v2/shop'
-LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
+SHOP_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
+LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/' # unused
 
 EVENT_NAMES = {
     'added': "Track Added",
@@ -437,3 +441,42 @@ def load_json_from_file(file_path):
     except Exception as e:
         logging.error(f"Error loading JSON from file {file_path}",exc_info=e)
         return None
+    
+def sort_track_list(tracks):
+    return sorted(tracks, key=lambda x: x['track']['tt'].lower())
+
+def create_track_embeds(track_list, title, chunk_size=10):
+    embeds = []
+
+    for i in range(0, len(track_list), chunk_size):
+        embed = discord.Embed(title=title, color=0x8927A1)
+        chunk = track_list[i:i + chunk_size]
+
+        for track in chunk:
+            embed.add_field(
+                name="",
+                value=f"**\\• {track['track']['tt']}** - *{track['track']['an']}*",
+                inline=False
+            )
+
+        embeds.append(embed)
+
+    return embeds
+
+def format_date(date_string):
+    if date_string:
+        date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        return discord.utils.format_dt(date_ts, 'D')
+    return "Unknown"
+
+def add_fields(track_data, embed, weekly_tracks, shop_tracks):
+    track_devname = track_data['track']['sn']
+    if weekly_tracks and track_devname in weekly_tracks:
+        active_until = weekly_tracks[track_devname]['activeUntil']
+        embed.add_field(name="Weekly Rotation", value=f"Free until {format_date(active_until)}.", inline=False)
+
+    shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track_data['track']['ti'], shop_tracks)
+
+    if shop_entry:
+        out_date = shop_entry['meta'].get('outDate')
+        embed.add_field(name="Item Shop", value=f"Currently in the shop until {format_date(out_date)}.", inline=False)

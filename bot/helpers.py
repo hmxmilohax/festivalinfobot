@@ -11,7 +11,7 @@ from bot.constants import OneButtonSimpleView
 from discord.ext import commands
 from bot.embeds import SearchEmbedHandler
 
-class DailyCommandEmbedHandler():
+class DailyCommandHandler:
     def __init__(self) -> None:
         pass
 
@@ -27,17 +27,13 @@ class DailyCommandEmbedHandler():
                 
                 embed.add_field(
                     name="",
-                    value=f"**\\• {entry['title']}** - *{entry['artist']}* - Leaving: {active_until_display}\n"
+                    value=f"**\\• {entry['title']}** - *{entry['artist']}* - {active_until_display}\n"
                         f"```{entry['difficulty']}```\n",
                     inline=False
                 )
             embeds.append(embed)
 
         return embeds
-
-class DailyCommandHandler:
-    def __init__(self) -> None:
-        self.daily_embed_handler = DailyCommandEmbedHandler()
 
     def fetch_daily_shortnames(self):
         try:
@@ -60,7 +56,7 @@ class DailyCommandHandler:
 
             active_events = valid_states[0].get('activeEvents', [])
 
-            daily_tracks = {}
+            daily_tracks = []
             for event in active_events:
                 event_type = event.get('eventType', '')
                 active_since = event.get('activeSince', '')
@@ -72,160 +68,134 @@ class DailyCommandHandler:
                 if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
                     if active_since_date <= current_time <= active_until_date:
                         shortname = event_type.replace('PilgrimSong.', '')
-                        daily_tracks[shortname] = {
+                        daily_tracks.append({
+                            'shortname': shortname,
                             'activeSince': active_since,
                             'activeUntil': active_until
-                        }
+                        })
 
             return daily_tracks
         except Exception as e:
             logging.error(exc_info=e)
             return {}
-    
-    def convert_iso_to_timestamp(self, event_data):
-        active_since_iso = event_data.get('activeSince', '')
-        active_until_iso = event_data.get('activeUntil', '')
-
-        active_until_ts = int(datetime.fromisoformat(active_until_iso.replace('Z', '+00:00')).timestamp()) if active_until_iso else None
-        active_since_ts = int(datetime.fromisoformat(active_since_iso.replace('Z', '+00:00')).timestamp()) if active_since_iso else None
-
-        return active_since_ts, active_until_ts
-        
-    def process_daily_tracks(self, tracks, daily_shortnames_data):
-        daily_tracks = []
-        
-        for track in tracks:
-            shortname = track['track'].get('sn')
-
-            if shortname in daily_shortnames_data:
-                event_data = daily_shortnames_data[shortname]
-                active_since_ts, active_until_ts = self.convert_iso_to_timestamp(event_data)
-
-                title = track['track'].get('tt', 'Unknown Title')
-                artist = track['track'].get('an', 'Unknown Artist')
-
-                difficulty_str = constants.generate_difficulty_string(track['track'].get('in', {}))
-
-                daily_tracks.append({
-                    'track': track,
-                    'title': title,
-                    'artist': artist,
-                    'difficulty': difficulty_str,
-                    'activeSince': active_since_ts,
-                    'activeUntil': active_until_ts
-                })
-
-        # Sort the tracks first by 'Leaving' time (activeUntil), then alphabetically by title
-        daily_tracks.sort(key=lambda x: (x['activeUntil'] or float('inf'), x['title'].lower()))
-        return daily_tracks
         
     async def handle_interaction(self, interaction: discord.Interaction):
         tracks = constants.get_jam_tracks() # Fix circular import...
-        daily_shortnames_data = self.fetch_daily_shortnames()
+        weekly_songs = self.fetch_daily_shortnames()
 
-        if not tracks or not daily_shortnames_data:
+        if not tracks or not weekly_songs:
             await interaction.response.send_message(content='Could not fetch tracks.', ephemeral=True)
             return
 
-        daily_tracks = self.process_daily_tracks(tracks, daily_shortnames_data)
+        daily_tracks = []
+        
+        weekly_songs.sort(key=lambda x: x['shortname'])
+
+        for song in weekly_songs:
+            track = discord.utils.find(lambda t: t['track']['sn'] == song['shortname'], tracks)
+            if not track:
+                continue
+
+            title = track['track'].get('tt', 'Unknown Title')
+            artist = track['track'].get('an', 'Unknown Artist')
+
+            difficulty_str = constants.generate_difficulty_string(track['track'].get('in', {}))
+            daily_tracks.append({
+                'title': title,
+                'artist': artist,
+                'difficulty': difficulty_str,
+                'activeUntil': song['activeUntil']
+            })
 
         if daily_tracks:
             await interaction.response.defer() # Makes it say thinking, and also avoids a timeout error on PaginatorView
 
-            embeds = self.daily_embed_handler.create_daily_embeds(daily_tracks)
+            embeds = self.create_daily_embeds(daily_tracks)
             view = constants.PaginatorView(embeds, interaction.user.id)
             view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
         else:
             await interaction.response.send_message(content="No daily tracks found.")
         
 class ShopCommandHandler:
-    def __init__(self) -> None:
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
         self.search_embed_handler = SearchEmbedHandler()
 
+    def create_embeds(self, shop_tracks, title, content_tracks):
+        embeds = []
+
+        for i in range(0, len(shop_tracks), 5):
+            embed = discord.Embed(title=title, color=0x8927A1)
+            chunk = shop_tracks[i:i + 5]
+
+            for track in chunk: # track is in epic format
+                in_date = track['meta'].get('inDate')
+                out_date = track['meta'].get('outDate')
+                in_date_display = constants.format_date(in_date)
+                out_date_display = constants.format_date(out_date)
+                
+                template_id = track['meta'].get('templateId')
+                jam_track = discord.utils.find(lambda jt: jt['track']['ti'] == template_id, content_tracks)
+
+                if jam_track:
+                    difficulty_data = jam_track['track'].get('in', {})
+                    difficulty_str = constants.generate_difficulty_string(difficulty_data)
+                else:
+                    difficulty_str = "No difficulty data available"
+
+                embed.add_field(
+                    name="",
+                    value=f"**\\• {jam_track['track']['tt']}** - *{jam_track['track']['an']}*\nAvailable {in_date_display} through {out_date_display}\n"
+                        f"```{difficulty_str}```",
+                    inline=False
+                )
+
+            embeds.append(embed)
+
+        return embeds
+
     async def handle_interaction(self, interaction:discord.Interaction):
-        tracks = self.fetch_shop_tracks()
+        shop_tracks = self.fetch_shop_tracks()
         jam_tracks = constants.get_jam_tracks() # Fix circular import...
 
         await interaction.response.defer()
 
-        if not tracks:
-            await interaction.edit_original_response(content='Could not fetch tracks.', ephemeral=True)
+        if not shop_tracks:
+            await interaction.edit_original_response(content='Could not fetch tracks in the Item Shop.')
             return
 
-        track_list = self.prepare_track_list(tracks, shop=True)
+        def title_from_template_id(template_id) -> str:
+            return discord.utils.find(lambda jt: jt['track']['ti'] == template_id, jam_tracks)['track']['tt']
+        
+        shop_tracks.sort(key=lambda offer: title_from_template_id(offer['meta']['templateId']).lower())
 
-        if not track_list:
-            await interaction.edit_original_response(content='No tracks available in the shop.', ephemeral=True)
-            return
-
-        total_tracks = len(track_list)
+        total_tracks = len(shop_tracks)
         title = f"Shop Jam Tracks (Total: {total_tracks})"
 
-        embeds = self.search_embed_handler.create_track_embeds(track_list, title, shop=True, jam_tracks=jam_tracks)
+        embeds = self.create_embeds(shop_tracks, title, jam_tracks)
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
-    def prepare_track_list(self, tracks, shop=False):
-        unique_tracks = {}
-        
-        if type(tracks) == dict:
-            for track in tracks.values():
-                track_sn = track['devName'] if shop else track['track']['sn']
-                if track_sn not in unique_tracks:
-                    unique_tracks[track_sn] = track
-        else:
-            for track in tracks:
-                track_sn = track['devName'] if shop else track['track']['sn']
-                if track_sn not in unique_tracks:
-                    unique_tracks[track_sn] = track
-
-        return sorted(unique_tracks.values(), key=lambda x: x['title'].lower() if shop else x['track']['tt'].lower())
-
-    def fetch_shop_tracks(self):
+    def fetch_shop_tracks(self) -> list:
         try:
             logging.debug(f'[GET] {constants.SHOP_API}')
-            response = requests.get(constants.SHOP_API)
+            headers = {
+                'Authorization': self.bot.oauth_manager.session_token
+            }
+            response = requests.get(constants.SHOP_API, headers=headers)
             data = response.json()
 
-            # Check if 'data' and 'entries' keys exist in the response
-            if 'data' in data and 'entries' in data['data']:
-                entries = data['data']['entries']
-                available_tracks = {}
+            storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
+            shop_tracks = list(filter(lambda item: item['meta']['templateId'].startswith('SparksSong:'), storefront['catalogEntries']))
 
-                for entry in entries:
-                    in_date = entry.get('inDate')
-                    out_date = entry.get('outDate')
-                    
-                    if entry.get('tracks'):
-                        for track in entry['tracks']:
-                            dev_name = track.get("devName")
-                            if dev_name and 'sid_placeholder' in track['id']:
-                                if dev_name not in available_tracks:
-                                    available_tracks[dev_name] = {
-                                        "id": track["id"],
-                                        "devName": dev_name,
-                                        "title": track.get("title", "Unknown Title").strip() if track.get("title") else "Unknown Title",
-                                        "artist": track.get("artist", "Unknown Artist").strip() if track.get("artist") else "Unknown Artist",
-                                        "releaseYear": track.get("releaseYear", "Unknown Year"),
-                                        "duration": track.get("duration", 0),
-                                        "difficulty": track.get("difficulty", {}),
-                                        "inDate": in_date,  # Assign entry-level inDate
-                                        "outDate": out_date  # Assign entry-level outDate
-                                    }
-
-                if not available_tracks:
-                    logging.error('No tracks found in the shop.')
-                    return None
-
-                return available_tracks  # Return dictionary keyed by devName
+            return shop_tracks
 
         except Exception as e:
             logging.error(f'Error fetching shop tracks', exc_info=e)
             return None
         
 class TracklistHandler:
-    def __init__(self) -> None:
-        self.shop_handler = ShopCommandHandler()
+    def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()
 
     async def handle_interaction(self, interaction: discord.Interaction):
@@ -234,18 +204,13 @@ class TracklistHandler:
             await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
             return
 
-        track_list = self.shop_handler.prepare_track_list(tracks)
-
-        if not track_list:
-            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
-            return
-        
+        track_list = constants.sort_track_list(tracks)
         await interaction.response.defer()
 
         total_tracks = len(track_list)
         title = f"Available Tracks (Total: {total_tracks})"
 
-        embeds = self.search_embed_handler.create_track_embeds(track_list, title)
+        embeds = constants.create_track_embeds(track_list, title)
         
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
@@ -257,13 +222,8 @@ class TracklistHandler:
         if not tracks:
             await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
             return
-
-        track_list = self.shop_handler.prepare_track_list(tracks)
-
-        if not track_list:
-            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
-            return
-
+        
+        track_list = constants.sort_track_list(tracks)
         matched = []
 
         for track in track_list:            
@@ -276,7 +236,7 @@ class TracklistHandler:
         total_tracks = len(matched)
         title = f"Filtered tracks for {artist} (Total: {total_tracks})"
 
-        embeds = self.search_embed_handler.create_track_embeds(matched, title)
+        embeds = constants.create_track_embeds(matched, title)
         
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
@@ -298,12 +258,7 @@ class TracklistHandler:
             await interaction.response.send_message(content='Could not get tracks.', ephemeral=True)
             return
 
-        track_list = self.shop_handler.prepare_track_list(tracks)
-
-        if not track_list:
-            await interaction.response.send_message(content='No tracks available.', ephemeral=True)
-            return
-
+        track_list = constants.sort_track_list(tracks)
         # Escape the regex string to treat it as a literal string
         regex_pattern = re.compile(regex)
 
@@ -318,23 +273,17 @@ class TracklistHandler:
                 matching_songs.append(track)
 
         if len(matching_songs) > 0:
-            embeds = self.search_embed_handler.create_track_embeds(matching_songs, f"Matched tracklist result\nRegex: `{regex}`\nQuery: `{matched}`\nTotal: {len(matching_songs)}")    
+            embeds = constants.create_track_embeds(matching_songs, f"Matched tracklist result\nRegex: `{regex}`\nQuery: `{matched}`\nTotal: {len(matching_songs)}")    
             view = constants.PaginatorView(embeds, interaction.user.id)
             view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
         else:
             await interaction.edit_original_response(content="There were no results! Try another pattern.")
 
 class GamblingHandler:
-    def __init__(self) -> None:
+    def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()
         self.daily_handler = DailyCommandHandler()
-        self.shop_handler = ShopCommandHandler()
-
-    def format_date(self, date_string):
-        if date_string:
-            date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return discord.utils.format_dt(date_ts, 'D')
-        return "Currently in the shop!"
+        self.shop_handler = ShopCommandHandler(bot)
 
     async def handle_random_track_interaction(self, interaction: discord.Interaction, shop: bool = False, daily: bool = False):
         await interaction.response.defer()
@@ -345,39 +294,23 @@ class GamblingHandler:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        if shop:
-            shop_tracks = self.shop_handler.fetch_shop_tracks()
-            def inshop(obj):
-                return obj['track']['sn'] in shop_tracks
+        shop_tracks = self.shop_handler.fetch_shop_tracks()
+        weekly_tracks = self.daily_handler.fetch_daily_shortnames()
 
+        if shop:
+            def inshop(obj):
+                return discord.utils.find(lambda offer: offer['meta']['templateId'] == obj['track']['ti'], shop_tracks)
             track_list = list(filter(inshop, track_list))
 
         if daily:
-            daily_tracks = self.daily_handler.fetch_daily_shortnames()
             def indaily(obj):
-                return obj['track']['sn'] in daily_tracks
-
+                return obj['track']['sn'] in weekly_tracks
             track_list = list(filter(indaily, track_list))
-
-        daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
-        shop_tracks = self.shop_handler.fetch_shop_tracks()
-
-        def add_fields(track_devname, embed):
-            if daily_shortnames_data and track_devname in daily_shortnames_data:
-                active_until = daily_shortnames_data[track_devname]['activeUntil']
-                human_readable_until = self.format_date(active_until)
-                embed.add_field(name="Daily Rotation", value=f"Free in daily rotation until {human_readable_until}.", inline=False)
-
-            # Add shop information
-            if shop_tracks and track_devname in shop_tracks:
-                out_date = shop_tracks[track_devname].get('outDate')
-                human_readable_out_date = self.format_date(out_date)
-                embed.add_field(name="Shop Rotation", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
 
         async def re_roll():
             chosen_track = random.choice(track_list)
             embed = self.search_embed_handler.generate_track_embed(chosen_track, is_random=True)
-            add_fields(chosen_track['track']['sn'], embed)
+            constants.add_fields(chosen_track, embed, weekly_tracks, shop_tracks)
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 
         reroll_view = OneButtonSimpleView(on_press=re_roll, user_id=interaction.user.id, label="Reroll Track")
@@ -393,15 +326,15 @@ class GamblingHandler:
             await interaction.response.send_message(content='No tracks available.', ephemeral=True)
             return
         
-        if shop:
-            shop_tracks = self.shop_handler.fetch_shop_tracks()
-            def inshop(obj):
-                return obj['track']['sn'] in shop_tracks
+        shop_tracks = self.shop_handler.fetch_shop_tracks()
+        daily_tracks = self.daily_handler.fetch_daily_shortnames()
 
+        if shop:
+            def inshop(obj):
+                return discord.utils.find(lambda offer: offer['meta']['templateId'] == obj['track']['ti'], shop_tracks)
             track_list = list(filter(inshop, track_list))
 
         if daily:
-            daily_tracks = self.daily_handler.fetch_daily_shortnames()
             def indaily(obj):
                 return obj['track']['sn'] in daily_tracks
 

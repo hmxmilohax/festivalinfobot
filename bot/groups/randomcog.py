@@ -10,7 +10,7 @@ class RandomCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.config = bot.config
-        self.gambling_handler = GamblingHandler()
+        self.gambling_handler = GamblingHandler(bot)
 
     random_cog = app_commands.Group(name="random", description="Random Commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 

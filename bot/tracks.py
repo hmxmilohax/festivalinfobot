@@ -98,7 +98,7 @@ class SearchCommandHandler:
         self.bot : commands.Bot = bot
         self.embed_handler = embeds.SearchEmbedHandler()
         self.daily_handler = helpers.DailyCommandHandler()
-        self.shop_handler = helpers.ShopCommandHandler()
+        self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
         options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
@@ -127,12 +127,6 @@ class SearchCommandHandler:
         except TimeoutError:
             await interaction.edit_original_response(content="You didn't respond in time. Search cancelled.")
             return None, None
-
-    def format_date(self, date_string):
-        if date_string:
-            date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return discord.utils.format_dt(date_ts, 'D')
-        return "Currently in the shop!"
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
         with open('bot/imacat.json', 'r') as imacat_file:
@@ -154,26 +148,13 @@ class SearchCommandHandler:
             await interaction.edit_original_response(content='Could not get Jam Tracks.', ephemeral=True)
             return
 
-        daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
+        weekly_tracks = self.daily_handler.fetch_daily_shortnames()
         shop_tracks = self.shop_handler.fetch_shop_tracks()
 
-        # Perform fuzzy search
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, query)
         if not matched_tracks:
             await interaction.edit_original_response(content=f'No tracks were found matching \"{query}\"')
             return
-        
-        def add_fields(track_devname, embed):
-            if daily_shortnames_data and track_devname in daily_shortnames_data:
-                active_until = daily_shortnames_data[track_devname]['activeUntil']
-                human_readable_until = self.format_date(active_until)
-                embed.add_field(name="Daily Rotation", value=f"Free in daily rotation until {human_readable_until}.", inline=False)
-
-            # Add shop information
-            if shop_tracks and track_devname in shop_tracks:
-                out_date = shop_tracks[track_devname].get('outDate')
-                human_readable_out_date = self.format_date(out_date)
-                embed.add_field(name="Shop Rotation", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
 
         track = None
         message = None
@@ -184,8 +165,7 @@ class SearchCommandHandler:
 
             embed = self.embed_handler.generate_track_embed(_track)
 
-            track_devname = _track['track']['sn']
-            add_fields(track_devname=track_devname, embed=embed)
+            constants.add_fields(_track, embed, weekly_tracks, shop_tracks)
             
             message = await interaction.edit_original_response(embed=embed)
         else:
@@ -196,9 +176,7 @@ class SearchCommandHandler:
             track = chosen_track
 
             embed = self.embed_handler.generate_track_embed(chosen_track)
-            
-            track_devname = chosen_track['track']['sn']
-            add_fields(track_devname=track_devname, embed=embed)
+            constants.add_fields(chosen_track, embed, weekly_tracks, shop_tracks)
 
             message = await message.reply(embed=embed, mention_author=False)
 

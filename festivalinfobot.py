@@ -26,6 +26,7 @@ from bot.groups.suggestions import SuggestionModal
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.graph import GraphCommandsHandler
+from bot.groups.oauthmanager import OAuthManager
 
 import traceback
 
@@ -104,6 +105,8 @@ class FestivalInfoBot(commands.Bot):
         if not self.analytic_loop.is_running():
             self.analytic_loop.start()
 
+        await self.oauth_manager.create_session()
+
         logging.debug("on_ready finished!")
 
         uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
@@ -146,12 +149,13 @@ class FestivalInfoBot(commands.Bot):
         self.lb_handler = LeaderboardCommandHandler(self)
         self.search_handler = SearchCommandHandler(self)
         self.daily_handler = DailyCommandHandler()
-        self.shop_handler = ShopCommandHandler()
-        self.tracklist_handler = TracklistHandler()
+        self.shop_handler = ShopCommandHandler(self)
+        self.tracklist_handler = TracklistHandler(self)
         self.path_handler = PathCommandHandler()
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
         self.graph_handler = GraphCommandsHandler()
+        self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
 
         self.setup_commands()
 
