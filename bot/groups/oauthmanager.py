@@ -65,7 +65,7 @@ class OAuthManager:
 
         await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session refreshed for ' + self._session_data['displayName'])
 
-    @tasks.loop(seconds=120)
+    @tasks.loop(seconds=60)
     async def verify_session(self):
         logging.info('[GET] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify')
         url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify'
