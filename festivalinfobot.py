@@ -425,7 +425,7 @@ class FestivalInfoBot(commands.Bot):
             if len(dirtyness) > 0:
                 embed.add_field(name="Local Changes", value=f"```{dirtyness}```", inline=False)
 
-            view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://festivaltracker.github.io", False)
+            view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://invite.festivaltracker.org", False)
             view.message = await interaction.original_response()
 
             await interaction.edit_original_response(embed=embed, view=view)
@@ -493,7 +493,7 @@ class FestivalInfoBot(commands.Bot):
                         embed.set_footer(text="Tip: Parameters with \"?\" mean they're optional.")
                     embed.add_field(name="Usage", value=usage, inline=False)
 
-                    view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://festivaltracker.github.io", False)
+                    view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://invite.festivaltracker.org", False)
                     await interaction.response.send_message(embed=embed, view=view)
                     view.message = await interaction.original_response()
                 else:
@@ -518,7 +518,7 @@ class FestivalInfoBot(commands.Bot):
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
                     embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
                     embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
-                    embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://festivaltracker.github.io)', inline=False)
+                    embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://invite.festivaltracker.org)', inline=False)
                     chunk = commands[i:i + 5]
 
                     for command in chunk:
