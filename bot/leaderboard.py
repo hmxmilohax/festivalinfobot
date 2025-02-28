@@ -99,7 +99,7 @@ class LeaderboardPaginatorView(discord.ui.View):
         response.raise_for_status()
         data = response.json()
 
-        open('leaderboard.json', 'w').write(str(response.text))
+        # open('leaderboard.json', 'w').write(str(response.text))
 
         update = False
         if self.total_pages == 0: update = True
