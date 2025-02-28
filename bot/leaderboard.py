@@ -248,14 +248,16 @@ class JumpPlayerModal(discord.ui.Modal):
             if entry['teamId'] == accid:
                 page_num = int(page_idx)
                 entry_relative_index = (page_num * 100) + i
+                # print(page_num, entry_relative_index, i)
 
-                return (math.floor(entry_relative_index / 10), (i + 1) % 10)
+                return (math.floor(entry_relative_index / 10), (i % 10) + 1)
             
         return None
     
     async def check_page(self, accid, page_idx, interaction: discord.Interaction):
         if self.entry_details(page_idx, accid) is not None:
             self.view.current_page, self.view.current_selected_in_page = self.entry_details(page_idx, accid)
+            # print(self.view.current_page, self.view.current_selected_in_page)
             await interaction.edit_original_response(embed=constants.common_success_embed(f"Jumped to {accid} in page {self.view.current_page + 1}"))
             await self.view.force_update()
             return True
@@ -273,7 +275,7 @@ class JumpPlayerModal(discord.ui.Modal):
         if total_pages > 1:
             for page_idx in range(1, total_pages):
                 self.view.get_page_data(page_idx)
-                
+
                 if await self.check_page(accid, page_idx, interaction):
                     return
 
