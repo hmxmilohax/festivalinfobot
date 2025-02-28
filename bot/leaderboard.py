@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 import logging
 import math
 import requests
@@ -10,7 +11,7 @@ from bot.tracks import JamTrackHandler
 # a custom view for leaderboards so they load fast as shit
 class LeaderboardPaginatorView(discord.ui.View):
     def __init__(self, song_event_id: str, season_str: str, instrument: constants.Instrument, user_id: int, oauth_manager: OAuthManager, matched_track: dict):
-        super().__init__(timeout=30)
+        super().__init__(timeout=60)
         self.user_id = user_id
         self.total_pages = 0
         self.current_page = 0
@@ -24,8 +25,14 @@ class LeaderboardPaginatorView(discord.ui.View):
         self.oauth_manager = oauth_manager
         self.embed_manager = LeaderboardEmbedHandler()
         self.matched_track = matched_track
+        self.current_selected_in_page = 0
 
         self.per_page = 10
+
+    async def force_update(self):
+        embed = self.get_embed()
+        self.update_buttons()
+        await self.message.edit(embed=embed, view=self)
 
     def update_buttons(self):
         self.add_buttons()
@@ -33,13 +40,21 @@ class LeaderboardPaginatorView(discord.ui.View):
     def add_buttons(self):
         self.clear_items()
         
-        self.add_item(FirstButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='First', disabled=not (self.current_page > 0), user_id=self.user_id))
-        self.add_item(PreviousButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(FirstButton(style=discord.ButtonStyle.secondary, emoji=constants.FIRST_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(PreviousButton(style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id))
 
-        self.add_item(PaginatorButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
+        self.add_item(PaginatorButton(label=f"{self.current_page + 1}/{self.total_pages}", user_id=self.user_id, style=discord.ButtonStyle.primary))
 
-        self.add_item(NextButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
-        self.add_item(LastButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Last', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(NextButton(style=discord.ButtonStyle.secondary, emoji=constants.NEXT_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(LastButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+
+        self.add_item(JumpToPlayerButton(style=discord.ButtonStyle.secondary, emoji=constants.SEARCH_EMOJI, user_id=self.user_id, row=1, label='Player'))
+        self.add_item(JumpRankButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='To Rank'))
+        self.add_item(JumpToPageButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='To Page'))
+
+        self.add_item(ScrollUpButton(style=discord.ButtonStyle.secondary, emoji=constants.UP_EMOJI, user_id=self.user_id, row=2))
+        self.add_item(ScrollDownButton(style=discord.ButtonStyle.secondary, emoji=constants.DOWN_EMOJI, user_id=self.user_id, row=2))
+        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View'))
 
     def get_embed(self):
         # the api returns 100 entries per page however we show 10 entries per page only
@@ -51,6 +66,8 @@ class LeaderboardPaginatorView(discord.ui.View):
             self.get_page_data(page)
 
         entries = self.page_data[str(page)]['entries']
+
+        page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
 
         # print(entries)
 
@@ -64,7 +81,12 @@ class LeaderboardPaginatorView(discord.ui.View):
         selected_entries = entries[_entries_start:_entries_end] # in epic format
         title = f"Leaderboard for\n**{self.matched_track['track']['tt']}** - *{self.matched_track['track']['an']}* ({self.instrument.english})"
 
-        return self.embed_manager.leaderboard_entries(selected_entries, title, self.account_names)
+        return self.embed_manager.leaderboard_entries(selected_entries, title, self.account_names, self.current_selected_in_page, page_updated)
+    
+    def load_all_pages(self):
+        self.get_page_data(0)
+        for page in range(1, self.page_data['0']['totalPages']):
+            self.get_page_data(page)
             
     def get_page_data(self, page):
         url = f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/{self.season_str}_{self.song_event_id}/{self.song_event_id}_{self.instrument.lb_code}/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
@@ -76,6 +98,8 @@ class LeaderboardPaginatorView(discord.ui.View):
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         data = response.json()
+
+        open('leaderboard.json', 'w').write(str(response.text))
 
         update = False
         if self.total_pages == 0: update = True
@@ -128,6 +152,145 @@ class NextButton(PaginatorButton):
     def update_page(self, view: LeaderboardPaginatorView): view.current_page += 1
 class LastButton(PaginatorButton):
     def update_page(self, view: LeaderboardPaginatorView): view.current_page = view.total_pages - 1
+class ScrollUpButton(PaginatorButton):
+    def update_page(self, view: LeaderboardPaginatorView): 
+        if view.current_selected_in_page > 1:
+            view.current_selected_in_page -= 1
+        else:
+            view.current_selected_in_page = 10
+class ScrollDownButton(PaginatorButton):
+    def update_page(self, view: LeaderboardPaginatorView): 
+        if view.current_selected_in_page < 10:
+            view.current_selected_in_page += 1
+        else:
+            view.current_selected_in_page = 1
+
+class JumpRankButton(PaginatorButton):
+    async def callback(self, interaction):
+        view: LeaderboardPaginatorView = self.view
+        modal = JumpRankModal(view)
+        await interaction.response.send_modal(modal)
+
+class JumpToPlayerButton(PaginatorButton):
+    async def callback(self, interaction):
+        view: LeaderboardPaginatorView = self.view
+        modal = JumpPlayerModal(view)
+        await interaction.response.send_modal(modal)
+
+class JumpToPageButton(PaginatorButton):
+    async def callback(self, interaction):
+        view: LeaderboardPaginatorView = self.view
+        modal = JumpPageModal(view)
+        await interaction.response.send_modal(modal)
+    
+class JumpRankModal(discord.ui.Modal):
+    def __init__(self, view: LeaderboardPaginatorView):
+        super().__init__(title="Jump to a rank in this leaderboard")
+
+        self.view = view
+
+        self.add_item(discord.ui.TextInput(label="Enter rank", required=False, max_length=3, style=discord.TextStyle.short, placeholder="Enter the rank to jump to. (1-500)"))
+
+    async def on_submit(self, interaction: discord.Interaction):
+        rank = self.children[0].value
+        try:
+            rank = int(rank)
+            if rank < 1 or rank > 500:
+                raise ValueError
+            
+            self.view.current_page = math.floor(rank / 10)
+            self.view.current_selected_in_page = rank % 10
+
+            await interaction.response.send_message(embed=constants.common_success_embed(f"Jumped to {rank} in page {self.view.current_page + 1}"), ephemeral=True)
+
+            await self.view.force_update()
+
+        except ValueError:
+            await interaction.edit_original_response(embed=constants.common_error_embed("The rank must be a number between 1 to 500."), ephemeral=True)
+            return
+        
+class JumpPageModal(discord.ui.Modal):
+    def __init__(self, view: LeaderboardPaginatorView):
+        super().__init__(title="Jump to a page in this leaderboard")
+
+        self.view = view
+
+        self.add_item(discord.ui.TextInput(label="Enter page", required=False, max_length=len(str(view.total_pages)), style=discord.TextStyle.short, placeholder=f"Enter the page to jump to. (1 - {view.total_pages})"))
+
+    async def on_submit(self, interaction: discord.Interaction):
+        page = self.children[0].value
+        try:
+            page = int(page)
+            if page < 1 or page > self.view.total_pages:
+                raise ValueError
+            
+            self.view.current_page = math.floor(page / 10)
+            await interaction.response.send_message(embed=constants.common_success_embed(f"Jumped to page {self.view.current_page + 1}."), ephemeral=True)
+            await self.view.force_update()
+
+        except ValueError:
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"The page must be a number between 1 to {self.view.total_pages}."), ephemeral=True)
+            return
+        
+class JumpPlayerModal(discord.ui.Modal):
+    def __init__(self, view: LeaderboardPaginatorView):
+        super().__init__(title="Jump to a player in this leaderboard")
+
+        self.view = view
+
+        self.add_item(discord.ui.TextInput(label="Player username", required=False, max_length=50, min_length=1, style=discord.TextStyle.short, placeholder=f"Enter the username of the player to jump to."))
+        self.add_item(discord.ui.TextInput(label="Account ID", required=False, max_length=32, style=discord.TextStyle.short, placeholder=f"Or alternatively, the account ID of the player to jump to."))
+
+    def entry_details(self, page_idx, accid):
+        page_data = self.view.page_data[str(page_idx)]
+        for i in range(len(page_data['entries'])):
+            entry = page_data['entries'][i]
+            if entry['teamId'] == accid:
+                page_num = int(page_idx)
+                entry_relative_index = (page_num * 100) + i
+
+                return (math.floor(entry_relative_index / 10), (i + 1) % 10)
+            
+        return None
+    
+    async def check_page(self, accid, page_idx, interaction: discord.Interaction):
+        if self.entry_details(page_idx, accid) is not None:
+            self.view.current_page, self.view.current_selected_in_page = self.entry_details(page_idx, accid)
+            await interaction.edit_original_response(embed=constants.common_success_embed(f"Jumped to {accid} in page {self.view.current_page + 1}"))
+            await self.view.force_update()
+            return True
+        return False
+
+    async def jump_to_account_id(self, accid, interaction: discord.Interaction):
+        await interaction.response.send_message('Please wait...', ephemeral=True)
+
+        self.view.get_page_data(0)
+        if await self.check_page(accid, 0, interaction):
+            return
+        
+        total_pages = self.view.page_data['0']['totalPages']
+
+        if total_pages > 1:
+            for page_idx in range(1, total_pages):
+                self.view.get_page_data(page_idx)
+                
+                if await self.check_page(accid, page_idx, interaction):
+                    return
+
+        await interaction.edit_original_response(embed=constants.common_error_embed(f"Could not find an entry for {accid}."))
+
+    async def on_submit(self, interaction: discord.Interaction):
+        username = self.children[0].value
+        accountid = self.children[1].value
+        
+        if len(accountid) > 0:
+            await self.jump_to_account_id(accountid, interaction)
+        else:
+            accounts = self.view.oauth_manager.search_users(username)
+            if len(accounts) == 1:
+                await self.jump_to_account_id(accounts[0].account_id, interaction)
+            else:
+                interaction.response.send_message(embed=discord.Embed(colour=0x3AB00B, title="Select the user", description=f"{constants.SEARCH_EMOJI} Select the correct user to continue."))
 
 class LeaderboardEmbedHandler():
     def __init__(self) -> None:
@@ -140,12 +303,14 @@ class LeaderboardEmbedHandler():
         else:
             return '' + ('★' * stars) + ('☆' * (5-stars))
         
-    def leaderboard_entries(self, entries: list, title: str, account_usernames: dict):
+    def leaderboard_entries(self, entries: list, title: str, account_usernames: dict, selected_player: int = 0, updated_ts: datetime = None):
         # ALL IN EPIC FORMAT
         embed = discord.Embed(title=title, color=0x8927A1)
+        embed.add_field(name="Last Updated", value=discord.utils.format_dt(updated_ts, 'R') if updated_ts else 'Unknown', inline=False)
         field_text = '```'
 
-        for entry in entries:
+        for index in range(len(entries)):
+            entry = entries[index]
             try:
                 # Prepare leaderboard entry details
                 account_id = entry['teamId']
@@ -179,12 +344,18 @@ class LeaderboardEmbedHandler():
                 fc_status = "FC" if _is_fullcombo else ""
 
                 # Add the formatted line for this entry
+                if selected_player == (index + 1):
+                    rank = '>>>'
+
                 field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
 
             except Exception as e:
                 logging.error(f"Error in leaderboard entry formatting", exc_info=e)
             field_text += '\n'
         field_text += '```'
+
+        if field_text == '``````': # basic ahh
+            field_text = 'No entries found.'
 
         embed.add_field(name="", value=field_text, inline=False)
         return embed

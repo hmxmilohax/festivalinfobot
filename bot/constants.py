@@ -49,6 +49,7 @@ EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
 
 SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
 
+
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
@@ -58,6 +59,18 @@ CONTENT_API = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/a
 DAILY_API = 'https://api.nitestats.com/v1/epic/modes-smart'
 SHOP_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/' # unused
+
+ERROR_EMOJI = '<:error:1327736288807358629>'
+SUCCESS_EMOJI = '<:checkmark:1327738579287412897>'
+PREVIOUS_EMOJI = '<:prevpage:1344510443657629768>'
+NEXT_EMOJI = '<:nextpage:1344510452234977290>'
+FIRST_EMOJI = '<:firstpage:1344510426830077952>'
+LAST_EMOJI = '<:lastpage:1344510435256176740>'
+UP_EMOJI = '<:up:1344510417896214528>'
+DOWN_EMOJI = '<:down:1344510409050427463>'
+SEARCH_EMOJI = '<:search:1344510399781011509>'
+INFORMATION_EMOJI = '<:information:1344521974302507039>'
+SEARCH_EMOJI = '<:search:1344510399781011509>'
 
 EVENT_NAMES = {
     'added': "Track Added",
@@ -144,13 +157,13 @@ class PaginatorView(discord.ui.View):
     def add_buttons(self):
         self.clear_items()
         
-        self.add_item(FirstButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='First', disabled=not (self.current_page > 0), user_id=self.user_id))
-        self.add_item(PreviousButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(FirstButton(style=discord.ButtonStyle.secondary, emoji=FIRST_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(PreviousButton(style=discord.ButtonStyle.secondary, emoji=PREVIOUS_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id))
 
-        self.add_item(PaginatorButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
+        self.add_item(PaginatorButton(label=f"{self.current_page + 1}/{self.total_pages}", user_id=self.user_id, style=discord.ButtonStyle.primary))
 
-        self.add_item(NextButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
-        self.add_item(LastButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Last', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(NextButton(style=discord.ButtonStyle.secondary, emoji=NEXT_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(LastButton(style=discord.ButtonStyle.secondary, emoji=LAST_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
 
     def get_embed(self):
         if self.current_page < 0:
@@ -484,7 +497,7 @@ def add_fields(track_data, embed, weekly_tracks, shop_tracks):
         embed.add_field(name="Item Shop", value=f"Currently in the shop until {format_date(out_date)}.", inline=False)
     
 def common_error_embed(text) -> discord.Embed:
-    return discord.Embed(colour=0xbe2625, title="Error", description=f"<:error:1327736288807358629> {text}")
+    return discord.Embed(colour=0xbe2625, title="Error", description=f"{ERROR_EMOJI} {text}")
 
 def common_success_embed(text) -> discord.Embed:
-    return discord.Embed(colour=0xbe2625, title="Success", description=f"<:error:1327738579287412897> {text}")
+    return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")

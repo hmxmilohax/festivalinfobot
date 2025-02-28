@@ -11,6 +11,12 @@ class EpicAccount:
         self.account_id = account_id
         self.display_name = display_name
 
+class EpicAccountPlatform:
+    def __init__(self, account_id: str, platform: str, display_name: str):
+        self.account_id = account_id
+        self.platform = platform
+        self.display_name = display_name
+
 # this is th clsas that makes sure the device auth does not die
 class OAuthManager:
     def __init__(self, bot: commands.Bot, device_id: str, account_id: str, device_secret: str):
@@ -111,3 +117,25 @@ class OAuthManager:
         response.raise_for_status()
         account = response.json()
         return EpicAccount(account['id'], account['displayName'])
+    
+    def search_users(self, username_prefix: str) -> EpicAccountPlatform:
+        url = f'https://user-search-service-prod.ol.epicgames.com/api/v1/search/{self.account_id}?platform=epic&prefix={username_prefix}'
+        logging.info(f'[GET] {url}')
+        headers = {
+            'Authorization': f'Bearer {self._access_token}'
+        }
+
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        matches = response.json()
+        print(matches)
+        
+        matchlist = []
+        for match in matches:
+            matchlist.append(EpicAccountPlatform(
+                match['accountId'], 
+                match['matches'][0]['platform'], 
+                match['matches'][0]['value']
+            ))
+
+        return matchlist

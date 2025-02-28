@@ -186,8 +186,8 @@ class HistoryHandler():
                 # Now that comparison is complete, check for any image output
                 comparison_images = [f for f in os.listdir(constants.TEMP_FOLDER) if f.endswith(f'{session_hash}.png')]
 
-                last_modified_old_str = datetime.fromisoformat(last_modified_old.replace('Z', '+00:00')).strftime("%B %d, %Y")
-                last_modified_new_str = datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')).strftime("%B %d, %Y")
+                last_modified_old_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_old.replace('Z', '+00:00')), style='D')
+                last_modified_new_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')), style='D')
 
                 if comparison_images:
                     tuple_of_embeds_and_files = []
@@ -198,7 +198,7 @@ class HistoryHandler():
                         # file = discord.File(image_path, filename=image)
                         embed = discord.Embed(
                             title=f"",
-                            description=f"**{song_title}** - *{artist_name}*\nDetected changes between:\n`{last_modified_old_str}` and `{last_modified_new_str}`",
+                            description=f"**{song_title}** - *{artist_name}*\nDetected changes between:\n{last_modified_old_str} and {last_modified_new_str}",
                             color=0x8927A1
                         )
                         embed.set_image(url=f"attachment://{image}")
@@ -344,7 +344,7 @@ class HistoryHandler():
         midi_file_changes = self.track_midi_changes(json_files, shortname, session_hash)
         logging.info(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
 
-        await interaction.edit_original_response(embed=constants.common_error_embed(f"Processing the diff for **{actual_title}** - *{actual_artist}*, please wait...\n-# This operation can take more than a minute."))
+        await interaction.edit_original_response(embed=constants.common_success_embed(f"Processing the diff for **{actual_title}** - *{actual_artist}*, please wait...\n-# This operation can take more than a minute."))
 
         if len(midi_file_changes) <= 1:
             await interaction.edit_original_response(embed=constants.common_error_embed("No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists."))

@@ -666,9 +666,9 @@ class TestCog(commands.Cog):
 
         oauth: OAuthManager = self.bot.oauth_manager
         try:
-            account = await oauth.get_account_from_display_name(current)
+            account = oauth.search_users(current)
             return [
-                app_commands.Choice(name=account.display_name, value=account.account_id)
+                app_commands.Choice(name='No results, please type your entire username.', value='NORESULTS')
             ]
         except Exception as e:
             logging.error(f'Account {current} not found', exc_info=e)

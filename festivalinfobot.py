@@ -93,8 +93,8 @@ class FestivalInfoBot(commands.Bot):
             )
 
         logging.debug("Syncing slash command tree...")
-        await self.tree.sync()
-        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        # await self.tree.sync()
+        # await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
             self.check_new_songs_task.start()
@@ -194,8 +194,9 @@ class FestivalInfoBot(commands.Bot):
 
             err_text: str = str(error)
             err_text.replace(constants.SPARKS_MIDI_KEY, 'nothing to see here')
+            err_text.replace(constants.EPIC_ACCOUNT_ID, 'nothing to see here')
 
-            embed = discord.Embed(colour=0xbe2625, title="<:error:1327736288807358629> An error has occurred!", description="Don't worry. This error has been reported.")
+            embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="Don't worry. This error has been reported.")
             embed.add_field(name="", value=f"```{str(err_text)}```")
             embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
 
