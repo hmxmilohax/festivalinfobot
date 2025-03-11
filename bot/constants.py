@@ -100,7 +100,8 @@ SIMPLE_COMPARISONS = {
     'ld': 'Lip Sync',
     'mu': 'Chart URL',
     'ge': 'Genres',
-    'gt': 'Gameplay Tags'
+    'gt': 'Gameplay Tags',
+    'mmo': 'Music Moment Offset'
 }
 
 DIFFICULTY_COMPARISONS = {
