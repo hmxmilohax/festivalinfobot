@@ -60,16 +60,16 @@ DAILY_API = 'https://api.nitestats.com/v1/epic/modes-smart'
 SHOP_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/' # unused
 
-ERROR_EMOJI = '<:error:1327736288807358629>'
-SUCCESS_EMOJI = '<:checkmark:1327738579287412897>'
-PREVIOUS_EMOJI = '<:prevpage:1344510443657629768>'
-NEXT_EMOJI = '<:nextpage:1344510452234977290>'
-FIRST_EMOJI = '<:firstpage:1344510426830077952>'
-LAST_EMOJI = '<:lastpage:1344510435256176740>'
-UP_EMOJI = '<:up:1344510417896214528>'
-DOWN_EMOJI = '<:down:1344510409050427463>'
-SEARCH_EMOJI = '<:search:1344510399781011509>'
-INFORMATION_EMOJI = '<:information:1344521974302507039>'
+ERROR_EMOJI = '<:error:1349038414644641864>'
+SUCCESS_EMOJI = '<:checkmark:1349038447385645157>'
+PREVIOUS_EMOJI = '<:prevpage:1349038290640175184>'
+NEXT_EMOJI = '<:nextpage:1349038328296636448>'
+FIRST_EMOJI = '<:firstpage:1349038244624339066>'
+LAST_EMOJI = '<:lastpage:1349038218430906368>'
+UP_EMOJI = '<:up:1349038214203179088>'
+DOWN_EMOJI = '<:down:1349038099447021680>'
+SEARCH_EMOJI = '<:search:1349038056006746162>'
+INFORMATION_EMOJI = '<:information:1349037772765139065>'
 
 EVENT_NAMES = {
     'added': "Track Added",
@@ -419,12 +419,12 @@ def get_jam_tracks():
     
 def generate_difficulty_string(difficulty_data):
     return (
-        f"<:lead:1327742677856420003> {difficulty_data.get('gr', 0) + 1}/7 "
-        f"<:bass:1327742687025168555> {difficulty_data.get('ba', 0) + 1}/7 "
-        f"<:drums:1327742563762835598> {difficulty_data.get('ds', 0) + 1}/7 "
-        f"<:proguitar:1327742543571583179> {difficulty_data.get('pg', 0) + 1}/7 "
-        f"<:probass:1327742553558093858> {difficulty_data.get('pb', 0) + 1}/7 "
-        f"<:vocals:1327742697695350936> {difficulty_data.get('vl', 0) + 1}/7"
+        f"<:guitar:1349038583125639261> {difficulty_data.get('gr', 0) + 1}/7 "
+        f"<:bass:1349038611944837140> {difficulty_data.get('ba', 0) + 1}/7 "
+        f"<:drums:1349038567502123128> {difficulty_data.get('ds', 0) + 1}/7 "
+        f"<:proguitar:1349038539517591606> {difficulty_data.get('pg', 0) + 1}/7 "
+        f"<:probass:1349038554797310096> {difficulty_data.get('pb', 0) + 1}/7 "
+        f"<:vocals:1349038596841279539> {difficulty_data.get('vl', 0) + 1}/7"
     )
 
 def generate_difficulty_bar(difficulty, max_blocks=7):
