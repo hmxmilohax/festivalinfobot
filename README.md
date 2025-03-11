@@ -1,7 +1,7 @@
 
 # Festival Tracker
 
-Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every 7 minutes, among other features.
+Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every minute, among other features.
 
 ## Features
 
