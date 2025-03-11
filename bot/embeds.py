@@ -66,52 +66,6 @@ class StatsCommandEmbedHandler():
 class SearchEmbedHandler:
     def __init__(self) -> None:
         pass
-
-    def format_date(self, date_string):
-        if date_string:
-            date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return discord.utils.format_dt(date_ts, 'D')
-        return "Unknown"
-    
-    def create_track_embeds(self, track_list, title, chunk_size=10, shop=False, jam_tracks=None):
-        embeds = []
-
-        for i in range(0, len(track_list), chunk_size):
-            embed = discord.Embed(title=title, color=0x8927A1)
-            chunk = track_list[i:i + chunk_size]
-
-            for track in chunk:
-                if shop:
-                    in_date_display = self.format_date(track['inDate'])
-                    out_date_display = self.format_date(track['outDate'])
-                    
-                    shortname = track['devName']
-                    jam_track = [jt for jt in jam_tracks if jt['track']['sn'] == shortname][0] if jam_tracks else None
-
-                    if jam_track:
-                        difficulty_data = jam_track['track'].get('in', {})
-                        difficulty_str = constants.generate_difficulty_string(difficulty_data)
-                    else:
-                        difficulty_str = "No difficulty data available"
-
-                    embed.add_field(
-                        name="",
-                        value=f"**\\• {track['title']}** - *{track['artist']}*\n"
-                            f"`Added:` {in_date_display} - `Leaving:` {out_date_display}\n"
-                            f"```{difficulty_str}```",
-                        inline=False
-                    )
-                else:
-                    shortname = track['track']['sn']
-                    embed.add_field(
-                        name="",
-                        value=f"**\\• {track['track']['tt']}** - *{track['track']['an']}*",
-                        inline=False
-                    )
-
-            embeds.append(embed)
-
-        return embeds
     
     def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False):
         track = track_data['track']
@@ -125,7 +79,6 @@ class SearchEmbedHandler:
             title = f"{track['tt']}"
         placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2) 
         embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
-        embed.set_footer(text="Festival Tracker")
 
         embed.add_field(name="\n", value="", inline=False)
         embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
@@ -149,7 +102,7 @@ class SearchEmbedHandler:
 
         # Add Last Modified field if it exists and format it to be more human-readable
         if 'lastModified' in track_data:
-            human_readable_date = self.format_date(track_data['lastModified'])
+            human_readable_date = constants.format_date(track_data['lastModified'])
             embed.add_field(name="Last Modified", value=human_readable_date, inline=True)
         
         # Add Song Rating
@@ -161,6 +114,8 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
         
+        embed.set_footer(text="Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
+
         embed.add_field(name="Rating", value=rating_description, inline=True)
         
         # Difficulty bars
@@ -183,7 +138,8 @@ class SearchEmbedHandler:
 
         embed.add_field(name="Creative Code", value=track.get('jc', 'N/A'))
         embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
-        embed.add_field(name="Released", value=self.format_date(track_data.get('_activeDate')))
+        embed.add_field(name="Released", value=constants.format_date(track_data.get('_activeDate')))
+        embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
 
         difficulties = (
             f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"

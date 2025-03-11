@@ -1,7 +1,7 @@
 
 # Festival Tracker
 
-Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every 7 minutes, among other features.
+Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every minute, among other features.
 
 ## Features
 
@@ -87,6 +87,4 @@ To be able to fetch and generate paths you will need two things:
 
     For newer CHOpt versions, Qt6 dlls may be required to be copied as well. These files are present in the .gitignore.
 
-- `fnf-midcrypt.py` to decrypt MIDI files. This is not provided for you.
-
-    The bot is unable to decrypt Festival MIDIs by itself.
+Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key.

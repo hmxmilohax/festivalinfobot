@@ -26,6 +26,7 @@ from bot.groups.suggestions import SuggestionModal
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.graph import GraphCommandsHandler
+from bot.groups.oauthmanager import OAuthManager
 
 import traceback
 
@@ -52,10 +53,13 @@ class FestivalInfoBot(commands.Bot):
         async def activity_task():
             await self.check_handler.handle_activity_task()
 
-        logging.debug(f"Registering analytics loop every 1h")
-        @tasks.loop(hours=1)
+        logging.debug(f"Registering analytics loop every 2h")
+        @tasks.loop(hours=2)
         async def analytics():
-            await self.analytics_task()
+            try:
+                await self.analytics_task()
+            except Exception as e:
+                logging.error('Analytics task could not be finished', exc_info=e)
 
         self.analytic_loop = analytics
         self.activity_task = activity_task
@@ -89,8 +93,8 @@ class FestivalInfoBot(commands.Bot):
             )
 
         logging.debug("Syncing slash command tree...")
-        await self.tree.sync()
-        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        # await self.tree.sync()
+        # await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
             self.check_new_songs_task.start()
@@ -101,7 +105,12 @@ class FestivalInfoBot(commands.Bot):
         if not self.analytic_loop.is_running():
             self.analytic_loop.start()
 
+        await self.oauth_manager.create_session()
+
         logging.debug("on_ready finished!")
+
+        uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
+        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
 
     def __init__(self):
         # Load configuration from config.ini
@@ -140,12 +149,13 @@ class FestivalInfoBot(commands.Bot):
         self.lb_handler = LeaderboardCommandHandler(self)
         self.search_handler = SearchCommandHandler(self)
         self.daily_handler = DailyCommandHandler()
-        self.shop_handler = ShopCommandHandler()
-        self.tracklist_handler = TracklistHandler()
+        self.shop_handler = ShopCommandHandler(self)
+        self.tracklist_handler = TracklistHandler(self)
         self.path_handler = PathCommandHandler()
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
         self.graph_handler = GraphCommandsHandler()
+        self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
 
         self.setup_commands()
 
@@ -161,7 +171,10 @@ class FestivalInfoBot(commands.Bot):
         await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {interaction.guild.name} (`{interaction.guild.id}`)")
+        place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
+        if interaction.guild:
+            place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
+        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {place}")
 
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)
@@ -179,11 +192,19 @@ class FestivalInfoBot(commands.Bot):
             await self.get_channel(constants.ERR_CHANNEL).send(content=exc_text)
             await self.get_channel(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
 
+            err_text: str = str(error)
+            err_text.replace(constants.SPARKS_MIDI_KEY, 'nothing to see here')
+            err_text.replace(constants.EPIC_ACCOUNT_ID, 'nothing to see here')
+
+            embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="Don't worry. This error has been reported.")
+            embed.add_field(name="", value=f"```{str(err_text)}```")
+            embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
+
             try:
                 if interaction.response.is_done():
-                    await interaction.edit_original_response(content=f"An error has occurred! Don't worry though, it has been reported.\n`{str(error)}`")
+                    await interaction.edit_original_response(embed=embed)
                 else:
-                    await interaction.response.send_message(content=f"An error has occurred! Don't worry though, it has been reported!\n`{str(error)}`", ephemeral=True)
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
             except Exception as e:
                 logging.critical(exc_info=e)
 
@@ -256,7 +277,7 @@ class FestivalInfoBot(commands.Bot):
         async def count_command(interaction: discord.Interaction):
             track_list = JamTrackHandler().get_jam_tracks()
             if not track_list:
-                await interaction.response.send_message(content="Could not get tracks.", ephemeral=True)
+                await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
                 return
 
             embed = discord.Embed(
@@ -405,7 +426,7 @@ class FestivalInfoBot(commands.Bot):
             if len(dirtyness) > 0:
                 embed.add_field(name="Local Changes", value=f"```{dirtyness}```", inline=False)
 
-            view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://festivaltracker.github.io", False)
+            view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://invite.festivaltracker.org", False)
             view.message = await interaction.original_response()
 
             await interaction.edit_original_response(embed=embed, view=view)
@@ -473,7 +494,7 @@ class FestivalInfoBot(commands.Bot):
                         embed.set_footer(text="Tip: Parameters with \"?\" mean they're optional.")
                     embed.add_field(name="Usage", value=usage, inline=False)
 
-                    view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://festivaltracker.github.io", False)
+                    view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://invite.festivaltracker.org", False)
                     await interaction.response.send_message(embed=embed, view=view)
                     view.message = await interaction.original_response()
                 else:
@@ -498,7 +519,7 @@ class FestivalInfoBot(commands.Bot):
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
                     embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
                     embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
-                    embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://festivaltracker.github.io)', inline=False)
+                    embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://invite.festivaltracker.org)', inline=False)
                     chunk = commands[i:i + 5]
 
                     for command in chunk:
@@ -602,42 +623,54 @@ class FestivalInfoBot(commands.Bot):
         return found
     
     async def analytics_task(self):
-        text = "This past hour, the following commands have been ran:\n"
+        text = "In this analytics cycle:\n"
         all_analytics = self.analytics.copy() # i hope this works
         self.analytics = []
-        all_commands_ran = []
+        command_counts = dict()
         for analytic in all_analytics:
-            if all_commands_ran.count(analytic.command_name) == 0:
-                all_commands_ran.append(analytic.command_name)
-                analytics_same_name = list(filter(lambda a: a.command_name == analytic.command_name, all_analytics))
-                text += f"- `/{analytic.command_name}`: {len(analytics_same_name)} times\n"
+            if command_counts.get(analytic.command_name, None):
+                command_counts[analytic.command_name] = command_counts.get(analytic.command_name) + 1
+            else:
+                command_counts[analytic.command_name] = 1
+            
+        text += "Command counts:\n"
+        for cmd, ammo in command_counts.items():
+            text += f'`/{cmd}`: {ammo}\n'
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(text)
 
-        guild_rank = "Guilds ranked by commands\n"
+        dm_commands = 0
+
+        guild_rank = "Guilds ranked by commands:\n"
         guilds = []
         for analytic in all_analytics:
+            if analytic.is_dm:
+                dm_commands += 1
+                continue
+
             if not any(g[0] == analytic.guild_id for g in guilds):
-                guilds.append((analytic.guild_id, len(list(filter(lambda a: a.guild_id == analytic.guild_id, all_analytics)))))
+                guilds.append((analytic.guild_id, len(
+                    list(
+                        filter(
+                            lambda a: a.guild_id == analytic.guild_id, all_analytics
+                            )
+                        )
+                    )
+                ))
+
+        # filter(lambda )
 
         guilds.sort(key=lambda g: g[1], reverse=True)
         for i, guild in enumerate(guilds[:10]):
-            guild_rank += f"{i+1}. {self.get_guild(guild[0]).name} (`{guild[0]}`): {guild[1]} commands\n"
+            guild_obj = self.get_guild(guild[0])
+            if not guild_obj: 
+                continue
+
+            guild_rank += f"{i+1}. {guild_obj.name} (`{guild[0]}`): {guild[1]} commands\n"
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
 
-        member_counts = []
-        for analytic in all_analytics:
-            if not any(g[0] == analytic.guild_id for g in member_counts):
-                member_counts.append((analytic.guild_id, analytic.guild_member_count))
-
-        member_counts.sort(key=lambda g: g[1], reverse=True)
-        guilds = [self.get_guild(g[0]) for g in member_counts]
-        guild_members = "Guilds ranked by members:\n"
-        for i, guild in enumerate(guilds[:10]):
-            guild_members += f"{i+1}. {guild.name} (`{guild.id}`): {guild.member_count} members\n"
-
-        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_members)
+        await self.get_channel(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
 
         logging.info("Cleared analytics list.")
 

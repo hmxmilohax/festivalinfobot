@@ -35,6 +35,21 @@ LOG_CHANNEL: int = int(config.get('bot', 'event_channel'))
 SUG_CHANNEL: int = int(config.get('bot', 'suggest_channel'))
 ANALYTICS_CHANNEL: int = int(config.get('bot', 'analytics_channel'))
 
+SERVER_URL: str = config.get('bot', 'server_url')
+BOT_TOKEN: str = config.get('bot', 'bot_token')
+
+SPOTIFY_CLIENT_ID: str = config.get('bot', 'spotify_api_client')
+SPOTIFY_CLIENT_PASS: str = config.get('bot', 'spotify_api_secret')
+
+GITHUB_PAT: str = config.get('bot', 'github_pat')
+
+EPIC_ACCOUNT_ID: str = config.get('bot', 'epic_account_id')
+EPIC_DEVICE_ID: str = config.get('bot', 'epic_device_id')
+EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
+
+SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
+
+
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
@@ -42,8 +57,19 @@ SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 # APIs which the bot uses to source its information
 CONTENT_API = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
 DAILY_API = 'https://api.nitestats.com/v1/epic/modes-smart'
-SHOP_API = 'https://fortnite-api.com/v2/shop'
-LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/'
+SHOP_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
+LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/' # unused
+
+ERROR_EMOJI = '<:error:1349038414644641864>'
+SUCCESS_EMOJI = '<:checkmark:1349038447385645157>'
+PREVIOUS_EMOJI = '<:prevpage:1349038290640175184>'
+NEXT_EMOJI = '<:nextpage:1349038328296636448>'
+FIRST_EMOJI = '<:firstpage:1349038244624339066>'
+LAST_EMOJI = '<:lastpage:1349038218430906368>'
+UP_EMOJI = '<:up:1349038214203179088>'
+DOWN_EMOJI = '<:down:1349038099447021680>'
+SEARCH_EMOJI = '<:search:1349038056006746162>'
+INFORMATION_EMOJI = '<:information:1349037772765139065>'
 
 EVENT_NAMES = {
     'added': "Track Added",
@@ -73,7 +99,8 @@ SIMPLE_COMPARISONS = {
     'ld': 'Lip Sync',
     'mu': 'Chart URL',
     'ge': 'Genres',
-    'gt': 'Gameplay Tags'
+    'gt': 'Gameplay Tags',
+    'mmo': 'Music Moment Offset'
 }
 
 DIFFICULTY_COMPARISONS = {
@@ -97,26 +124,22 @@ EXTRA_COMPARISONS = {
 
 class Analytic:
     def __init__(self, interaction: discord.Interaction):
-        self.guild_name: str = interaction.guild.name
-        self.guild_id: int = interaction.guild.id
+        self.is_dm: bool = interaction.guild == None
+        self.guild_name: str = "DMs"
+        self.guild_id: int = None
         self.command_name: str = None
+        self.guild_member_count: int = 0
+        if not self.is_dm:
+            self.guild_name = interaction.guild.name
+        if not self.is_dm:
+            self.guild_id = interaction.guild.id
+        if not self.is_dm:
+            self.guild_member_count = interaction.guild.member_count
         if interaction.command:
             self.command_name = interaction.command.qualified_name
-        self.guild_member_count: int = interaction.guild.member_count
         self.interaction_language: str = interaction.locale
         self.interaction_data: dict = interaction.data
         self.time: datetime = interaction.created_at
-
-    def __str__(self) -> str:
-        return f"""
-        Guild Name: {self.guild_name}
-        Guild ID: {self.guild_id}
-        Command Name: {self.command_name}
-        Guild Member Count: {self.guild_member_count}
-        Interaction Language: {self.interaction_language}
-        Interaction Data: {self.interaction_data}
-        Time: {self.time}
-        """
 
 class PaginatorView(discord.ui.View):
     def __init__(self, embeds, user_id):
@@ -128,22 +151,27 @@ class PaginatorView(discord.ui.View):
         self.add_buttons()
         self.message : discord.Message
 
+    def update_buttons(self):
+        self.add_buttons()
+
     def add_buttons(self):
         self.clear_items()
         
-        self.add_item(FirstButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='First', disabled=not (self.current_page > 0), user_id=self.user_id))
-        self.add_item(PreviousButton(style=discord.ButtonStyle.primary if self.current_page > 0 else discord.ButtonStyle.secondary, label='Previous', disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(FirstButton(style=discord.ButtonStyle.secondary, emoji=FIRST_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id))
+        self.add_item(PreviousButton(style=discord.ButtonStyle.secondary, emoji=PREVIOUS_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id))
 
-        self.add_item(PageNumberButton(label=f"Page {self.current_page + 1}/{self.total_pages}", user_id=self.user_id))
+        self.add_item(PaginatorButton(label=f"{self.current_page + 1}/{self.total_pages}", user_id=self.user_id, style=discord.ButtonStyle.primary))
 
-        self.add_item(NextButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Next', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
-        self.add_item(LastButton(style=discord.ButtonStyle.primary if self.current_page < self.total_pages - 1 else discord.ButtonStyle.secondary, label='Last', disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(NextButton(style=discord.ButtonStyle.secondary, emoji=NEXT_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
+        self.add_item(LastButton(style=discord.ButtonStyle.secondary, emoji=LAST_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
 
     def get_embed(self):
-        return self.embeds[self.current_page]
+        if self.current_page < 0:
+            self.current_page = 0
+        elif self.current_page > self.total_pages - 1:
+            self.current_page = self.total_pages - 1
 
-    def update_buttons(self):
-        self.add_buttons()
+        return self.embeds[self.current_page]
 
     async def on_timeout(self):
         try:
@@ -155,78 +183,39 @@ class PaginatorView(discord.ui.View):
         except Exception as e:
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
-class FirstButton(discord.ui.Button):
+class PaginatorButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')
         super().__init__(*args, **kwargs)
+
+    def update_page(self, view: PaginatorView):
+        pass
 
     async def callback(self, interaction: discord.Interaction):
         if interaction.user.id != self.user_id:
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view: PaginatorView = self.view
+        self.update_page(view)
+        embed = view.get_embed()
+        view.update_buttons()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class FirstButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page = 0
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
-class PreviousButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
+class PreviousButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page -= 1
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
-class PageNumberButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
-        embed = view.get_embed()
-        await interaction.response.edit_message(embed=embed, view=view)
-
-class NextButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
+class NextButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page += 1
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
-class LastButton(discord.ui.Button):
-    def __init__(self, *args, **kwargs):
-        self.user_id = kwargs.pop('user_id')
-        super().__init__(*args, **kwargs)
-
-    async def callback(self, interaction: discord.Interaction):
-        if interaction.user.id != self.user_id:
-            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
-            return
-        view: PaginatorView = self.view
+class LastButton(PaginatorButton):
+    def update_page(self, view: PaginatorView):
         view.current_page = view.total_pages - 1
-        embed = view.get_embed()
-        view.update_buttons()
-        await interaction.response.edit_message(embed=embed, view=view)
 
 class OneButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
@@ -264,6 +253,71 @@ class OneButtonSimpleView(discord.ui.View):
         if self.link != None:
             return
 
+        try:
+            for item in self.children:
+                item.disabled = True
+            await self.message.edit(view=self)
+        except discord.NotFound:
+            logging.error("Message was not found when trying to edit after timeout.")
+        except Exception as e:
+            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
+
+class Button:
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+        self.on_press = on_press
+        self.label = label
+        self.emoji = emoji
+        self.restrict = restrict
+        self.url = url
+        self.style = style
+        self.disabled = disabled
+
+class ViewButton(discord.ui.Button):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+        self._on_press = on_press
+        self._restrict = restrict
+        self._url = url
+        self._style = style or discord.ButtonStyle.primary
+        self._label = label
+        self._emoji = emoji
+        self._disabled = disabled
+
+        super().__init__(style=self._style, label=self._label, url=self._url, emoji=self._emoji, disabled=self._disabled)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: ButtonedView = self.view
+        if interaction.user.id != view.user_id and self._restrict:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        view.add_buttons()
+        await interaction.response.defer()
+        if self._on_press:
+            await self._on_press()
+
+class ButtonedView(discord.ui.View):
+    def __init__(self, user_id: int, buttons: list[Button]):
+        super().__init__(timeout=30)
+        self.user_id = user_id
+        self.buttons = buttons
+        self.message : discord.Message
+
+        self.add_buttons()
+
+    def add_buttons(self):
+        self.clear_items()
+
+        for button in self.buttons:
+            self.add_item(ViewButton(
+                on_press=button.on_press,
+                label=button.label,
+                emoji=button.emoji,
+                url=button.url,
+                style=button.style,   
+                restrict=button.restrict,
+                disabled=button.disabled
+            ))
+
+    async def on_timeout(self):
         try:
             for item in self.children:
                 item.disabled = True
@@ -365,12 +419,12 @@ def get_jam_tracks():
     
 def generate_difficulty_string(difficulty_data):
     return (
-        f"Lead:      {generate_difficulty_bar(difficulty_data.get('gr', 0))} "
-        f"Bass:      {generate_difficulty_bar(difficulty_data.get('ba', 0))} "
-        f"Drums:     {generate_difficulty_bar(difficulty_data.get('ds', 0))}\n"
-        f"Pro Lead:  {generate_difficulty_bar(difficulty_data.get('pg', 0))} "
-        f"Pro Bass:  {generate_difficulty_bar(difficulty_data.get('pb', 0))} "
-        f"Vocals:    {generate_difficulty_bar(difficulty_data.get('vl', 0))}"
+        f"<:guitar:1349038583125639261> {difficulty_data.get('gr', 0) + 1}/7 "
+        f"<:bass:1349038611944837140> {difficulty_data.get('ba', 0) + 1}/7 "
+        f"<:drums:1349038567502123128> {difficulty_data.get('ds', 0) + 1}/7 "
+        f"<:proguitar:1349038539517591606> {difficulty_data.get('pg', 0) + 1}/7 "
+        f"<:probass:1349038554797310096> {difficulty_data.get('pb', 0) + 1}/7 "
+        f"<:vocals:1349038596841279539> {difficulty_data.get('vl', 0) + 1}/7"
     )
 
 def generate_difficulty_bar(difficulty, max_blocks=7):
@@ -402,3 +456,48 @@ def load_json_from_file(file_path):
     except Exception as e:
         logging.error(f"Error loading JSON from file {file_path}",exc_info=e)
         return None
+    
+def sort_track_list(tracks):
+    return sorted(tracks, key=lambda x: x['track']['tt'].lower())
+
+def create_track_embeds(track_list, title, chunk_size=10):
+    embeds = []
+
+    for i in range(0, len(track_list), chunk_size):
+        embed = discord.Embed(title=title, color=0x8927A1)
+        chunk = track_list[i:i + chunk_size]
+
+        for track in chunk:
+            embed.add_field(
+                name="",
+                value=f"**\\• {track['track']['tt']}** - *{track['track']['an']}*",
+                inline=False
+            )
+
+        embeds.append(embed)
+
+    return embeds
+
+def format_date(date_string):
+    if date_string:
+        date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        return discord.utils.format_dt(date_ts, 'D')
+    return "Unknown"
+
+def add_fields(track_data, embed, weekly_tracks, shop_tracks):
+    track_devname = track_data['track']['sn']
+    if weekly_tracks and track_devname in weekly_tracks:
+        active_until = weekly_tracks[track_devname]['activeUntil']
+        embed.add_field(name="Weekly Rotation", value=f"Free until {format_date(active_until)}.", inline=False)
+
+    shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track_data['track']['ti'], shop_tracks)
+
+    if shop_entry:
+        out_date = shop_entry['meta'].get('outDate')
+        embed.add_field(name="Item Shop", value=f"Currently in the shop until {format_date(out_date)}.", inline=False)
+    
+def common_error_embed(text) -> discord.Embed:
+    return discord.Embed(colour=0xbe2625, title="Error", description=f"{ERROR_EMOJI} {text}")
+
+def common_success_embed(text) -> discord.Embed:
+    return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")

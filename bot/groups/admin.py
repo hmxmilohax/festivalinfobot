@@ -1,14 +1,17 @@
 import asyncio
+import discord.ext.tasks as tasks
 import io
 import logging
-from typing import List, Union
+from typing import List, Literal, Union
 import discord
 from discord import app_commands
 from discord.ext import commands
 import requests
 
 from bot import config, constants
+from bot.groups.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
+from bot.leaderboard import LeaderboardPaginatorView
 
 class AdminCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -23,7 +26,7 @@ class AdminCog(commands.Cog):
 
         if remove:
             if not channel_exists:
-                await interaction.response.send_message(f"The channel {channel.mention} is not subscribed.")
+                await interaction.response.send_message(embed=constants.common_error_embed(f"The channel {channel.mention} is not subscribed."))
                 return False
             else:
                 await self.config._channel_remove(channel=channel)
@@ -32,9 +35,9 @@ class AdminCog(commands.Cog):
             if channel_exists:
                 channel_events = await self.config._channel_events(channel=channel)
                 if len(channel_events) == len(config.JamTrackEvent.get_all_events()):
-                    await interaction.response.send_message(f"The channel {channel.mention} is already subscribed to all Jam Track events.")
+                    await interaction.response.send_message(embed=constants.common_error_embed(f"The channel {channel.mention} is already subscribed to all Jam Track events."))
                 else:
-                    await interaction.response.send_message(f"The channel {channel.mention} is already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in channel_events])}\".")
+                    await interaction.response.send_message(embed=constants.common_error_embed(f"The channel {channel.mention} is already subscribed to the events \"{'\", \"'.join([constants.EVENT_NAMES[event] for event in channel_events])}\"."))
                 
                 return False
             else:
@@ -48,19 +51,13 @@ class AdminCog(commands.Cog):
 
         # View the channel
         if not channel.permissions_for(channel.guild.me).view_channel:
-            await interaction.response.send_message(f'I can\'t view that channel! Please make sure I have the "View Channel" permission in that channel.')
+            await interaction.response.send_message(embed=constants.common_error_embed(f'I can\'t view that channel! Please make sure I have the "View Channel" permission in that channel.'))
             return False
         
         # Send messages in the channel
         if not channel.permissions_for(channel.guild.me).send_messages:
-            await interaction.response.send_message(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in {channel.mention}.')
+            await interaction.response.send_message(embed=constants.common_error_embed(f'I can\'t send messages in that channel! Please make sure I have the "Send Messages" permission in {channel.mention}.'))
             return False
-        
-        # If news channel, publish messages (Manage Messages permission!!!)
-        if channel.is_news():
-            if not channel.permissions_for(channel.guild.me).manage_messages:
-                await interaction.response.send_message(f'I can\'t publish messages in that Announcement channel! Please make sure I have the "Manage Messages" permission in {channel.mention}.')
-                return False
             
         # Possible, "Embed Links", "Attach Files?"
 
@@ -82,7 +79,7 @@ class AdminCog(commands.Cog):
         
         # Reaction stuff to check if the channel works
         if interaction.channel.permissions_for(interaction.guild.me).add_reactions:
-            await interaction.response.send_message(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*")
+            await interaction.response.send_message(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*"))
             message = await interaction.original_response()  # Retrieve the message object for reactions
             await message.add_reaction("✅")
 
@@ -98,13 +95,13 @@ class AdminCog(commands.Cog):
                 reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
             except asyncio.TimeoutError:
                 # await message.clear_reactions()
-                await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.")
+                await interaction.edit_original_response(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events."))
             else:
                 await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
                 # await message.clear_reactions() # Bot will throw 403 if it can't manage messages
-                await interaction.edit_original_response(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*Test message sent successfully.*")
+                await interaction.edit_original_response(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*Test message sent successfully.*"))
         else:
-            await interaction.response.send_message(content=f"The channel {channel.mention} has been subscribed to all Jam Track events.")
+            await interaction.response.send_message(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events."))
 
     @admin_group.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
     @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")
@@ -118,7 +115,7 @@ class AdminCog(commands.Cog):
         if not subscription_result:
             return
         
-        await interaction.response.send_message(f"The channel {channel.mention} has been unsubscribed from all Jam Track events.")
+        await interaction.response.send_message(embed=constants.common_success_embed(f"The channel {channel.mention} has been unsubscribed from all Jam Track events."))
 
     add_subcommand_group = app_commands.Group(name="add", description="Add commands", parent=admin_group)
     remove_subcommand_group = app_commands.Group(name="remove", description="Add commands", parent=admin_group)
@@ -138,15 +135,15 @@ class AdminCog(commands.Cog):
                 return
 
             await self.config._channel_add_with_event(channel=channel, event=chosen_event)
-            await interaction.response.send_message(f'The channel {channel.mention} has been subscribed with the event "{constants.EVENT_NAMES[chosen_event.value]}".')
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The channel {channel.mention} has been subscribed with the event "{constants.EVENT_NAMES[chosen_event.value]}".'))
         else:
             subscribed_events = await self.config._channel_events(channel=channel)
             if chosen_event.value in subscribed_events:
-                await interaction.response.send_message(f'The channel {channel.mention} is already subscribed to the event "{constants.EVENT_NAMES[chosen_event.value]}".')
+                await interaction.response.send_message(embed=constants.common_error_embed(f'The channel {channel.mention} is already subscribed to the event "{constants.EVENT_NAMES[chosen_event.value]}".'))
                 return
             else:
                 await self.config._channel_add_event(channel=channel, event=chosen_event)
-                await interaction.response.send_message(f'The channel {channel.mention} has been subscribed to the event "{constants.EVENT_NAMES[chosen_event.value]}".')
+                await interaction.response.send_message(embed=constants.common_error_embed(f'The channel {channel.mention} has been subscribed to the event "{constants.EVENT_NAMES[chosen_event.value]}".'))
 
     @remove_subcommand_group.command(name="event", description="Remove a Jam Track event from a channel")
     @app_commands.describe(channel = "The channel to remove a Jam Track event from")
@@ -164,12 +161,12 @@ class AdminCog(commands.Cog):
                 subscribed_events.remove(chosen_event.value)
                 if len(subscribed_events) == 0:
                     await self.config._channel_remove(channel=channel)
-                    await interaction.response.send_message(f"The channel {channel.mention} has been removed from the subscription list because it is no longer subscribed to any events.")
+                    await interaction.response.send_message(embed=constants.common_success_embed(f"The channel {channel.mention} has been removed from the subscription list because it is no longer subscribed to any events."))
                 else:
                     await self.config._channel_remove_event(channel=channel, event=chosen_event)
-                    await interaction.response.send_message(f'The channel {channel.mention} has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event.value]}".')
+                    await interaction.response.send_message(embed=constants.common_success_embed(f'The channel {channel.mention} has been unsubscribed from the event "{constants.EVENT_NAMES[chosen_event.value]}".'))
             else:
-                await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to the event "{constants.EVENT_NAMES[chosen_event.value]}".')
+                await interaction.response.send_message(embed=constants.common_error_embed(f'The channel {channel.mention} is not subscribed to the event "{constants.EVENT_NAMES[chosen_event.value]}".'))
 
     @add_subcommand_group.command(name="role", description="Add a role ping to a channel's subscription messages")
     @app_commands.describe(channel = "The channel to add a role ping to")
@@ -179,17 +176,17 @@ class AdminCog(commands.Cog):
         channel_exists = await self.config._channel_exists(channel=channel)
 
         if not channel_exists:
-            await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to any events.')
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The channel {channel.mention} is not subscribed to any events.'))
             return
         else:
             channel_roles = await self.config._channel_roles(channel=channel)
 
             if str(role.id) in channel_roles:
-                await interaction.response.send_message(f"This role ping is already assigned to the channel {channel.mention}.")
+                await interaction.response.send_message(embed=constants.common_error_embed(f"This role ping is already assigned to the channel {channel.mention}."))
                 return
             else:
                 await self.config._channel_add_role(channel=channel, role=role)
-                await interaction.response.send_message(f'The channel {channel.mention} has been assigned to ping this role on future Jam Track events.')
+                await interaction.response.send_message(embed=constants.common_success_embed(f'The channel {channel.mention} has been assigned to ping this role on future Jam Track events.'))
 
     @remove_subcommand_group.command(name="role", description="Remove a role ping from a channel's subscription messages")
     @app_commands.describe(channel = "The channel to remove a role ping from")
@@ -199,16 +196,16 @@ class AdminCog(commands.Cog):
         channel_exists = await self.config._channel_exists(channel=channel)
 
         if not channel_exists:
-            await interaction.response.send_message(f'The channel {channel.mention} is not subscribed to any events.')
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The channel {channel.mention} is not subscribed to any events.'))
             return
         else:
             channel_roles = await self.config._channel_roles(channel=channel)
 
             if str(role.id) in channel_roles:
                 await self.config._channel_remove_role(channel=channel, role=role)
-                await interaction.response.send_message(f'The channel {channel.mention} has been assigned to not ping this role on future Jam Track events.')
+                await interaction.response.send_message(embed=constants.common_success_embed(f'The channel {channel.mention} has been assigned to not ping this role on future Jam Track events.'))
             else:
-                await interaction.response.send_message(f"This role ping is not assigned to the channel {channel.mention}.")
+                await interaction.response.send_message(embed=constants.common_error_embed(f"This role ping is not assigned to the channel {channel.mention}."))
 
     @admin_group.command(name="subscriptions", description="View the subscriptions in this guild")
     @app_commands.checks.has_permissions(administrator=True)
@@ -238,10 +235,10 @@ class AdminCog(commands.Cog):
 
     async def on_subscription_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(interaction.channel, discord.DMChannel) and interaction.command.guild_only: # just in case
-            await interaction.response.send_message(content="You cannot run this command in DMs.")
+            await interaction.response.send_message(embed=constants.common_error_embed("You cannot run this command in DMs."))
             return
         if isinstance(error, app_commands.errors.MissingPermissions):
-            await interaction.response.send_message(content="You do not have the necessary permissions to run this command. Only administrators can use this command.", ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed("You do not have the necessary permissions to run this command. Only administrators can use this command."), ephemeral=True)
             return
         # actually not needed!!
         # await self.bot.tree.on_error(interaction, error)
@@ -551,7 +548,7 @@ class TestCog(commands.Cog):
         await self.bot.analytics_task()
         await interaction.edit_original_response(content="Analytics have been run.")
 
-    @test_group.command(name="server_list_csv", description="Get all guilds joined as a csv attachment")
+    @test_group.command(name="server_list_csv", description="Get all guilds joined as a csv file")
     async def server_list_csv(self, interaction: discord.Interaction):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
@@ -560,8 +557,149 @@ class TestCog(commands.Cog):
         await interaction.response.defer()
 
         guilds = self.bot.guilds
-        csv = "ID,Name,Member Count\n"
+        csv = "ID,Name,Member Count,Date Joined\n"
         for guild in guilds:
-            csv += f"{guild.id},{guild.name},{guild.member_count}\n"
+            csv += f"{guild.id},{guild.name},{guild.member_count},{guild.me.joined_at}\n"
 
         await interaction.edit_original_response(content="", attachments=[discord.File(io.StringIO(csv), "servers.csv")])
+
+    @test_group.command(name="leave_guild", description="Leave a guild")
+    @app_commands.describe(guild_id = "The ID of the guild to leave")
+    async def leave_guild(self, interaction: discord.Interaction, guild_id: int):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        guild = self.bot.get_guild(guild_id)
+        await guild.leave()
+        await interaction.edit_original_response(content=f"Successfully left {guild.name} (`{guild.id}`)")
+
+    @test_group.command(name="debug_tasks", description="Debug all tasks")
+    async def debug_tasks(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        text = "Tasks debug"
+        check: tasks.Loop = self.bot.check_new_songs_task
+        text += f"\nCheck for new songs: \n- Interval: {check.minutes}m\n- Is Running: {check.is_running()}\n- Iter: {check.current_loop}"
+        activity: tasks.Loop = self.bot.activity_task
+        text += f"\nActivity: \n- Interval: {activity.minutes}m\n- Is Running: {activity.is_running()}\n- Iter: {activity.current_loop}"
+        analytic: tasks.Loop = self.bot.analytic_loop
+        text += f"\nAnalytics: \n- Interval: {analytic.hours}h\n- Is Running: {analytic.is_running()}\n- Iter: {analytic.current_loop}"
+        
+        await interaction.response.send_message(content=text)
+
+    @test_group.command(name="stop_task", description="Stop a task (doesnt use .stop rather .cancel)")
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        check: tasks.Loop = self.bot.check_new_songs_task
+        activity: tasks.Loop = self.bot.activity_task
+        analytic: tasks.Loop = self.bot.analytic_loop
+
+        if task == 'Check':
+            check.cancel()
+        elif task == 'Activity':
+            activity.cancel()
+        elif task == 'Analytics':
+            analytic.cancel()
+
+        await interaction.response.send_message(content=f"Task \"{task}\" stopped")
+
+    @test_group.command(name="start_task", description="Start a task")
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        check: tasks.Loop = self.bot.check_new_songs_task
+        activity: tasks.Loop = self.bot.activity_task
+        analytic: tasks.Loop = self.bot.analytic_loop
+
+        if task == 'Check':
+            check.start()
+        elif task == 'Activity':
+            activity.start()
+        elif task == 'Analytics':
+            analytic.start()
+
+        await interaction.response.send_message(content=f"Task \"{task}\" started")
+
+    @test_group.command(name="restart_task", description="Restart a task (only reinitates it, doesnt start it if cancelled)")
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        check: tasks.Loop = self.bot.check_new_songs_task
+        activity: tasks.Loop = self.bot.activity_task
+        analytic: tasks.Loop = self.bot.analytic_loop
+
+        if task == 'Check':
+            check.restart()
+        elif task == 'Activity':
+            activity.restart()
+        elif task == 'Analytics':
+            analytic.restart()
+
+        await interaction.response.send_message(content=f"Task \"{task}\" restarted")
+
+    @test_group.command(name="error", description="Invoke an error")
+    async def stop_task(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        raise ValueError("Error invoked here")
+    
+    @test_group.command(name="autocomplete", description="Test account username autocomplete")
+    @app_commands.describe(username = "The Epic Account Username to search for")
+    async def autocomplete(self, interaction: discord.Interaction, username: str):
+        await interaction.response.send_message(content=f"Account id is: {username}")
+
+    @autocomplete.autocomplete('username')
+    async def autocomplete_callback(self, interaction: discord.Interaction, current: str):
+        # Do stuff with the "current" parameter, e.g. querying it search results...
+
+        oauth: OAuthManager = self.bot.oauth_manager
+        try:
+            account = oauth.search_users(current)
+            return [
+                app_commands.Choice(name='No results, please type your entire username.', value='NORESULTS')
+            ]
+        except Exception as e:
+            logging.error(f'Account {current} not found', exc_info=e)
+            return [
+                app_commands.Choice(name='No results, please type your entire username.', value='NORESULTS')
+            ]
+        
+    @test_group.command(name="new_leaderboards", description="Test new leaderboards")
+    async def new_leaderboards(self, interaction: discord.Interaction, song: str, instrument: constants.Instruments):
+        oauth: OAuthManager = self.bot.oauth_manager
+
+        chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
+
+        if not chosen_instrument.lb_enabled:
+            await interaction.response.send_message(content=f"Instrument \"{chosen_instrument.english}\" cannot be used for leaderboards.")
+            return
+
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            return
+
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            return
+
+        await interaction.response.defer() # Makes the bot say Thinking...
+
+        matched_track = matched_tracks[0]
+
+        view = LeaderboardPaginatorView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, oauth, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)

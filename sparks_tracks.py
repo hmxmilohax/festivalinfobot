@@ -5,6 +5,8 @@ import requests
 import os
 from datetime import datetime
 
+from bot import constants
+
 # Constants
 REPO_OWNER = "FNLookup"
 REPO_NAME = "data"
@@ -13,7 +15,7 @@ API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}"
 COMMITS_URL = f"{API_URL}/commits"
 DOWNLOAD_DIR = "./json"
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_TOKEN = constants.GITHUB_PAT
 
 def get_commit_history():
     headers = {}
@@ -29,6 +31,7 @@ def get_commit_history():
         url = f'{COMMITS_URL}?' + '&'.join([f'{k}={v}' for k, v in params.items()])
         logging.debug(f'[GET] {url}')
         response = requests.get(url, headers=headers)
+        # print(response.headers)
         response.raise_for_status()
         commits = response.json()
         

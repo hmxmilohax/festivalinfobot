@@ -9,7 +9,7 @@ from discord.ext import commands
 import requests
 from bot import embeds
 import bot.constants as constants
-from bot.constants import OneButtonSimpleView
+from bot.constants import Button, ButtonedView
 from bot import helpers
 
 class JamTrackHandler:
@@ -53,21 +53,41 @@ class JamTrackHandler:
         return result_unique
     
     def get_spotify_link(self, isrc: str, session : str):
-        url = "https://fnlookup-apiv2.vercel.app/api/?isrc=" + isrc
-        logging.debug(f'[GET] {url}')
+        url = "https://accounts.spotify.com/api/token"
+        logging.debug(f'[POST] {url}')
 
-        rand_div = random.randint(0, len(session))
-        permission = session[:rand_div] + '+8*' + session[rand_div:]
-        logging.debug(f'[HEADER] ftperms = {permission}')
+        authorize = requests.post(url, data=f"grant_type=client_credentials&client_id={constants.SPOTIFY_CLIENT_ID}&client_secret={constants.SPOTIFY_CLIENT_PASS}&state={session}", headers={'Content-Type': 'application/x-www-form-urlencoded'})
 
-        link = requests.get(url, headers={'ftperms': permission})
+        song_url = f'https://api.spotify.com/v1/search?q=isrc%3A{isrc}&type=track&limit=1&offset=0'
+        client_token = authorize.json()['access_token']
+        logging.debug(f'[GET] {song_url}')
+        link = requests.get(song_url, headers={'Authorization': f'Bearer {client_token}'})
+
         try:
             link.raise_for_status()
         except Exception as e:
             logging.error(f'Spotify Link GET returned {link.status_code}', exc_info=e)
             return None
         
-        return link.json().get('link')
+        result = link.json()
+        items = result['tracks']['items']
+        if len(items) > 0:
+            return items[0]['external_urls'].get('spotify', None)
+        
+    def get_song_link_odesli(self, spotify_url: str):
+        url = f"https://api.odesli.co/resolve?url={spotify_url}"
+        logging.debug(f'[GET] {url}')
+
+        odesli = requests.get(url)
+
+        try:
+            odesli.raise_for_status()
+        except Exception as e:
+            logging.error(f'Odesli Link GET returned {odesli.status_code}', exc_info=e)
+            return None
+        
+        result = odesli.json()
+        return f'https://{result["type"]}.link/s/{result["id"]}'
 
     def get_jam_tracks(self):
         return constants.get_jam_tracks()
@@ -78,7 +98,7 @@ class SearchCommandHandler:
         self.bot : commands.Bot = bot
         self.embed_handler = embeds.SearchEmbedHandler()
         self.daily_handler = helpers.DailyCommandHandler()
-        self.shop_handler = helpers.ShopCommandHandler()
+        self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
         options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
@@ -86,7 +106,7 @@ class SearchCommandHandler:
         finalized_options_message = f"Found multiple tracks matching your query. Please choose the correct one by typing the number:\n{options_message}"
 
         if len(finalized_options_message) > 2000:
-            await interaction.edit_original_response(content="The result is too large. Please try another query, or use </tracklist filter artist:1287199873116143628>.")
+            await interaction.edit_original_response(embed=constants.common_error_embed("The result is too large. Please try another query, or use </tracklist filter artist:1287199873116143628>."))
             return None, None
 
         await interaction.edit_original_response(content=finalized_options_message)
@@ -97,7 +117,7 @@ class SearchCommandHandler:
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
             if not msg.content.isdigit() or not 1 <= int(msg.content) <= len(matched_tracks):
-                await interaction.edit_original_response(content="Search cancelled.")
+                await interaction.edit_original_response(embed=constants.common_error_embed("Search cancelled."))
                 return
 
             chosen_index = int(msg.content) - 1
@@ -105,14 +125,8 @@ class SearchCommandHandler:
             return msg, chosen_track
 
         except TimeoutError:
-            await interaction.edit_original_response(content="You didn't respond in time. Search cancelled.")
+            await interaction.edit_original_response(embed=constants.common_error_embed("You didn't respond in time. Search cancelled."))
             return None, None
-
-    def format_date(self, date_string):
-        if date_string:
-            date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-            return discord.utils.format_dt(date_ts, 'D')
-        return "Currently in the shop!"
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
         with open('bot/imacat.json', 'r') as imacat_file:
@@ -131,29 +145,16 @@ class SearchCommandHandler:
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.edit_original_response(content='Could not get Jam Tracks.', ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'), ephemeral=True)
             return
 
-        daily_shortnames_data = self.daily_handler.fetch_daily_shortnames()
+        weekly_tracks = self.daily_handler.fetch_daily_shortnames()
         shop_tracks = self.shop_handler.fetch_shop_tracks()
 
-        # Perform fuzzy search
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, query)
         if not matched_tracks:
-            await interaction.edit_original_response(content=f'No tracks were found matching \"{query}\"')
+            await interaction.edit_original_response(embed=constants.common_error_embed(f'No tracks were found matching \"{query}\"'))
             return
-        
-        def add_fields(track_devname, embed):
-            if daily_shortnames_data and track_devname in daily_shortnames_data:
-                active_until = daily_shortnames_data[track_devname]['activeUntil']
-                human_readable_until = self.format_date(active_until)
-                embed.add_field(name="Daily Rotation", value=f"Free in daily rotation until {human_readable_until}.", inline=False)
-
-            # Add shop information
-            if shop_tracks and track_devname in shop_tracks:
-                out_date = shop_tracks[track_devname].get('outDate')
-                human_readable_out_date = self.format_date(out_date)
-                embed.add_field(name="Shop Rotation", value=f"Currently in the shop until {human_readable_out_date}.", inline=False)
 
         track = None
         message = None
@@ -164,8 +165,7 @@ class SearchCommandHandler:
 
             embed = self.embed_handler.generate_track_embed(_track)
 
-            track_devname = _track['track']['sn']
-            add_fields(track_devname=track_devname, embed=embed)
+            constants.add_fields(_track, embed, weekly_tracks, shop_tracks)
             
             message = await interaction.edit_original_response(embed=embed)
         else:
@@ -176,9 +176,7 @@ class SearchCommandHandler:
             track = chosen_track
 
             embed = self.embed_handler.generate_track_embed(chosen_track)
-            
-            track_devname = chosen_track['track']['sn']
-            add_fields(track_devname=track_devname, embed=embed)
+            constants.add_fields(chosen_track, embed, weekly_tracks, shop_tracks)
 
             message = await message.reply(embed=embed, mention_author=False)
 
@@ -188,7 +186,14 @@ class SearchCommandHandler:
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
                     if spotify:
-                        view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="Listen in Spotify", emoji=None, link=spotify, restrict_only_to_creator=False)
+                        view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
+
+                        song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
+                        if song_dot_link:
+                            view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
+
+                        view = ButtonedView(user_id=interaction.user.id, buttons=view_buttons)
+
                         view.message = message
                         await message.edit(embed=embed, view=view)
         except Exception as e:
