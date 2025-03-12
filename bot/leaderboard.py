@@ -2,6 +2,7 @@ from datetime import datetime
 from datetime import timezone
 import logging
 import math
+import re
 import requests
 import bot.constants as constants
 import discord
@@ -49,8 +50,8 @@ class LeaderboardPaginatorView(discord.ui.View):
         self.add_item(LastButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
 
         self.add_item(JumpToPlayerButton(style=discord.ButtonStyle.secondary, emoji=constants.SEARCH_EMOJI, user_id=self.user_id, row=1, label='Player'))
-        self.add_item(JumpRankButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='To Rank'))
-        self.add_item(JumpToPageButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='To Page'))
+        self.add_item(JumpRankButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='Rank'))
+        self.add_item(JumpToPageButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='Page'))
 
         self.add_item(ScrollUpButton(style=discord.ButtonStyle.secondary, emoji=constants.UP_EMOJI, user_id=self.user_id, row=2))
         self.add_item(ScrollDownButton(style=discord.ButtonStyle.secondary, emoji=constants.DOWN_EMOJI, user_id=self.user_id, row=2))
@@ -125,6 +126,62 @@ class LeaderboardPaginatorView(discord.ui.View):
         except Exception as e:
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
+class BandLeaderboardView(LeaderboardPaginatorView):
+    def __init__(self, song_event_id, season_str, band_type: constants.BandType, user_id, oauth_manager, matched_track):
+        super().__init__(song_event_id, season_str, None, user_id, oauth_manager, matched_track)
+
+        self.per_page = 2
+        self.band_type = band_type
+
+    def get_embed(self):
+        entry_start_page = page = self.current_page * self.per_page
+        page = math.floor(entry_start_page / 100)
+        if self.page_data.get(str(page)) is None:
+            self.get_page_data(page)
+
+        entries = self.page_data[str(page)]['entries']
+        page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+
+        # print(entries)
+
+        _entries_start = math.floor((self.current_page * self.per_page) % 100)
+        _entries_end = math.floor(_entries_start + self.per_page)
+
+        selected_entries = entries[_entries_start:_entries_end] # in epic format
+        title = f"Band Leaderboard for\n**{self.matched_track['track']['tt']}** - *{self.matched_track['track']['an']}* ({self.band_type.english})"
+
+        return self.embed_manager.band_leaderboard_entries(selected_entries, title, self.account_names, self.current_selected_in_page, page_updated)
+    
+    def get_page_data(self, page):
+        url = f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/{self.season_str}_{self.song_event_id}/{self.song_event_id}_Band_{self.band_type.code}/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
+        logging.info(f'[GET] {url}')
+        headers = {
+            'Authorization': self.oauth_manager.session_token
+        }
+        
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+
+        # open('leaderboard.json', 'w').write(str(response.text))
+
+        update = False
+        if self.total_pages == 0: update = True
+            
+        self.total_pages = math.floor((data['totalPages'] * 100) / self.per_page)
+        if update:
+            self.update_buttons()
+
+        account_ids = []
+        for entry in data['entries']:
+            account_ids.extend(entry['teamAccountIds'])
+
+        accounts_looked_up = self.oauth_manager.get_accounts(account_ids)
+        for account in accounts_looked_up:
+            self.account_names[account.account_id] = account.display_name
+
+        self.page_data[str(page)] = data
+
 class PaginatorButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')
@@ -157,10 +214,10 @@ class ScrollUpButton(PaginatorButton):
         if view.current_selected_in_page > 1:
             view.current_selected_in_page -= 1
         else:
-            view.current_selected_in_page = 10
+            view.current_selected_in_page = view.per_page
 class ScrollDownButton(PaginatorButton):
     def update_page(self, view: LeaderboardPaginatorView): 
-        if view.current_selected_in_page < 10:
+        if view.current_selected_in_page < view.per_page:
             view.current_selected_in_page += 1
         else:
             view.current_selected_in_page = 1
@@ -198,8 +255,8 @@ class JumpRankModal(discord.ui.Modal):
             if rank < 1 or rank > 500:
                 raise ValueError
             
-            self.view.current_page = math.floor(rank / 10)
-            self.view.current_selected_in_page = rank % 10
+            self.view.current_page = math.floor(rank / self.view.per_page)
+            self.view.current_selected_in_page = rank % self.view.per_page
 
             await interaction.response.send_message(embed=constants.common_success_embed(f"Jumped to {rank} in page {self.view.current_page + 1}"), ephemeral=True)
 
@@ -224,7 +281,7 @@ class JumpPageModal(discord.ui.Modal):
             if page < 1 or page > self.view.total_pages:
                 raise ValueError
             
-            self.view.current_page = math.floor(page / 10)
+            self.view.current_page = (page - 1)
             await interaction.response.send_message(embed=constants.common_success_embed(f"Jumped to page {self.view.current_page + 1}."), ephemeral=True)
             await self.view.force_update()
 
@@ -304,7 +361,8 @@ class LeaderboardEmbedHandler():
             return '✪' * stars
         else:
             return '' + ('★' * stars) + ('☆' * (5-stars))
-        
+    
+    # normal leaderboard entries
     def leaderboard_entries(self, entries: list, title: str, account_usernames: dict, selected_player: int = 0, updated_ts: datetime = None):
         # ALL IN EPIC FORMAT
         embed = discord.Embed(title=title, color=0x8927A1)
@@ -338,18 +396,155 @@ class LeaderboardEmbedHandler():
                 _stars = stats.get(f'M_{player_id}_STARS_EARNED', 6)
                 _score = stats.get(f'M_{player_id}_SCORE', 0)
                 _is_fullcombo = stats.get(f'M_{player_id}_FULL_COMBO', 0) == 1
+                _instrument = stats.get(f'M_{player_id}_INSTRUMENT', 6)
 
                 difficulty = ['E', 'M', 'H', 'X'][_difficulty]
                 accuracy = f"{_accuracy}%".replace('.0', '')
                 stars = self.format_stars(_stars)
                 score = f"{_score}"
-                fc_status = "FC" if _is_fullcombo else ""
+                # fc_status = "FC" if _is_fullcombo else ""
+                if _is_fullcombo:
+                    accuracy = 'FC'
+
+                instrument = ['LD', 'BS', 'VL', 'DS', 'PL', 'PB', '??'][_instrument]
+                diff_inst = difficulty + instrument
+
+                _season = stats.get(f'M_{player_id}_SEASON', None)
+                season = 'S'
+                season += _season or '?'
 
                 # Add the formatted line for this entry
                 if selected_player == (index + 1):
                     rank = '>>>'
 
-                field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
+                # field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
+                field_text += rank.ljust(5)
+                field_text += username.ljust(17)
+                field_text += difficulty.ljust(2)
+                field_text += accuracy.rjust(4)
+                field_text += ' '
+                # field_text += fc_status.ljust(3)
+                field_text += stars.ljust(7)
+                field_text += score.rjust(8)
+
+            except Exception as e:
+                logging.error(f"Error in leaderboard entry formatting", exc_info=e)
+            field_text += '\n'
+        field_text += '```'
+
+        if field_text == '``````': # basic ahh
+            field_text = 'No entries found.'
+
+        embed.add_field(name="", value=field_text, inline=False)
+        return embed
+    
+    # band leaderboard entries
+    def band_leaderboard_entries(self, entries: list, title: str, account_usernames: dict, selected_player: int = 0, updated_ts: datetime = None):
+        # ALL IN EPIC FORMAT
+        embed = discord.Embed(title=title, color=0x8927A1)
+        embed.add_field(name="Last Updated", value=discord.utils.format_dt(updated_ts, 'R') if updated_ts else 'Unknown', inline=False)
+        field_text = '```'
+
+        for index in range(len(entries)):
+            entry = entries[index]
+            try:
+                # Prepare leaderboard entry details
+
+                rank = f"#{entry['rank']}"
+                best_session = discord.utils.find(lambda session: session['trackedStats']['SCORE'] == entry['score'], entry['sessionHistory'])
+                # player_id = 0
+                # # print(best_session)
+
+                # for _key, _value in best_session['trackedStats'].items():
+                #     key: str = _key
+                #     if key.endswith(f'_ID_{account_id}') and key.startswith('M_'):
+                #         player_id = int(key.split('_')[1])
+                #         break
+
+                stats = best_session['trackedStats']
+
+                _accuracy = stats.get('ACCURACY', 1000000) / 10000
+                _stars = stats.get('STARS_EARNED', 6)
+                _score = stats.get('SCORE', 0)
+                _is_fullcombo = stats.get('FULL_COMBO', 0) == 1
+
+                accuracy = f"{_accuracy}%".replace('.0', '')
+                stars = self.format_stars(_stars)
+                score = f"{_score}"
+                # fc_status = "FC" if _is_fullcombo else ""
+                if _is_fullcombo:
+                    accuracy = 'FC'
+
+                # instrument = ['LD', 'BS', 'VL', 'DS', 'PL', 'PB', '??'][_instrument]
+                # difficulty = ''
+                # diff_inst = difficulty + instrument
+
+                # _season = stats.get(f'M_{player_id}_SEASON', None)
+                # season = 'S'
+                # season += _season or '?'
+
+                # Add the formatted line for this entry
+                if selected_player == (index + 1):
+                    rank = '>>>'
+
+                # field_text += f"{rank:<5}{username:<18}{difficulty:<2}{accuracy:<5}{fc_status:<3}{stars:<7}{score:>8}"
+                field_text += rank.ljust(5)
+                field_text += '-' * 16
+                field_text += ' '
+                field_text += accuracy.rjust(8)
+                field_text += ' '
+                # field_text += fc_status.ljust(3)
+                field_text += stars.ljust(7)
+                field_text += score.rjust(8)
+
+                for _key, _value in stats.items():
+                    pattern = r"^M_[0-3]_ID_[0-9a-f]{32}$"
+                    match = re.match(pattern, _key)
+                    matches = bool(match)
+
+                    if matches:
+                        player_id = _key.split('_')[1]
+                        account_id = _key.split('_')[3]
+                        username = account_usernames.get(account_id, '[unknown]')
+                        if username == None:
+                            username = '[unknown]'
+
+                        _player_accuracy = stats.get(f'M_{player_id}_ACCURACY', 1000000) / 10000
+                        _player_score = stats.get(f'M_{player_id}_SCORE', 0)
+                        _player_is_fullcombo = stats.get(f'M_{player_id}_FULL_COMBO', 0) == 1
+                        _player_stars = stats.get(f'M_{player_id}_STARS_EARNED', 6)
+                        _player_difficulty = stats.get(f'M_{player_id}_DIFFICULTY', 3)
+                        _player_instrument = stats.get(f'M_{player_id}_INSTRUMENT', 6)
+
+                        accuracy = f"{_player_accuracy}%".replace('.0', '')
+                        stars = self.format_stars(_player_stars)
+                        score = f"{_player_score}"
+                        difficulty = ['E', 'M', 'H', 'X'][_player_difficulty]
+                        instrument = ['LD', 'BS', 'VL', 'DS', 'PL', 'PB', '??'][_player_instrument]
+                        if _player_is_fullcombo:
+                            accuracy = 'FC'
+
+                        diff_inst = difficulty + instrument
+
+                        field_text += '\n'
+                        field_text += '     '
+                        field_text += username.ljust(17)
+                        field_text += diff_inst.ljust(4)
+                        field_text += accuracy.rjust(4)
+                        field_text += ' '
+                        # field_text += fc_status.ljust(3)
+                        field_text += stars.ljust(7)
+                        field_text += score.rjust(8)
+
+                field_text += '\n'
+                field_text += '     [  Base Score  ]                   '
+                field_text += f'{stats.get("B_BASESCORE", 0)}'.rjust(8)
+                field_text += '\n'
+                field_text += '     [ Instr. Bonus ]                   '
+                field_text += f'{stats.get("B_INSTRUMENT_BONUS", 0)}'.rjust(8)
+                field_text += '\n'
+                field_text += '     [   OD Bonus   ]                   '
+                field_text += f'{stats.get("B_OVERDRIVE_BONUS", 0)}'.rjust(8)
 
             except Exception as e:
                 logging.error(f"Error in leaderboard entry formatting", exc_info=e)

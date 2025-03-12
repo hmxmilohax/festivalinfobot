@@ -47,6 +47,10 @@ class OAuthManager:
         self._access_token = self._session_data['access_token']
         self._refresh_token = self._session_data['refresh_token']
 
+        logging.info(f'Logged into EOS as {self.account_id}')
+
+        # print(self._access_token)
+
         await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session started for ' + self._session_data['displayName'])
 
         self.refresh_task.start()
@@ -90,21 +94,24 @@ class OAuthManager:
         return f'Bearer {self._access_token}'
     
     def get_accounts(self, account_ids: List[str]) -> List[EpicAccount]:
-        if len(account_ids) > 100:
-            raise ValueError('You can only get 100 accounts at a time')
+        logging.info(f'[get accounts] {len(account_ids)} account ids given')
 
-        url = 'https://account-public-service-prod.ol.epicgames.com/account/api/public/account?'
-        url += '&'.join([f'accountId={account_id}' for account_id in account_ids])
+        accounts = []
+        for i in range(0, len(account_ids), 100):
+            batch_ids = account_ids[i:i + 100]
+            url = 'https://account-public-service-prod.ol.epicgames.com/account/api/public/account?'
+            url += '&'.join([f'accountId={account_id}' for account_id in batch_ids])
 
-        logging.info(f'[GET] {url}')
-        headers = {
-            'Authorization': f'Bearer {self._access_token}'
-        }
-        response = requests.get(url, headers=headers)
-        # print(response.content)
-        response.raise_for_status()
+            logging.info(f'[GET] {url}')
+            headers = {
+                'Authorization': f'Bearer {self._access_token}'
+            }
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            
+            accounts.extend([EpicAccount(account['id'], account.get('displayName', None)) for account in response.json()])
         
-        return [EpicAccount(account['id'], account.get('displayName', None)) for account in response.json()]
+        return accounts
     
     def get_account_from_display_name(self, display_name: str) -> EpicAccount:
         url = f'https://account-public-service-prod.ol.epicgames.com/account/api/public/account/displayName/{display_name}'

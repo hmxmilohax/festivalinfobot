@@ -371,6 +371,14 @@ class Difficulty:
     def __str__(self) -> str:
         return f"Difficulty({self.english=}, {self.chopt=}, {self.pitch_ranges=}, {self.diff_4k=})".replace('self.', '')
 
+class BandType:
+    def __init__(self, english:str = "Duos", code: str = 'Duets') -> None:
+        self.english = english
+        self.code = code
+
+    def __str__(self) -> str:
+        return f"BandType({self.english=}, {self.code=})".replace('self.', '')
+
 class Instruments(enum.Enum):
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS")
@@ -394,6 +402,16 @@ class Difficulties(enum.Enum):
     @classmethod
     def getall(self) -> list[Difficulty]:
         return [self.Expert.value, self.Hard.value, self.Medium.value, self.Easy.value]
+    
+class BandTypes(enum.Enum):
+    Duos = BandType()
+    Trios = BandType(english="Trios", code="Trios")
+    Squads = BandType(english="Squads", code="Quad")
+
+    # The @classmethod decorator just works!
+    @classmethod
+    def getall(self) -> list[Instrument]:
+        return [self.Duos.value, self.Trios.value, self.Squads.value]
 
 def get_jam_tracks():
     content_url = CONTENT_API
