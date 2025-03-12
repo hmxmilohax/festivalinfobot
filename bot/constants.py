@@ -378,6 +378,15 @@ class BandType:
 
     def __str__(self) -> str:
         return f"BandType({self.english=}, {self.code=})".replace('self.', '')
+    
+class AllTimeLBType:
+    def __init__(self, english:str = "Lead", code: str = 'Solo_Guitar', is_band = False) -> None:
+        self.english = english
+        self.code = code
+        self.is_band = is_band
+
+    def __str__(self) -> str:
+        return f"AllTimeLBType({self.english=}, {self.code=})".replace('self.', '')
 
 class Instruments(enum.Enum):
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
@@ -412,6 +421,17 @@ class BandTypes(enum.Enum):
     @classmethod
     def getall(self) -> list[Instrument]:
         return [self.Duos.value, self.Trios.value, self.Squads.value]
+    
+class AllTimeLBTypes(enum.Enum):
+    Lead = AllTimeLBType()
+    Drums = AllTimeLBType(english="Drums", code="Solo_Drums")
+    Bass = AllTimeLBType(english="Bass", code="Solo_Bass")
+    Vocals = AllTimeLBType(english="Vocals", code="Solo_Vocals")
+    ProLead = AllTimeLBType(english="Pro Lead", code="Solo_PeripheralGuitar")
+    ProBass = AllTimeLBType(english="Pro Bass", code="Solo_PeripheralBass")
+    BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
+    BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
+    BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)
 
 def get_jam_tracks():
     content_url = CONTENT_API
