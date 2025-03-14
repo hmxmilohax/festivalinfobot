@@ -63,6 +63,8 @@ class JamTrackHandler:
         logging.debug(f'[GET] {song_url}')
         link = requests.get(song_url, headers={'Authorization': f'Bearer {client_token}'})
 
+        # print(link.text)
+
         try:
             link.raise_for_status()
         except Exception as e:

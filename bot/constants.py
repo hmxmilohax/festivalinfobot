@@ -524,9 +524,12 @@ def format_date(date_string):
 
 def add_fields(track_data, embed, weekly_tracks, shop_tracks):
     track_devname = track_data['track']['sn']
-    if weekly_tracks and track_devname in weekly_tracks:
-        active_until = weekly_tracks[track_devname]['activeUntil']
-        embed.add_field(name="Weekly Rotation", value=f"Free until {format_date(active_until)}.", inline=False)
+    weekly_track = discord.utils.find(lambda offer: offer['shortname'] == track_devname, weekly_tracks)
+    if weekly_track != None:
+        embed.add_field(name="Weekly Rotation", value=f"Currently in the free rotation.", inline=False)
+
+        if weekly_track['in_spotlight'] == True:
+            embed.add_field(name="Spotlight", value=f"Currently in rotation spotlight.", inline=False)
 
     shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track_data['track']['ti'], shop_tracks)
 

@@ -93,7 +93,7 @@ class FestivalInfoBot(commands.Bot):
             )
 
         logging.debug("Syncing slash command tree...")
-        # await self.tree.sync()
+        await self.tree.sync()
         await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
@@ -296,14 +296,26 @@ class FestivalInfoBot(commands.Bot):
         async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments):
             await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument)
 
-        @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
+        @lb_group.command(name="band", description="View the band leaderboards of a song.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
-        @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
-        @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
-        @app_commands.describe(account_id = "An Epic Games account ID.")
-        async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
-            await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
+        @app_commands.describe(type = "The band type to view the leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.BandTypes):
+            await self.lb_handler.handle_band_interaction(interaction, song=song, band_type=type)
+
+        @lb_group.command(name="all_time", description="View the All-Time leaderboards of a song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(type = "The leaderboard type to view the all-time leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.AllTimeLBTypes):
+            await self.lb_handler.handle_alltime_interaction(interaction, song=song, type=type)
+
+        # @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
+        # @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        # @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
+        # @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
+        # @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
+        # @app_commands.describe(account_id = "An Epic Games account ID.")
+        # async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
+        #     await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
 
         self.tree.add_command(lb_group)
 

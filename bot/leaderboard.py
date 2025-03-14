@@ -319,18 +319,30 @@ class ScrollDownButton(PaginatorButton):
 
 class JumpRankButton(PaginatorButton):
     async def callback(self, interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        
         view: LeaderboardPaginatorView = self.view
         modal = JumpRankModal(view)
         await interaction.response.send_modal(modal)
 
 class JumpToPlayerButton(PaginatorButton):
     async def callback(self, interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        
         view: LeaderboardPaginatorView = self.view
         modal = JumpPlayerModal(view)
         await interaction.response.send_modal(modal)
 
 class JumpToPageButton(PaginatorButton):
     async def callback(self, interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        
         view: LeaderboardPaginatorView = self.view
         modal = JumpPageModal(view)
         await interaction.response.send_modal(modal)
@@ -363,7 +375,7 @@ class JumpRankModal(discord.ui.Modal):
             await self.view.force_update()
 
         except ValueError:
-            await interaction.edit_original_response(embed=constants.common_error_embed(f"The rank must be a number between 1 to {total_ranks}."), ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed(f"The rank must be a number between 1 to {total_ranks}."), ephemeral=True)
             return
         
 class JumpPageModal(discord.ui.Modal):
@@ -786,7 +798,7 @@ class LeaderboardCommandHandler:
         else: # 5 pages have been fetched
             return fetched_entries
 
-    async def handle_interaction(self, interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: int = None, username:str = None, account_id:str = None):
+    async def handle_interaction(self, interaction: discord.Interaction, song:str, instrument:constants.Instruments):
         # Convert our instrument string into an Enum value
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
 
@@ -811,35 +823,48 @@ class LeaderboardCommandHandler:
         # Use the first matched track
         matched_track = matched_tracks[0]
 
-        leaderboard_entries = self.fetch_leaderboard_of_track(matched_track['track']['sn'], chosen_instrument)
-        individual_search = [rank, username, account_id].count(None) < 3
+        view = LeaderboardPaginatorView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, self.bot.oauth_manager, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
-        if len(leaderboard_entries) > 0:
-            if not individual_search:
-                title = f"Leaderboard for\n**{matched_track['track']['tt']}** - *{matched_track['track']['an']}* ({chosen_instrument.english})"
-                embeds_list = self.leaderboard_embed_handler.generate_leaderboard_entry_embeds(leaderboard_entries, title, chunk_size=10)
-                view = constants.PaginatorView(embeds_list, interaction.user.id)
-                view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-            else:
-                specific_entries = []
-                specific_entries.extend([entry for entry in leaderboard_entries if entry['rank'] == rank] if rank else [])
-                specific_entries.extend([entry for entry in leaderboard_entries if username.lower() in str(entry.get('userName', 'N/A')).lower()] if username else [])
-                specific_entries.extend([entry for entry in leaderboard_entries if entry['teamId'] == account_id] if account_id else [])
-                specific_entries_unique = []
-                for entry in specific_entries: 
-                    if entry not in specific_entries_unique:
-                        specific_entries_unique.append(entry)
+    async def handle_band_interaction(self, interaction: discord.Interaction, song:str, band_type:constants.BandTypes):
+        oauth: OAuthManager = self.bot.oauth_manager
 
-                if len(specific_entries_unique) > 0:
-                    specific_entries = []
+        chosen_band_type = constants.BandTypes[str(band_type).replace('BandTypes.', '')].value
 
-                    for entry in specific_entries_unique:
-                        specific_entries.append(self.leaderboard_embed_handler.generate_leaderboard_embed(matched_track, entry, chosen_instrument.english))
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(embed=constants.common_error_embed("Could not get tracks."), ephemeral=True)
+            return
 
-                    # why did i not think of this before
-                    view = constants.PaginatorView(specific_entries, interaction.user.id)
-                    view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-                else:
-                    await interaction.edit_original_response(embed=constants.common_error_embed(f"No entries were found matching these parameters."))
-        else:
-            await interaction.edit_original_response(embed=constants.common_error_embed(f"There are no entries in this leaderboard."))
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            return
+
+        await interaction.response.defer() # Makes the bot say Thinking...
+
+        matched_track = matched_tracks[0]
+
+        view = BandLeaderboardView(matched_track['track']['su'], 'season007', chosen_band_type, interaction.user.id, oauth, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
+    async def handle_alltime_interaction(self, interaction: discord.Interaction, song: str, type: constants.AllTimeLBTypes):
+        oauth: OAuthManager = self.bot.oauth_manager
+
+        chosen_instrument = constants.AllTimeLBTypes[str(type).replace('AllTimeLBTypes.', '')].value
+
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
+            return
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            return
+        await interaction.response.defer() # Makes the bot say Thinking...
+        matched_track = matched_tracks[0]
+
+        view = AllTimeLeaderboardView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, oauth, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)

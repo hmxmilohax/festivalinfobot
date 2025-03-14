@@ -65,10 +65,10 @@ class DailyCommandHandler:
                 if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
                     if active_since_date <= current_time <= active_until_date:
                         shortname = event_type.replace('PilgrimSong.', '')
+                        related_spotlight = discord.utils.find(lambda event: event['eventType'] == f'Sparks.Spotlight.{shortname}', active_events)
                         daily_tracks.append({
                             'shortname': shortname,
-                            'activeSince': active_since,
-                            'activeUntil': active_until
+                            'in_spotlight': related_spotlight != None
                         })
 
             return daily_tracks
@@ -100,8 +100,7 @@ class DailyCommandHandler:
             daily_tracks.append({
                 'title': title,
                 'artist': artist,
-                'difficulty': difficulty_str,
-                'activeUntil': song['activeUntil']
+                'difficulty': difficulty_str
             })
 
         await interaction.response.defer()
