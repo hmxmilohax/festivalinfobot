@@ -49,13 +49,13 @@ class LeaderboardPaginatorView(discord.ui.View):
         self.add_item(NextButton(style=discord.ButtonStyle.secondary, emoji=constants.NEXT_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
         self.add_item(LastButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id))
 
-        self.add_item(JumpToPlayerButton(style=discord.ButtonStyle.secondary, emoji=constants.SEARCH_EMOJI, user_id=self.user_id, row=1, label='Player'))
+        self.add_item(JumpToPlayerButton(style=discord.ButtonStyle.secondary, emoji=constants.SEARCH_EMOJI, user_id=self.user_id, row=1, label='Player', disabled=True))
         self.add_item(JumpRankButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='Rank'))
         self.add_item(JumpToPageButton(style=discord.ButtonStyle.secondary, emoji=constants.LAST_EMOJI, user_id=self.user_id, row=1, label='Page'))
 
         self.add_item(ScrollUpButton(style=discord.ButtonStyle.secondary, emoji=constants.UP_EMOJI, user_id=self.user_id, row=2))
         self.add_item(ScrollDownButton(style=discord.ButtonStyle.secondary, emoji=constants.DOWN_EMOJI, user_id=self.user_id, row=2))
-        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View'))
+        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View', disabled=True))
 
     def get_embed(self):
         # the api returns 100 entries per page however we show 10 entries per page only
@@ -158,7 +158,7 @@ class BandLeaderboardView(LeaderboardPaginatorView):
 
         self.add_item(ScrollUpButton(style=discord.ButtonStyle.secondary, emoji=constants.UP_EMOJI, user_id=self.user_id, row=2))
         self.add_item(ScrollDownButton(style=discord.ButtonStyle.secondary, emoji=constants.DOWN_EMOJI, user_id=self.user_id, row=2))
-        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View'))
+        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View', disabled=True))
 
     def get_embed(self):
         entry_start_page = page = self.current_page * self.per_page
@@ -207,7 +207,7 @@ class AllTimeLeaderboardView(LeaderboardPaginatorView):
 
         self.add_item(ScrollUpButton(style=discord.ButtonStyle.secondary, emoji=constants.UP_EMOJI, user_id=self.user_id, row=2))
         self.add_item(ScrollDownButton(style=discord.ButtonStyle.secondary, emoji=constants.DOWN_EMOJI, user_id=self.user_id, row=2))
-        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View'))
+        self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View', disabled=True))
 
     def get_url(self, page):
         return f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/alltime_{self.song_event_id}_{self.alltime_lbtype.code}/alltime/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'

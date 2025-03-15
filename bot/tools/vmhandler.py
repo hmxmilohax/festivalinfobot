@@ -42,13 +42,6 @@ from pydub import AudioSegment
 import numpy as np
 import base64
 
-class MimicInteraction:
-    def __init__(self):
-        self.user_id = 734822755224125451
-        self.id = 1350330498689273948
-        self.message_id = 1350328780346097804
-        self.channel_id = 1350328780346097804
-
 class PreviewAudioMgr:
     def __init__(self, bot: commands.Bot, track: any, interaction: discord.Interaction):
         self.bot = bot
