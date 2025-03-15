@@ -263,7 +263,7 @@ class OneButtonSimpleView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Button:
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, ephmeral: bool = False):
         self.on_press = on_press
         self.label = label
         self.emoji = emoji
@@ -271,9 +271,10 @@ class Button:
         self.url = url
         self.style = style
         self.disabled = disabled
+        self.ephmeral = ephmeral
 
 class ViewButton(discord.ui.Button):
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, ephmeral: bool = False):
         self._on_press = on_press
         self._restrict = restrict
         self._url = url
@@ -281,6 +282,7 @@ class ViewButton(discord.ui.Button):
         self._label = label
         self._emoji = emoji
         self._disabled = disabled
+        self._ephmeral = ephmeral
 
         super().__init__(style=self._style, label=self._label, url=self._url, emoji=self._emoji, disabled=self._disabled)
 
@@ -290,9 +292,9 @@ class ViewButton(discord.ui.Button):
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view.add_buttons()
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=self._ephmeral, ephemeral=self._ephmeral)
         if self._on_press:
-            await self._on_press()
+            await self._on_press(interaction)
 
 class ButtonedView(discord.ui.View):
     def __init__(self, user_id: int, buttons: list[Button]):
@@ -314,7 +316,8 @@ class ButtonedView(discord.ui.View):
                 url=button.url,
                 style=button.style,   
                 restrict=button.restrict,
-                disabled=button.disabled
+                disabled=button.disabled,
+                ephmeral=button.ephmeral
             ))
 
     async def on_timeout(self):

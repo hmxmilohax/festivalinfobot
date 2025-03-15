@@ -11,6 +11,7 @@ from bot import embeds
 import bot.constants as constants
 from bot.constants import Button, ButtonedView
 from bot import helpers
+from bot.tools.vmhandler import PreviewAudioMgr
 
 class JamTrackHandler:
     def __init__(self) -> None:
@@ -147,7 +148,7 @@ class SearchCommandHandler:
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'), ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'))
             return
 
         weekly_tracks = self.daily_handler.fetch_daily_shortnames()
@@ -182,13 +183,22 @@ class SearchCommandHandler:
 
             message = await message.reply(embed=embed, mention_author=False)
 
+        view: ButtonedView = None
+
+        async def something(interaction: discord.Interaction):
+            view.buttons[0].disabled = True
+            view.add_buttons()
+            await interaction.message.edit(view=view)
+            preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
+            await preview_audio_mgr.reply_to_interaction_message()
+
         try:
             if track and message:
                 if track['track'].get('isrc', None):
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
                     if spotify:
-                        view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
+                        view_buttons = [Button(something, label="Preview"), Button(None, url=spotify, label="Listen on Spotify")]
 
                         song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
                         if song_dot_link:

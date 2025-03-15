@@ -25,3 +25,4 @@ logs
 # databases
 *.db*
 .stfolder/
+ffmpeg.exe
