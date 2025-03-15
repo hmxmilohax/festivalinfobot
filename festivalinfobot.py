@@ -3,6 +3,8 @@ import difflib
 import logging
 from datetime import datetime, timezone
 import os
+import subprocess
+import sys
 import time
 from typing import Optional, Union
 from discord.ext import commands, tasks
@@ -112,6 +114,13 @@ class FestivalInfoBot(commands.Bot):
         uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
         await self.get_channel(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
 
+        restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
+        if restart_arg:
+            ids = restart_arg.split(':')
+            msg_id = ids[1]
+            chn_id = ids[2]
+            await self.get_channel(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
+
     def __init__(self):
         # Load configuration from config.ini
         setup_log()
@@ -131,6 +140,7 @@ class FestivalInfoBot(commands.Bot):
         self.DECRYPTION_ALLOWED = config.getboolean('bot', 'decryption', fallback=True)
         self.PATHING_ALLOWED = config.getboolean('bot', 'pathing', fallback=True)
         self.CHART_COMPARING_ALLOWED = config.getboolean('bot', 'chart_comparing', fallback=True)
+        self.DEVELOPER = config.getboolean('bot', 'is_developer_environment', fallback=True)
 
         self.start_time = time.time()
         self.analytics: list[constants.Analytic] = []
@@ -140,8 +150,11 @@ class FestivalInfoBot(commands.Bot):
         intents.members = True
         intents.message_content = True  # Enable message content intent
 
+        prefix = 'ft'
+        if self.DEVELOPER: prefix = 'ftdev'
+
         super().__init__(
-            command_prefix=commands.when_mentioned_or('ft!'),
+            command_prefix=commands.when_mentioned_or(f'{prefix}!'),
             help_command=None,
             intents=intents
         )
@@ -230,6 +243,22 @@ class FestivalInfoBot(commands.Bot):
                 await ctx.message.add_reaction("✅")
             else:
                 await ctx.send(f"{ctx.message.channel.guild.me.display_name} is online.")
+
+        @self.command(name="restart")
+        async def restart_command(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            await ctx.message.add_reaction("✅")
+
+            python_executable = sys.executable
+            script_path = os.path.abspath(sys.argv[0])
+            print('\n' * 10)
+
+            args = ctx.message.content.split(' ')[1:]
+
+            subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
+            sys.exit(0)
 
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
