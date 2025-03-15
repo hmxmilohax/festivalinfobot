@@ -80,7 +80,6 @@ class FestivalInfoBot(commands.Bot):
             key=lambda guild: guild.me.joined_at or datetime.min
         )
         
-        # Enumerate over sorted guilds to get the join number
         for index, guild in enumerate(sorted_guilds, start=1):
             join_date = (
                 guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
