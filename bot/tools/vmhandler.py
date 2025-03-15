@@ -26,6 +26,7 @@ from hashlib import md5
 import json
 import math
 import concurrent
+import os
 from pathlib import Path
 import subprocess
 import discord
@@ -56,15 +57,17 @@ class PreviewAudioMgr:
         self.hash = md5(bytes(f"{interaction.user.id}-{interaction.id}-{interaction.message.id}", "utf-8")).digest().hex()
         self.audio_duration = 0
 
-        mpd = self.acquire_mpegdash_playlist()
-        master_audio_path = self.download_mpd_playlist(mpd)
-        output_path = self.convert_to_ogg(master_audio_path)
-        upload_url, upload_filename = self.get_upload_url_filename(output_path)
-        self.upload_attachment(output_path, upload_url)
+        qi = self.track['track']['qi']
+        quicksilver_data = json.loads(qi)
+        self.pid = quicksilver_data['pid']
+
+        output_path = f'out/AUD_STREAMID_{self.pid}/preview.ogg'
+        if not os.path.exists(output_path):
+            mpd = self.acquire_mpegdash_playlist(quicksilver_data)
+            master_audio_path = self.download_mpd_playlist(mpd)
+            output_path = self.convert_to_ogg(master_audio_path)
 
         self.output_path = output_path
-        self.upload_url = upload_url
-        self.upload_filename = upload_filename
 
     def _get_ffmpeg_path(self) -> str:
         ffmpeg_path = Path('ffmpeg.exe')
@@ -72,10 +75,7 @@ class PreviewAudioMgr:
         if Path.exists(ffmpeg_path):
             return str(ffmpeg_path.resolve()).replace('\\', '/')
 
-    def acquire_mpegdash_playlist(self) -> str:
-        qi = self.track['track']['qi']
-        quicksilver_data = json.loads(qi)
-
+    def acquire_mpegdash_playlist(self, quicksilver_data: any) -> str:
         endpoint = 'https://cdn.qstv.on.epicgames.com/'
         url = endpoint + quicksilver_data['pid']
 
@@ -141,13 +141,18 @@ class PreviewAudioMgr:
         master_file = output + 'master_audio.mp4'
         with open(master_file, 'wb') as master:
             master.write(open(init_path, 'rb').read())
+            os.remove(init_path)
+
             for segment in segments:
                 master.write(open(segment, 'rb').read())
+                os.remove(segment)
 
         return master_file
     
     def convert_to_ogg(self, master_audio_path):
-        output_path = f'out/{self.hash}_output.ogg'
+        output_path = f'out/AUD_STREAMID_{self.pid}'
+        os.makedirs(output_path)
+        output_path += '/preview.ogg'
 
         ffmpeg_path = self._get_ffmpeg_path()
         ffmpeg_command = [
@@ -162,43 +167,6 @@ class PreviewAudioMgr:
         ]
         subprocess.run(ffmpeg_command)
         return output_path
-    
-    def get_upload_url_filename(self, file: str):
-        url = f'https://discord.com/api/v10/channels/{self.interaction.channel_id}/attachments'
-
-        logging.info(f'[POST] {url}')
-        file_bytes_length = len(open(file, 'rb').read())
-        upload_url_req = requests.post(url, json={
-            "files": [
-                {
-                    "filename": "voice-message.ogg",
-                    "file_size": file_bytes_length,
-                    "id": "2"
-                }
-            ]
-        }, headers={
-            'Authorization': 'Bot ' + self.bot.http.token
-        })
-
-        upload_url_req.raise_for_status()
-
-        data = upload_url_req.json()
-        attachment = data['attachments'][0]
-        upload_url = attachment['upload_url']
-        upload_filename = attachment['upload_filename']
-
-        return upload_url, upload_filename
-    
-    def upload_attachment(self, file: str, url: str):
-        logging.info(f'[PUT] {url}')
-
-        ogg_data = open(file, 'rb').read()
-        request = requests.put(url, data=ogg_data, headers={
-            "Content-Type": "audio/ogg",
-            "Authorization": 'Bot ' + self.bot.http.token
-        })
-
-        request.raise_for_status()
 
     def get_waveform_bytearray(self) -> bytearray:
         AudioSegment.ffmpeg = self._get_ffmpeg_path()
@@ -231,13 +199,13 @@ class PreviewAudioMgr:
         wvform_bytearray = self.get_waveform_bytearray()
         wvform_b64 = base64.b64encode(wvform_bytearray.tobytes()).decode('utf-8')
 
-        data = {
+        payload = {
+            "tts": False,
             "flags": flags.value,
             "attachments": [
                 {
                     "id": "0",
-                    "filename": "voice-message.ogg",
-                    "uploaded_filename": self.upload_filename,
+                    "filename": f"{self.hash}_voice-message.ogg",
                     "duration_secs": self.audio_duration,
                     "waveform": wvform_b64
                 }
@@ -251,7 +219,18 @@ class PreviewAudioMgr:
 
         logging.info(f'[POST] {url}')
 
-        resp = requests.post(url, json=data, headers={
-            "Content-Type": "application/json",
+        data = bytearray()
+        data.extend(b"--boundary\r\n")
+        data.extend(b"Content-Disposition: form-data; name=\"payload_json\"\r\n")
+        data.extend(b"Content-Type: application/json\r\n\r\n")
+        data.extend(json.dumps(payload, indent=4).encode('utf-8'))
+        data.extend(b"\r\n--boundary\r\n")
+        data.extend(f"Content-Disposition: form-data; name=\"files[0]\"; filename=\"{self.hash}_voice-message.ogg\"\r\n".encode('utf-8'))
+        data.extend(b"Content-Type: audio/ogg\r\n\r\n")
+        data.extend(open(self.output_path, 'rb').read())
+        data.extend(b"\r\n--boundary--")
+
+        resp = requests.post(url, data=data, headers={
+            "Content-Type": "multipart/form-data; boundary=\"boundary\"",
             "Authorization": "Bot " + self.bot.http.token
         })

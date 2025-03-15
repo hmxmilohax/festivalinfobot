@@ -136,7 +136,18 @@ class SearchCommandHandler:
             imacat_data = json.load(imacat_file)
         embed = self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
-        await interaction.edit_original_response(embed=embed)
+        message = await interaction.edit_original_response(embed=embed)
+
+        async def something(interaction: discord.Interaction):
+            view.buttons[0].disabled = True
+            view.add_buttons()
+            await interaction.message.edit(view=view)
+            preview_audio_mgr = PreviewAudioMgr(self.bot, imacat_data, interaction)
+            await preview_audio_mgr.reply_to_interaction_message()
+
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view.message = message
+        await message.edit(embed=embed, view=view)
 
     async def handle_interaction(self, interaction: discord.Interaction, query:str):
         await interaction.response.defer() # edit_original_response
@@ -183,8 +194,6 @@ class SearchCommandHandler:
 
             message = await message.reply(embed=embed, mention_author=False)
 
-        view: ButtonedView = None
-
         async def something(interaction: discord.Interaction):
             view.buttons[0].disabled = True
             view.add_buttons()
@@ -192,21 +201,24 @@ class SearchCommandHandler:
             preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
             await preview_audio_mgr.reply_to_interaction_message()
 
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view.message = message
+        await message.edit(embed=embed, view=view)
+
         try:
             if track and message:
                 if track['track'].get('isrc', None):
                     spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
                     if spotify:
-                        view_buttons = [Button(something, label="Preview"), Button(None, url=spotify, label="Listen on Spotify")]
+                        view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
 
                         song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
                         if song_dot_link:
                             view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
 
-                        view = ButtonedView(user_id=interaction.user.id, buttons=view_buttons)
-
-                        view.message = message
+                        view.buttons.extend(view_buttons)
+                        view.add_buttons()
                         await message.edit(embed=embed, view=view)
         except Exception as e:
             logging.error('Error attempting to add Spotify link to message:', exc_info=e)
