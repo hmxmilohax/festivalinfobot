@@ -74,7 +74,6 @@ class FestivalInfoBot(commands.Bot):
         logging.info("Bot going active on:")
         logging.info(' '.join(["No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date"]))
         
-        # Sort guilds by the bot's join date
         sorted_guilds = sorted(
             self.guilds, 
             key=lambda guild: guild.me.joined_at or datetime.min
