@@ -1,3 +1,6 @@
+import base64
+import datetime
+import json
 from typing import List
 import discord.ext.tasks as tasks
 import discord
@@ -29,8 +32,8 @@ class OAuthManager:
         self.refresh_task: tasks.Loop = self.refresh_session
         self.bot = bot
 
-    async def create_session(self):
-        logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token')
+    def _create_token(self):
+        logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token (create)')
         url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token'
         headers = {
             'Authorization': 'Basic OThmN2U0MmMyZTNhNGY4NmE3NGViNDNmYmI0MWVkMzk6MGEyNDQ5YTItMDAxYS00NTFlLWFmZWMtM2U4MTI5MDFjNGQ3', # fortniteNewSwitchGameClient
@@ -40,57 +43,85 @@ class OAuthManager:
             'grant_type': 'device_auth',
             'account_id': self.account_id,
             'device_id': self.device_id,
-            'secret': self.device_secret
+            'secret': self.device_secret,
+            'token_type': 'eg1'
         }
         response = requests.post(url, headers=headers, data=data)
+        response.raise_for_status()
         self._session_data = response.json()
         self._access_token = self._session_data['access_token']
         self._refresh_token = self._session_data['refresh_token']
 
-        logging.info(f'Logged into EOS as {self.account_id}')
+    async def create_session(self, skip_create: bool = False):
+        try:
+            self._create_token()
 
-        # print(self._access_token)
+            logging.info(f'Logged into EOS as {self.account_id}')
 
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session started for ' + self._session_data['displayName'])
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session started for ' + self._session_data['displayName'])
 
-        self.refresh_task.start()
-        self.verify_session.start()
+            if not skip_create:
+                self.refresh_task.start()
+                self.verify_session.start()
+        except Exception as e:
+            logging.critical(f'Cannot create token: {e}')
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'Device auth session cannot be started because of {e}')
 
     @tasks.loop(seconds=6900)
     async def refresh_session(self):
-        logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token')
-        url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token'
-        headers = {
-            'Authorization': 'Basic OThmN2U0MmMyZTNhNGY4NmE3NGViNDNmYmI0MWVkMzk6MGEyNDQ5YTItMDAxYS00NTFlLWFmZWMtM2U4MTI5MDFjNGQ3', # fortniteNewSwitchGameClient
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-        data = {
-            'grant_type': 'refresh_token',
-            'refresh_token': self._refresh_token
-        }
-        response = requests.post(url, headers=headers, data=data)
-        self._session_data = response.json()
-        self._access_token = self._session_data['access_token']
-        self._refresh_token = self._session_data['refresh_token']
+        logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token (refresh)')
+        try:
+            url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token'
+            headers = {
+                'Authorization': 'Basic OThmN2U0MmMyZTNhNGY4NmE3NGViNDNmYmI0MWVkMzk6MGEyNDQ5YTItMDAxYS00NTFlLWFmZWMtM2U4MTI5MDFjNGQ3', # fortniteNewSwitchGameClient
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+            data = {
+                'grant_type': 'refresh_token',
+                'refresh_token': self._refresh_token
+            }
+            response = requests.post(url, headers=headers, data=data)
+            response.raise_for_status()
+            self._session_data = response.json()
+            self._access_token = self._session_data['access_token']
+            self._refresh_token = self._session_data['refresh_token']
 
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session refreshed for ' + self._session_data['displayName'])
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session refreshed for ' + self._session_data['displayName'])
+        except Exception as e:
+            logging.critical(f'Device auth session cannot be refreshed because of {e}')
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'Device auth session cannot be refreshed because of {e}')
 
     @tasks.loop(seconds=60)
     async def verify_session(self):
-        logging.info('[GET] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify')
+        logging.info('[GET] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify (verify)')
         url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify'
         headers = {
-            'Authorization': f'Bearer {self._access_token}'
+            'Authorization': self.session_token
         }
         response = requests.get(url, headers=headers)
+        # response.raise_for_status()
         if not response.ok:
             await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session ended for ' + self._session_data['displayName'])
-            self.refresh_task.stop()
-            self.verify_session.stop()
-            await self.create_session()
+            await self.create_session(skip_create=True)
 
     @property
     def session_token(self) -> str:
+        payload = json.loads(base64.urlsafe_b64decode(self._access_token.split('.')[1]))
+        ts_exp = payload['exp']
+        # ts_exp = 0 # TEST ONLY
+        date_exp = datetime.datetime.fromtimestamp(ts_exp, tz=datetime.timezone.utc)
+
+        if datetime.datetime.now(tz=datetime.timezone.utc) > date_exp:
+            self._create_token()
+            logging.critical('Token forcefully regenerated as it was detected to be expired!')
+            # why arent you running
+            if not self.refresh_session.is_running():
+                self.refresh_session.start()
+            if not self.verify_session.is_running():
+                self.verify_session.start()
+
+        # return 'lol' # testing only
+    
         return f'Bearer {self._access_token}'
     
     def get_accounts(self, account_ids: List[str]) -> List[EpicAccount]:
@@ -104,7 +135,7 @@ class OAuthManager:
 
             logging.info(f'[GET] {url}')
             headers = {
-                'Authorization': f'Bearer {self._access_token}'
+                'Authorization': self.session_token
             }
             response = requests.get(url, headers=headers)
             response.raise_for_status()
@@ -117,7 +148,7 @@ class OAuthManager:
         url = f'https://account-public-service-prod.ol.epicgames.com/account/api/public/account/displayName/{display_name}'
         logging.info(f'[GET] {url}')
         headers = {
-            'Authorization': f'Bearer {self._access_token}'
+            'Authorization': self.session_token
         }
 
         response = requests.get(url, headers=headers)
@@ -129,7 +160,7 @@ class OAuthManager:
         url = f'https://user-search-service-prod.ol.epicgames.com/api/v1/search/{self.account_id}?platform=epic&prefix={username_prefix}'
         logging.info(f'[GET] {url}')
         headers = {
-            'Authorization': f'Bearer {self._access_token}'
+            'Authorization': self.session_token
         }
 
         response = requests.get(url, headers=headers)

@@ -88,19 +88,24 @@ class LeaderboardPaginatorView(discord.ui.View):
         self.get_page_data(0)
         for page in range(1, self.page_data['0']['totalPages']):
             self.get_page_data(page)
+
+    def get_url(self, page):
+        return f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/{self.season_str}_{self.song_event_id}/{self.song_event_id}_{self.instrument.lb_code}/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
             
     def get_page_data(self, page):
-        url = f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/{self.season_str}_{self.song_event_id}/{self.song_event_id}_{self.instrument.lb_code}/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
+        url = self.get_url(page)
         logging.info(f'[GET] {url}')
         headers = {
             'Authorization': self.oauth_manager.session_token
         }
         
         response = requests.get(url, headers=headers)
+        if response.status_code == 401 or response.status_code == 403:
+            self.oauth_manager._create_token()
+            raise Exception('Please try again.')
+
         response.raise_for_status()
         data = response.json()
-
-        # open('leaderboard.json', 'w').write(str(response.text))
 
         update = False
         if self.total_pages == 0: update = True
@@ -109,7 +114,10 @@ class LeaderboardPaginatorView(discord.ui.View):
         if update:
             self.update_buttons()
 
-        account_ids = [entry['teamId'] for entry in data['entries']]
+        account_ids = []
+        for entry in data['entries']:
+            account_ids.extend(entry['teamAccountIds'])
+
         account_names = self.oauth_manager.get_accounts(account_ids)
         for account in account_names:
             self.account_names[account.account_id] = account.display_name
@@ -171,35 +179,8 @@ class BandLeaderboardView(LeaderboardPaginatorView):
 
         return self.embed_manager.band_leaderboard_entries(selected_entries, title, self.account_names, self.current_selected_in_page, page_updated)
     
-    def get_page_data(self, page):
-        url = f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/{self.season_str}_{self.song_event_id}/{self.song_event_id}_Band_{self.band_type.code}/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
-        logging.info(f'[GET] {url}')
-        headers = {
-            'Authorization': self.oauth_manager.session_token
-        }
-        
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-
-        # open('leaderboard.json', 'w').write(str(response.text))
-
-        update = False
-        if self.total_pages == 0: update = True
-            
-        self.total_pages = math.floor((data['totalPages'] * 100) / self.per_page)
-        if update:
-            self.update_buttons()
-
-        account_ids = []
-        for entry in data['entries']:
-            account_ids.extend(entry['teamAccountIds'])
-
-        accounts_looked_up = self.oauth_manager.get_accounts(account_ids)
-        for account in accounts_looked_up:
-            self.account_names[account.account_id] = account.display_name
-
-        self.page_data[str(page)] = data
+    def get_url(self, page):
+        return f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/{self.season_str}_{self.song_event_id}/{self.song_event_id}_Band_{self.band_type.code}/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
 
 class AllTimeLeaderboardView(LeaderboardPaginatorView):
     def __init__(self, song_event_id, season_str, lbtype: constants.AllTimeLBType, user_id, oauth_manager, matched_track):
@@ -228,33 +209,8 @@ class AllTimeLeaderboardView(LeaderboardPaginatorView):
         self.add_item(ScrollDownButton(style=discord.ButtonStyle.secondary, emoji=constants.DOWN_EMOJI, user_id=self.user_id, row=2))
         self.add_item(PaginatorButton(style=discord.ButtonStyle.secondary, emoji=constants.INFORMATION_EMOJI, user_id=self.user_id, row=2, label='View'))
 
-    def get_page_data(self, page):
-        url = f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/alltime_{self.song_event_id}_{self.alltime_lbtype.code}/alltime/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
-        logging.info(f'[GET] {url}')
-        headers = {
-            'Authorization': self.oauth_manager.session_token
-        }
-        
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-
-        update = False
-        if self.total_pages == 0: update = True
-            
-        self.total_pages = math.floor((data['totalPages'] * 100) / self.per_page)
-        if update:
-            self.update_buttons()
-
-        account_ids = []
-        for entry in data['entries']:
-            account_ids.extend(entry['teamAccountIds'])
-
-        account_names = self.oauth_manager.get_accounts(account_ids)
-        for account in account_names:
-            self.account_names[account.account_id] = account.display_name
-
-        self.page_data[str(page)] = data
+    def get_url(self, page):
+        return f'https://events-public-service-live.ol.epicgames.com/api/v1/leaderboards/FNFestival/alltime_{self.song_event_id}_{self.alltime_lbtype.code}/alltime/{self.oauth_manager.account_id}?page={page}&rank=0&teamAccountIds&showLiveSessions=false&appId=Fortnite'
 
     def get_embed(self):
         entry_start_page = page = self.current_page * self.per_page
