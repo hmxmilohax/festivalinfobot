@@ -248,9 +248,21 @@ class SearchEmbedHandler:
                 )
 
         if old.get('lastModified') != new.get('lastModified'):
+            old_date = 'N/A'
+            if old.get('lastModified', None) != None:
+                date = old.get('lastModified')
+                print(date)
+                old_date = constants.format_date(date)
+
+            new_date = 'N/A'
+            if new.get('lastModified', None) != None:
+                date = new.get('lastModified')
+                print(date)
+                new_date = constants.format_date(date)
+
             embed.add_field(
                 name="Last Modified Date changed", 
-                value=f"```Old: {old.get('lastModified', '[N/A]')}\nNew: {new.get('lastModified', '[N/A]')} ```", 
+                value=f"{old_date} -> {new_date}", 
                 inline=False
             )
 
