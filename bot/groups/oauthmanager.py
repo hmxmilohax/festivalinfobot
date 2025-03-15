@@ -52,6 +52,8 @@ class OAuthManager:
         self._access_token = self._session_data['access_token']
         self._refresh_token = self._session_data['refresh_token']
 
+        # print(self._access_token)
+
     async def create_session(self, skip_create: bool = False):
         try:
             self._create_token()
@@ -108,7 +110,7 @@ class OAuthManager:
     def session_token(self) -> str:
         payload = json.loads(base64.urlsafe_b64decode(self._access_token.split('.')[1]))
         ts_exp = payload['exp']
-        # ts_exp = 0 # TEST ONLY
+        # ts_exp = 0
         date_exp = datetime.datetime.fromtimestamp(ts_exp, tz=datetime.timezone.utc)
 
         if datetime.datetime.now(tz=datetime.timezone.utc) > date_exp:
@@ -116,8 +118,10 @@ class OAuthManager:
             logging.critical('Token forcefully regenerated as it was detected to be expired!')
             # why arent you running
             if not self.refresh_session.is_running():
+                logging.critical('Token refresh is not running')
                 self.refresh_session.start()
             if not self.verify_session.is_running():
+                logging.critical('Token verify is not running')
                 self.verify_session.start()
 
         # return 'lol' # testing only
