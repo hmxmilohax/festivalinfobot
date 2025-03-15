@@ -258,6 +258,15 @@ class FestivalInfoBot(commands.Bot):
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
 
+        @self.command(name="gitpull")
+        async def git_pull(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            proc = subprocess.run(["git", "pull"], capture_output=True)
+            text = proc.stderr.decode('utf-8') + proc.stdout.decode('utf-8')
+            await ctx.reply(f"```{text}```")
+
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
