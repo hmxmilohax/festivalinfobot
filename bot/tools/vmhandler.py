@@ -193,6 +193,11 @@ class PreviewAudioMgr:
 
         url = f'https://discord.com/api/v10/channels/{msg.channel.id}/messages'
 
+        # for responding to an ephmeral button interaction:
+        # url = f'https://discord.com/api/v10/webhooks/{self.bot.application.id}/{self.interaction.token}/messages/@original'
+        # + remove message_reference from the payload
+        # + change the method to PATCH
+
         flags = discord.MessageFlags()
         flags.voice = True
 
@@ -216,9 +221,7 @@ class PreviewAudioMgr:
                 "guild_id": msg.guild.id
             }
         }
-
-        logging.info(f'[POST] {url}')
-
+        
         data = bytearray()
         data.extend(b"--boundary\r\n")
         data.extend(b"Content-Disposition: form-data; name=\"payload_json\"\r\n")
@@ -230,7 +233,10 @@ class PreviewAudioMgr:
         data.extend(open(self.output_path, 'rb').read())
         data.extend(b"\r\n--boundary--")
 
+        logging.info(f'[POST] {url}')
         resp = requests.post(url, data=data, headers={
             "Content-Type": "multipart/form-data; boundary=\"boundary\"",
             "Authorization": "Bot " + self.bot.http.token
         })
+
+        logging.info(f'[{self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
