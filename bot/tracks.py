@@ -22,11 +22,11 @@ class JamTrackHandler:
     def fuzzy_search_tracks(self, tracks:list, search_term:str):
         search_term = self.remove_punctuation(search_term.lower())
 
-        # Special case for 'i'
         if search_term == 'i':
-            exact_matches = [track for track in tracks if track['track']['tt'].lower() == 'i']
-            if exact_matches:
-                return exact_matches
+            return [discord.utils.find(lambda track: track['track']['sn'] == 'i_kendrick', tracks)]
+        
+        if search_term == 'ttfaf':
+            return [discord.utils.find(lambda track: track['track']['sn'] == 'throughthefireandflames', tracks)]
 
         exact_matches = []
         fuzzy_matches = []
