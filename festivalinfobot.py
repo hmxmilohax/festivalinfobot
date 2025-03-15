@@ -95,8 +95,8 @@ class FestivalInfoBot(commands.Bot):
             )
 
         logging.debug("Syncing slash command tree...")
-        await self.tree.sync()
-        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        # await self.tree.sync()
+        # await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
             self.check_new_songs_task.start()

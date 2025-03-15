@@ -11,6 +11,7 @@ from bot import embeds
 import bot.constants as constants
 from bot.constants import Button, ButtonedView
 from bot import helpers
+from bot.tools.vmhandler import PreviewAudioMgr
 
 class JamTrackHandler:
     def __init__(self) -> None:
@@ -135,7 +136,18 @@ class SearchCommandHandler:
             imacat_data = json.load(imacat_file)
         embed = self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
-        await interaction.edit_original_response(embed=embed)
+        message = await interaction.edit_original_response(embed=embed)
+
+        async def something(interaction: discord.Interaction):
+            view.buttons[0].disabled = True
+            view.add_buttons()
+            await interaction.message.edit(view=view)
+            preview_audio_mgr = PreviewAudioMgr(self.bot, imacat_data, interaction)
+            await preview_audio_mgr.reply_to_interaction_message()
+
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view.message = message
+        await message.edit(embed=embed, view=view)
 
     async def handle_interaction(self, interaction: discord.Interaction, query:str):
         await interaction.response.defer() # edit_original_response
@@ -147,7 +159,7 @@ class SearchCommandHandler:
 
         tracks = self.jam_track_handler.get_jam_tracks()
         if not tracks:
-            await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'), ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'))
             return
 
         weekly_tracks = self.daily_handler.fetch_daily_shortnames()
@@ -182,6 +194,17 @@ class SearchCommandHandler:
 
             message = await message.reply(embed=embed, mention_author=False)
 
+        async def something(interaction: discord.Interaction):
+            view.buttons[0].disabled = True
+            view.add_buttons()
+            await interaction.message.edit(view=view)
+            preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
+            await preview_audio_mgr.reply_to_interaction_message()
+
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view.message = message
+        await message.edit(embed=embed, view=view)
+
         try:
             if track and message:
                 if track['track'].get('isrc', None):
@@ -194,9 +217,8 @@ class SearchCommandHandler:
                         if song_dot_link:
                             view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
 
-                        view = ButtonedView(user_id=interaction.user.id, buttons=view_buttons)
-
-                        view.message = message
+                        view.buttons.extend(view_buttons)
+                        view.add_buttons()
                         await message.edit(embed=embed, view=view)
         except Exception as e:
             logging.error('Error attempting to add Spotify link to message:', exc_info=e)
