@@ -77,7 +77,7 @@ class SearchEmbedHandler:
             title = f"Your Random Jam Track:\n{track['tt']}"
         else:
             title = f"{track['tt']}"
-        placeholder_id = track.get('ti', 'sid_placeholder_00').split('_')[-1].zfill(2) 
+
         embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
 
         embed.add_field(name="\n", value="", inline=False)
@@ -91,19 +91,18 @@ class SearchEmbedHandler:
         embed.add_field(name="Key", value=key, inline=True)
         embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
 
+        # ----------
 
         embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
         embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)    
 
         duration = track.get('dn', 0)
         embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
-        embed.add_field(name="Shortname", value=track['sn'], inline=True)
-        embed.add_field(name="Song ID", value=f"{placeholder_id}", inline=True)
 
-        # Add Last Modified field if it exists and format it to be more human-readable
-        if 'lastModified' in track_data:
-            human_readable_date = constants.format_date(track_data['lastModified'])
-            embed.add_field(name="Last Modified", value=human_readable_date, inline=True)
+        # ----------
+
+        embed.add_field(name="Shortname", value=track['sn'], inline=True)
+        embed.add_field(name="Item ID", value=track.get('ti').replace('SparksSong:', ''), inline=True)
         
         # Add Song Rating
         rating = track.get('ar', 'N/A')
@@ -117,6 +116,8 @@ class SearchEmbedHandler:
         embed.set_footer(text="Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
 
         embed.add_field(name="Rating", value=rating_description, inline=True)
+        
+        # ----------
         
         # Difficulty bars
         vocals_diff = track['in'].get('vl', 0)
@@ -136,10 +137,23 @@ class SearchEmbedHandler:
             pro_drums_diff
         ])+1
 
-        embed.add_field(name="Creative Code", value=track.get('jc', 'N/A'))
+        embed.add_field(name="Island Code", value=track.get('jc', 'N/A'))
         embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
-        embed.add_field(name="Released", value=constants.format_date(track_data.get('_activeDate')))
         embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
+
+        # ----------
+
+        last_modified = constants.format_date(track_data['lastModified'])
+        embed.add_field(name="Last Modified", value=last_modified, inline=True)
+        embed.add_field(name="Active Date", value=constants.format_date(track_data.get('_activeDate')))
+        embed.add_field(name="Music Moment Off.", value=track.get('mmo', 'N/A'))
+
+        # ----------
+
+        gameplay_tags = track.get('gt')
+        if gameplay_tags == None:
+            gameplay_tags = ['N/A']
+        embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=False)
 
         difficulties = (
             f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"
@@ -234,9 +248,21 @@ class SearchEmbedHandler:
                 )
 
         if old.get('lastModified') != new.get('lastModified'):
+            old_date = 'N/A'
+            if old.get('lastModified', None) != None:
+                date = old.get('lastModified')
+                print(date)
+                old_date = constants.format_date(date)
+
+            new_date = 'N/A'
+            if new.get('lastModified', None) != None:
+                date = new.get('lastModified')
+                print(date)
+                new_date = constants.format_date(date)
+
             embed.add_field(
                 name="Last Modified Date changed", 
-                value=f"```Old: {old.get('lastModified', '[N/A]')}\nNew: {new.get('lastModified', '[N/A]')} ```", 
+                value=f"{old_date} -> {new_date}", 
                 inline=False
             )
 

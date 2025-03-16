@@ -3,6 +3,8 @@ import difflib
 import logging
 from datetime import datetime, timezone
 import os
+import subprocess
+import sys
 import time
 from typing import Optional, Union
 from discord.ext import commands, tasks
@@ -72,13 +74,11 @@ class FestivalInfoBot(commands.Bot):
         logging.info("Bot going active on:")
         logging.info(' '.join(["No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date"]))
         
-        # Sort guilds by the bot's join date
         sorted_guilds = sorted(
             self.guilds, 
             key=lambda guild: guild.me.joined_at or datetime.min
         )
         
-        # Enumerate over sorted guilds to get the join number
         for index, guild in enumerate(sorted_guilds, start=1):
             join_date = (
                 guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
@@ -112,6 +112,13 @@ class FestivalInfoBot(commands.Bot):
         uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
         await self.get_channel(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
 
+        restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
+        if restart_arg:
+            ids = restart_arg.split(':')
+            msg_id = ids[1]
+            chn_id = ids[2]
+            await self.get_channel(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
+
     def __init__(self):
         # Load configuration from config.ini
         setup_log()
@@ -131,6 +138,7 @@ class FestivalInfoBot(commands.Bot):
         self.DECRYPTION_ALLOWED = config.getboolean('bot', 'decryption', fallback=True)
         self.PATHING_ALLOWED = config.getboolean('bot', 'pathing', fallback=True)
         self.CHART_COMPARING_ALLOWED = config.getboolean('bot', 'chart_comparing', fallback=True)
+        self.DEVELOPER = config.getboolean('bot', 'is_developer_environment', fallback=True)
 
         self.start_time = time.time()
         self.analytics: list[constants.Analytic] = []
@@ -140,8 +148,11 @@ class FestivalInfoBot(commands.Bot):
         intents.members = True
         intents.message_content = True  # Enable message content intent
 
+        prefix = 'ft'
+        if self.DEVELOPER: prefix = 'ftdev'
+
         super().__init__(
-            command_prefix=commands.when_mentioned_or('ft!'),
+            command_prefix=commands.when_mentioned_or(f'{prefix}!'),
             help_command=None,
             intents=intents
         )
@@ -231,6 +242,31 @@ class FestivalInfoBot(commands.Bot):
             else:
                 await ctx.send(f"{ctx.message.channel.guild.me.display_name} is online.")
 
+        @self.command(name="restart")
+        async def restart_command(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            await ctx.message.add_reaction("✅")
+
+            python_executable = sys.executable
+            script_path = os.path.abspath(sys.argv[0])
+            print('\n' * 10)
+
+            args = ctx.message.content.split(' ')[1:]
+
+            subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
+            sys.exit(0)
+
+        @self.command(name="gitpull")
+        async def git_pull(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            proc = subprocess.run(["git", "pull"], capture_output=True)
+            text = proc.stderr.decode('utf-8') + proc.stdout.decode('utf-8')
+            await ctx.reply(f"```{text}```")
+
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -296,14 +332,26 @@ class FestivalInfoBot(commands.Bot):
         async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments):
             await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument)
 
-        @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
+        @lb_group.command(name="band", description="View the band leaderboards of a song.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
-        @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
-        @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
-        @app_commands.describe(account_id = "An Epic Games account ID.")
-        async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
-            await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
+        @app_commands.describe(type = "The band type to view the leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.BandTypes):
+            await self.lb_handler.handle_band_interaction(interaction, song=song, band_type=type)
+
+        @lb_group.command(name="all_time", description="View the All-Time leaderboards of a song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(type = "The leaderboard type to view the all-time leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.AllTimeLBTypes):
+            await self.lb_handler.handle_alltime_interaction(interaction, song=song, type=type)
+
+        # @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
+        # @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        # @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
+        # @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
+        # @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
+        # @app_commands.describe(account_id = "An Epic Games account ID.")
+        # async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
+        #     await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
 
         self.tree.add_command(lb_group)
 

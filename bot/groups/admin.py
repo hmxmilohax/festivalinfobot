@@ -11,7 +11,7 @@ import requests
 from bot import config, constants
 from bot.groups.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
-from bot.leaderboard import LeaderboardPaginatorView
+from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 
 class AdminCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -702,4 +702,49 @@ class TestCog(commands.Cog):
         matched_track = matched_tracks[0]
 
         view = LeaderboardPaginatorView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, oauth, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
+    @test_group.command(name="band_leaderboards", description="Test new band leaderboards")
+    async def band_leaderboards(self, interaction: discord.Interaction, song: str, band_type: constants.BandTypes):
+        oauth: OAuthManager = self.bot.oauth_manager
+
+        chosen_band_type = constants.BandTypes[str(band_type).replace('BandTypes.', '')].value
+
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            return
+
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            return
+
+        await interaction.response.defer() # Makes the bot say Thinking...
+
+        matched_track = matched_tracks[0]
+
+        view = BandLeaderboardView(matched_track['track']['su'], 'season007', chosen_band_type, interaction.user.id, oauth, matched_track)
+        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
+    @test_group.command(name="alltime_leaderboards", description="Test new all-time leaderboards")
+    async def band_leaderboards(self, interaction: discord.Interaction, song: str, type: constants.AllTimeLBTypes):
+        oauth: OAuthManager = self.bot.oauth_manager
+
+        chosen_instrument = constants.AllTimeLBTypes[str(type).replace('AllTimeLBTypes.', '')].value
+
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            return
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            return
+        await interaction.response.defer() # Makes the bot say Thinking...
+        matched_track = matched_tracks[0]
+
+        view = AllTimeLeaderboardView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, oauth, matched_track)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)

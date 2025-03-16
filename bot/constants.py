@@ -263,7 +263,7 @@ class OneButtonSimpleView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Button:
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, ephmeral: bool = False):
         self.on_press = on_press
         self.label = label
         self.emoji = emoji
@@ -271,9 +271,10 @@ class Button:
         self.url = url
         self.style = style
         self.disabled = disabled
+        self.ephmeral = ephmeral
 
 class ViewButton(discord.ui.Button):
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, ephmeral: bool = False):
         self._on_press = on_press
         self._restrict = restrict
         self._url = url
@@ -281,6 +282,7 @@ class ViewButton(discord.ui.Button):
         self._label = label
         self._emoji = emoji
         self._disabled = disabled
+        self._ephmeral = ephmeral
 
         super().__init__(style=self._style, label=self._label, url=self._url, emoji=self._emoji, disabled=self._disabled)
 
@@ -290,9 +292,9 @@ class ViewButton(discord.ui.Button):
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view.add_buttons()
-        await interaction.response.defer()
+        await interaction.response.defer(thinking=self._ephmeral, ephemeral=self._ephmeral)
         if self._on_press:
-            await self._on_press()
+            await self._on_press(interaction)
 
 class ButtonedView(discord.ui.View):
     def __init__(self, user_id: int, buttons: list[Button]):
@@ -314,7 +316,8 @@ class ButtonedView(discord.ui.View):
                 url=button.url,
                 style=button.style,   
                 restrict=button.restrict,
-                disabled=button.disabled
+                disabled=button.disabled,
+                ephmeral=button.ephmeral
             ))
 
     async def on_timeout(self):
@@ -371,6 +374,23 @@ class Difficulty:
     def __str__(self) -> str:
         return f"Difficulty({self.english=}, {self.chopt=}, {self.pitch_ranges=}, {self.diff_4k=})".replace('self.', '')
 
+class BandType:
+    def __init__(self, english:str = "Duos", code: str = 'Duets') -> None:
+        self.english = english
+        self.code = code
+
+    def __str__(self) -> str:
+        return f"BandType({self.english=}, {self.code=})".replace('self.', '')
+    
+class AllTimeLBType:
+    def __init__(self, english:str = "Lead", code: str = 'Solo_Guitar', is_band = False) -> None:
+        self.english = english
+        self.code = code
+        self.is_band = is_band
+
+    def __str__(self) -> str:
+        return f"AllTimeLBType({self.english=}, {self.code=})".replace('self.', '')
+
 class Instruments(enum.Enum):
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS")
@@ -394,6 +414,27 @@ class Difficulties(enum.Enum):
     @classmethod
     def getall(self) -> list[Difficulty]:
         return [self.Expert.value, self.Hard.value, self.Medium.value, self.Easy.value]
+    
+class BandTypes(enum.Enum):
+    Duos = BandType()
+    Trios = BandType(english="Trios", code="Trios")
+    Squads = BandType(english="Squads", code="Quad")
+
+    # The @classmethod decorator just works!
+    @classmethod
+    def getall(self) -> list[Instrument]:
+        return [self.Duos.value, self.Trios.value, self.Squads.value]
+    
+class AllTimeLBTypes(enum.Enum):
+    Lead = AllTimeLBType()
+    Drums = AllTimeLBType(english="Drums", code="Solo_Drums")
+    Bass = AllTimeLBType(english="Bass", code="Solo_Bass")
+    Vocals = AllTimeLBType(english="Vocals", code="Solo_Vocals")
+    ProLead = AllTimeLBType(english="Pro Lead", code="Solo_PeripheralGuitar")
+    ProBass = AllTimeLBType(english="Pro Bass", code="Solo_PeripheralBass")
+    BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
+    BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
+    BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)
 
 def get_jam_tracks():
     content_url = CONTENT_API
@@ -486,9 +527,12 @@ def format_date(date_string):
 
 def add_fields(track_data, embed, weekly_tracks, shop_tracks):
     track_devname = track_data['track']['sn']
-    if weekly_tracks and track_devname in weekly_tracks:
-        active_until = weekly_tracks[track_devname]['activeUntil']
-        embed.add_field(name="Weekly Rotation", value=f"Free until {format_date(active_until)}.", inline=False)
+    weekly_track = discord.utils.find(lambda offer: offer['shortname'] == track_devname, weekly_tracks)
+    if weekly_track != None:
+        embed.add_field(name="Weekly Rotation", value=f"Currently in the free rotation.", inline=False)
+
+        if weekly_track['in_spotlight'] == True:
+            embed.add_field(name="Spotlight", value=f"Currently in rotation spotlight.", inline=False)
 
     shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track_data['track']['ti'], shop_tracks)
 

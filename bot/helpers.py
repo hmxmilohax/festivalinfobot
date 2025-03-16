@@ -65,10 +65,10 @@ class DailyCommandHandler:
                 if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
                     if active_since_date <= current_time <= active_until_date:
                         shortname = event_type.replace('PilgrimSong.', '')
+                        related_spotlight = discord.utils.find(lambda event: event['eventType'] == f'Sparks.Spotlight.{shortname}', active_events)
                         daily_tracks.append({
                             'shortname': shortname,
-                            'activeSince': active_since,
-                            'activeUntil': active_until
+                            'in_spotlight': related_spotlight != None
                         })
 
             return daily_tracks
@@ -100,8 +100,7 @@ class DailyCommandHandler:
             daily_tracks.append({
                 'title': title,
                 'artist': artist,
-                'difficulty': difficulty_str,
-                'activeUntil': song['activeUntil']
+                'difficulty': difficulty_str
             })
 
         await interaction.response.defer()
@@ -154,10 +153,6 @@ class ShopCommandHandler:
 
         await interaction.response.defer()
 
-        if not shop_tracks:
-            await interaction.edit_original_response(embed=constants.common_error_embed('Could not fetch tracks in the Item Shop.'))
-            return
-
         def title_from_template_id(template_id) -> str:
             return discord.utils.find(lambda jt: jt['track']['ti'] == template_id, jam_tracks)['track']['tt']
         
@@ -171,22 +166,21 @@ class ShopCommandHandler:
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
     def fetch_shop_tracks(self) -> list:
-        try:
-            logging.debug(f'[GET] {constants.SHOP_API}')
-            headers = {
-                'Authorization': self.bot.oauth_manager.session_token
-            }
-            response = requests.get(constants.SHOP_API, headers=headers)
-            data = response.json()
+        logging.debug(f'[GET] {constants.SHOP_API}')
+        headers = {
+            'Authorization': self.bot.oauth_manager.session_token
+        }
+        response = requests.get(constants.SHOP_API, headers=headers)
+        if response.status_code == 401 or response.status_code == 403:
+            self.bot.oauth_manager._create_token()
+            raise Exception('Please try again.')
 
-            storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
-            shop_tracks = list(filter(lambda item: item['meta']['templateId'].startswith('SparksSong:'), storefront['catalogEntries']))
+        data = response.json()
 
-            return shop_tracks
+        storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
+        shop_tracks = list(filter(lambda item: item['meta']['templateId'].startswith('SparksSong:'), storefront['catalogEntries']))
 
-        except Exception as e:
-            logging.error(f'Error fetching shop tracks', exc_info=e)
-            return None
+        return shop_tracks
         
 class TracklistHandler:
     def __init__(self, bot) -> None:
