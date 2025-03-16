@@ -26,3 +26,4 @@ logs
 *.db*
 .stfolder/
 ffmpeg.exe
+ffprobe.exe

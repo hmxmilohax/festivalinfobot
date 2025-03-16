@@ -39,6 +39,7 @@ import base64
 import logging
 
 from pydub import AudioSegment
+from pydub import utils as pdutils
 import numpy as np
 import base64
 
@@ -67,6 +68,12 @@ class PreviewAudioMgr:
 
         if Path.exists(ffmpeg_path):
             return str(ffmpeg_path.resolve()).replace('\\', '/')
+        
+    def _get_ffprobe_path(self) -> str:
+        ffprobe_path = Path('ffprobe.exe')
+
+        if Path.exists(ffprobe_path):
+            return str(ffprobe_path.resolve()).replace('\\', '/')
 
     def acquire_mpegdash_playlist(self, quicksilver_data: any) -> str:
         endpoint = 'https://cdn.qstv.on.epicgames.com/'
@@ -162,8 +169,15 @@ class PreviewAudioMgr:
         return output_path
 
     def get_waveform_bytearray(self) -> bytearray:
-        AudioSegment.ffmpeg = self._get_ffmpeg_path()
+        AudioSegment.converter = self._get_ffmpeg_path()
+
+        def override_prober() -> str:
+            return self._get_ffprobe_path()
+        
+        pdutils.get_prober_name = override_prober
+
         audio = AudioSegment.from_file(self.output_path, format="ogg")
+        audio.converter = self._get_ffmpeg_path()
 
         samples = np.array(audio.get_array_of_samples())
         sample_rate = audio.frame_rate

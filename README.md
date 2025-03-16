@@ -87,6 +87,6 @@ To be able to fetch and generate paths you will need two things:
 
     For newer CHOpt versions, Qt6 dlls may be required to be copied as well. These files are present in the .gitignore.
 
-To be able to produce audio previews, any build of FFmpeg in the root is required.
+To be able to produce audio previews, any build of FFmpeg and FFprobe in the root is required.
 
 Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key.
