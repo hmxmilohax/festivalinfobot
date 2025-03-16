@@ -541,7 +541,10 @@ class LoopCheckHandler():
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:
 
                     for diff_embed, diff_filename in chart_diffs_embeds:
-                        msg = await channel.send(embed=diff_embed, file=discord.File(diff_filename))
+                        try:
+                            msg = await channel.send(embed=diff_embed, file=discord.File(diff_filename))
+                        except Exception as e:
+                            logging.error(f'Cannot send modified chart embed to {channel.id}', exc_info=e)
 
                     try:
                         message = await channel.send(content=content, embed=song_metadata_diff_embed)
