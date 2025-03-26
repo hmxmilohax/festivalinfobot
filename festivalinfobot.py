@@ -119,6 +119,17 @@ class FestivalInfoBot(commands.Bot):
             chn_id = ids[2]
             await self.get_channel(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
 
+        logging.debug("Guilds chunking...")
+        guild_chunk_start_time = datetime.now()
+
+        for guild in self.guilds:
+            await guild.chunk()
+
+        logging.debug("Guilds done chunking")
+        guild_chunk_end_time = datetime.now() - guild_chunk_start_time
+        logging.info(f"Guilds chunked in {guild_chunk_end_time.seconds}s")
+        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Chunked all guilds in in {guild_chunk_end_time.seconds}s")
+
     def __init__(self):
         # Load configuration from config.ini
         setup_log()
@@ -154,7 +165,8 @@ class FestivalInfoBot(commands.Bot):
         super().__init__(
             command_prefix=commands.when_mentioned_or(f'{prefix}!'),
             help_command=None,
-            intents=intents
+            intents=intents,
+            chunk_guilds_at_startup=False
         )
 
         self.lb_handler = LeaderboardCommandHandler(self)

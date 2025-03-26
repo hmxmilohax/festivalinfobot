@@ -501,12 +501,24 @@ class LoopCheckHandler():
                 channel = self.bot.get_channel(channel_to_send.id)
             elif channel_to_send.type == 'user':
                 channel = self.bot.get_user(channel_to_send.id)
+
+                if channel == None:
+                    channel = await self.bot.fetch_user(channel_to_send.id)
+                    if len(channel.mutual_guilds) < 1:
+                        logging.error(f"User with ID {channel_to_send.id} does not have any mutual guilds and is skipped.")
+                        continue
+
             else:
                 channel = None
 
             if not channel:
                 logging.error(f"{channel_to_send.type.capitalize()} with ID {channel_to_send.id} not found.")
                 continue
+
+            if isinstance(channel, discord.abc.GuildChannel):
+                if channel.permissions_for(channel.me).send_messages == False:
+                    logging.error(f"We do not have permission to send messages to {channel.id}, skipping.")
+                    continue
 
             content = ""
             if isinstance(channel_to_send, SubscriptionChannel):
@@ -521,7 +533,11 @@ class LoopCheckHandler():
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
                     try:
                         message = await channel.send(content=content, embed=embed)
-                        await asyncio.sleep(0.5)
+
+                    except discord.Forbidden as e:
+                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
+                        break
+                        
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
@@ -531,7 +547,11 @@ class LoopCheckHandler():
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
                     try:
                         message = await channel.send(content=content, embed=embed)
-                        await asyncio.sleep(0.5)
+
+                    except discord.Forbidden as e:
+                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
+                        break
+
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
@@ -548,7 +568,11 @@ class LoopCheckHandler():
 
                     try:
                         message = await channel.send(content=content, embed=song_metadata_diff_embed)
-                        await asyncio.sleep(0.5)
+
+                    except discord.Forbidden as e:
+                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
+                        break
+
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
