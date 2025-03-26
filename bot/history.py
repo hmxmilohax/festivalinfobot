@@ -516,7 +516,7 @@ class LoopCheckHandler():
                 continue
 
             if isinstance(channel, discord.abc.GuildChannel):
-                if channel.permissions_for(channel.me).send_messages == False:
+                if channel.permissions_for(channel.guild.me).send_messages == False:
                     logging.error(f"We do not have permission to send messages to {channel.id}, skipping.")
                     continue
 
