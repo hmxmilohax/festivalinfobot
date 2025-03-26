@@ -55,8 +55,8 @@ class FestivalInfoBot(commands.Bot):
         async def activity_task():
             await self.check_handler.handle_activity_task()
 
-        logging.debug(f"Registering analytics loop every 2h")
-        @tasks.loop(hours=2)
+        logging.debug(f"Registering analytics loop every 5h")
+        @tasks.loop(hours=5)
         async def analytics():
             try:
                 await self.analytics_task()
