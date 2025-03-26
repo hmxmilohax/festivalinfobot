@@ -32,7 +32,7 @@ from bot.groups.oauthmanager import OAuthManager
 
 import traceback
 
-class FestivalInfoBot(commands.Bot):
+class FestivalInfoBot(commands.AutoShardedBot):
     async def setup_hook(self):
         logging.info("Creating SQLite connection...")
         await self.config.initialize()
