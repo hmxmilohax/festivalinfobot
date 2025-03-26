@@ -68,6 +68,10 @@ class FestivalInfoBot(commands.Bot):
 
         logging.debug("setup_hook finished!")
 
+    def custom_parse_guild_members_chunk(self, data: any):
+        logging.debug(f'Guild {data["guild_id"]} chunked')
+        self._connection.parse_guild_members_chunk(data)
+
     async def on_ready(self):
         logging.info(f'Logged in as {self.user.name}')
 
@@ -95,9 +99,6 @@ class FestivalInfoBot(commands.Bot):
         logging.debug("Syncing slash command tree...")
         await self.tree.sync()
         await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
-
-        if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
-            self.check_new_songs_task.start()
     
         if not self.activity_task.is_running():
             self.activity_task.start()
@@ -119,17 +120,20 @@ class FestivalInfoBot(commands.Bot):
             chn_id = ids[2]
             await self.get_channel(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
 
+        self._connection.parsers['GUILD_MEMBERS_CHUNK'] = self.custom_parse_guild_members_chunk
         logging.debug("Guilds chunking...")
         guild_chunk_start_time = datetime.now()
 
         for guild in self.guilds:
             await guild.chunk()
 
-        logging.debug("Guilds done chunking")
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
         logging.info(f"Guilds chunked in {guild_chunk_end_time.seconds}s")
         await self.get_channel(constants.LOG_CHANNEL).send(content=f"Chunked all guilds in in {guild_chunk_end_time.seconds}s")
 
+        if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
+            self.check_new_songs_task.start()
+    
     def __init__(self):
         # Load configuration from config.ini
         setup_log()
