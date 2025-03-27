@@ -501,13 +501,6 @@ class LoopCheckHandler():
                 channel = self.bot.get_channel(channel_to_send.id)
             elif channel_to_send.type == 'user':
                 channel = self.bot.get_user(channel_to_send.id)
-
-                if channel == None:
-                    channel = await self.bot.fetch_user(channel_to_send.id)
-                    if len(channel.mutual_guilds) < 1:
-                        logging.error(f"User with ID {channel_to_send.id} does not have any mutual guilds and is skipped.")
-                        continue
-
             else:
                 channel = None
 
