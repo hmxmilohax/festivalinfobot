@@ -1,6 +1,6 @@
 # Terms of Service
 
-_Last Updated: 2025.01.11
+_Last Updated: 2025.03.27
 
 1. **Acceptance of Terms**  
    By using this Discord bot, you agree to comply with and be bound by the following terms. If you disagree to these terms, you may not use the bot.
