@@ -146,8 +146,14 @@ class SearchEmbedHandler:
         last_modified = constants.format_date(track_data['lastModified'])
         embed.add_field(name="Last Modified", value=last_modified, inline=True)
         embed.add_field(name="Active Date", value=constants.format_date(track_data.get('_activeDate')))
-        embed.add_field(name="Music Moment Off.", value=track.get('mmo', 'N/A'))
-
+        
+        new_until = track.get('nu')
+        if new_until == None:
+            new_until = 'N/A'
+        else:
+            new_until = constants.format_date(new_until)
+            
+        embed.add_field(name="New Until", value=new_until)
         # ----------
 
         gameplay_tags = track.get('gt')
