@@ -128,11 +128,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         guild_chunk_start_time = datetime.now()
 
         for guild in self.guilds:
-            await guild.chunk()
+            if not guild.chunked:
+                await guild.chunk()
 
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
         logging.info(f"Guilds chunked in {guild_chunk_end_time.seconds}s")
-        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Chunked all guilds in in {guild_chunk_end_time.seconds}s")
+        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Chunked guilds in in {guild_chunk_end_time.seconds}s")
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
             self.check_new_songs_task.start()

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last Updated: 2025.01.11
+_Last Updated: 2025.03.27
 
 1. **Information We Collect**  
    The bot may collect and store the following information:
@@ -8,7 +8,7 @@ _Last Updated: 2025.01.11
    - Commands sent to the bot along with where they are invoked.
    - Server IDs, names and channel IDs where the bot is used.
    - Channel IDs subscribed to events.
-   - In the event of an error, the command and user ID may be collected in the report.
+   - In the event of an error, the command and user ID may be collected in the report, among other information.
 
 2. **How We Use Your Information**  
    - To provide and improve the functionality of the bot.

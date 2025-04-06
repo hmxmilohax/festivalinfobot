@@ -3,6 +3,8 @@
 
 Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every minute, among other features.
 
+Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.festivaltracker.org/)
+
 ## Features
 
 - **Song Tracking:** Checking Fortnite's API every 7 minutes and can show you all the details about each track.
