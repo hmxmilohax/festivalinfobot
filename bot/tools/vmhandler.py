@@ -44,7 +44,7 @@ import numpy as np
 import base64
 
 class PreviewAudioMgr:
-    def __init__(self, bot: commands.Bot, track: any, interaction: discord.Interaction):
+    def __init__(self, bot: discord.Client, track: any, interaction: discord.Interaction):
         self.bot = bot
         self.interaction = interaction
         self.track = track
@@ -198,10 +198,10 @@ class PreviewAudioMgr:
     async def reply_to_interaction_message(self):
         msg = self.interaction.message
 
-        url = f'https://discord.com/api/v10/channels/{msg.channel.id}/messages'
+        # url = f'https://discord.com/api/v10/channels/{msg.channel.id}/messages'
 
         # for responding to an ephmeral button interaction:
-        # url = f'https://discord.com/api/v10/webhooks/{self.bot.application.id}/{self.interaction.token}/messages/@original'
+        url = f'https://discord.com/api/v10/webhooks/{self.bot.application.id}/{self.interaction.token}/messages/@original'
         # + remove message_reference from the payload
         # + change the method to PATCH
 
@@ -241,7 +241,7 @@ class PreviewAudioMgr:
         data.extend(b"\r\n--boundary--")
 
         logging.info(f'[POST] {url}')
-        resp = requests.post(url, data=data, headers={
+        resp = requests.patch(url, data=data, headers={
             "Content-Type": "multipart/form-data; boundary=\"boundary\"",
             "Authorization": "Bot " + self.bot.http.token
         })

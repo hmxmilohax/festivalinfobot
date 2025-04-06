@@ -201,7 +201,15 @@ class SearchCommandHandler:
             preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
             await preview_audio_mgr.reply_to_interaction_message()
 
-        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview", thinking=True)])
+
+        if shop_tracks:
+            shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track['track']['ti'], shop_tracks)
+            if shop_entry:
+                shop_entry_meta = shop_entry['meta']
+                if shop_entry_meta.get('webURL', None):
+                    view.buttons.append(Button(None, url=f"https://fortnite.com{shop_entry['meta'].get('webURL')}", label="Item Shop"))
+
         view.message = message
         await message.edit(embed=embed, view=view)
 

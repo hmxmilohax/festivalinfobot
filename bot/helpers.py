@@ -179,7 +179,6 @@ class ShopCommandHandler:
 
         storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
         shop_tracks = list(filter(lambda item: item['meta']['templateId'].startswith('SparksSong:'), storefront['catalogEntries']))
-
         return shop_tracks
         
 class TracklistHandler:

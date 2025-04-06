@@ -25,6 +25,7 @@ from bot.path import PathCommandHandler
 from bot.groups.randomcog import RandomCog
 from bot.groups.subcog import SubscriptionCog
 from bot.groups.suggestions import SuggestionModal
+from bot.tools.previewpersist import PreviewButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.graph import GraphCommandsHandler
@@ -65,6 +66,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         self.analytic_loop = analytics
         self.activity_task = activity_task
+
+        self.add_dynamic_items(PreviewButton)
 
         logging.debug("setup_hook finished!")
 
@@ -210,6 +213,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
     async def custom_on_error(self, interaction: discord.Interaction, error: Exception):
         command = interaction.command
 
+        if isinstance(error, discord.app_commands.errors.CommandInvokeError):
+            if isinstance(error.original, discord.NotFound):
+                logging.error('An interaction could not be finished')
+                return
+
         try:
             exc_text = f"Exception caught\n- Time: {discord.utils.format_dt(datetime.now(), 'F')}"
             if command:
@@ -282,6 +290,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
             proc = subprocess.run(["git", "pull"], capture_output=True)
             text = proc.stderr.decode('utf-8') + proc.stdout.decode('utf-8')
             await ctx.reply(f"```{text}```")
+
+        @self.command()
+        async def vbucks(ctx: commands.Context):
+            """Starts a dynamic button."""
+
+            view = discord.ui.View(timeout=None)
+            view.add_item(PreviewButton("nevergonnagiveyouup"))
+            await ctx.send("Congrats! Click the button below for free v-bucks:", view=view)
 
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)

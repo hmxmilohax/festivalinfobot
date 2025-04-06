@@ -18,6 +18,7 @@ from bot.config import JamTrackEvent, SubscriptionChannel, SubscriptionObject, S
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tools import history as history_tools
+from bot.tools.previewpersist import PreviewButton
 from bot.tracks import JamTrackHandler
 
 import sparks_tracks
@@ -531,8 +532,12 @@ class LoopCheckHandler():
                 logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
+
+                    view = discord.ui.View(timeout=None)
+                    view.add_item(PreviewButton(new_song['track']['sn']))
+
                     try:
-                        message = await channel.send(content=content, embed=embed)
+                        message = await channel.send(content=content, embed=embed, view=view)
 
                     except discord.Forbidden as e:
                         logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
