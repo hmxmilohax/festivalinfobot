@@ -247,3 +247,6 @@ class PreviewAudioMgr:
         })
 
         logging.info(f'[{self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
+
+        if not resp.ok:
+            logging.error(resp.text)
