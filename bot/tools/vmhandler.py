@@ -221,12 +221,12 @@ class PreviewAudioMgr:
                     "duration_secs": self.audio_duration,
                     "waveform": wvform_b64
                 }
-            ],
-            "message_reference": {
-                "message_id": msg.id,
-                "channel_id": msg.channel.id,
-                "guild_id": msg.guild.id
-            }
+            ] # ,
+            # "message_reference": {
+            #     "message_id": msg.id,
+            #     "channel_id": msg.channel.id,
+            #     "guild_id": msg.guild.id
+            # }
         }
         
         data = bytearray()
