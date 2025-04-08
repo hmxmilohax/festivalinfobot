@@ -404,12 +404,12 @@ class LoopCheckHandler():
         num_tracks = len(tracks)
         random_jam_track = random.choice(tracks)
 
-        servers = random.choice([True, False])
+        servers = random.choice([True, False]) # bruh
 
         activity = discord.Activity(
             type=discord.ActivityType.watching if servers else discord.ActivityType.playing,
             name=f"{len(self.bot.guilds)} servers" if servers else f"{num_tracks} Jam Tracks",
-            state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']} | /help",
+            state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']}",
         )
 
         await self.bot.change_presence(activity=activity, status=discord.Status.online)
