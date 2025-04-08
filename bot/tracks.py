@@ -201,7 +201,7 @@ class SearchCommandHandler:
             preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
             await preview_audio_mgr.reply_to_interaction_message()
 
-        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview", thinking=True)])
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview", thinking=True, emoji="🔊")])
 
         if shop_tracks:
             shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track['track']['ti'], shop_tracks)
