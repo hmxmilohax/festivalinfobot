@@ -26,6 +26,7 @@ from bot.groups.randomcog import RandomCog
 from bot.groups.subcog import SubscriptionCog
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
+from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.graph import GraphCommandsHandler
@@ -100,8 +101,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
             )
 
         logging.debug("Syncing slash command tree...")
-        await self.tree.sync()
-        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        # await self.tree.sync()
+        # await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
     
         if not self.activity_task.is_running():
             self.activity_task.start()
@@ -313,6 +314,13 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def daily_command(interaction: discord.Interaction):
             await self.daily_handler.handle_interaction(interaction=interaction)
 
+        @self.tree.command(name="subscriptions", description="Manage your subscription or this server's subscriptions")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def subscriptions_command(interaction: discord.Interaction):
+            manager = SubscriptionManager(self)
+            await manager.handle_interaction(interaction=interaction)
+
         tracklist_group = app_commands.Group(name="tracklist", description="Tracklist commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 
         filter_group = app_commands.Group(name="filter", description="Tracklist commands", parent=tracklist_group)
@@ -431,7 +439,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
     
             await self.history_handler.handle_interaction(interaction=interaction, song=song)
 
-        @history_group.command(name="metadata", description="View the metadata history of a Jam Track.")
+        @history_group.command(name="meta", description="View the metadata history of a Jam Track.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         async def metahistory_command(interaction: discord.Interaction, song:str):
             await self.history_handler.handle_metahistory_interaction(interaction=interaction, song=song)
