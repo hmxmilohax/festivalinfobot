@@ -323,7 +323,8 @@ class GamblingHandler:
 
         if daily:
             def indaily(obj):
-                return obj['track']['sn'] in daily_tracks
+                sn = obj['track']['sn']
+                return discord.utils.find(lambda t: t['shortname'] == sn, daily_tracks) != None
 
             track_list = list(filter(indaily, track_list))
 
