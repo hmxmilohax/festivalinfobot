@@ -104,7 +104,7 @@ class SearchCommandHandler:
         self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
-        if not interaction.channel.permissions_for(interaction.channel.me).send_messages:
+        if not interaction.channel.permissions_for(interaction.guild.me).send_messages:
             await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"I do not have the required permissions to let you choose from {len(matched_tracks)} Jam Tracks in this channel. Please try a different channel."))
             return None, None
 
@@ -241,19 +241,23 @@ class SearchCommandHandler:
         await message.edit(embed=embed, view=view)
 
         try:
-            if track and message:
-                if track['track'].get('isrc', None):
-                    spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
+            if (not track) or (not message):
+                return
+            
+            if track['track'].get('isrc', None):
+                spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
 
-                    if spotify:
-                        view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
+                if not spotify:
+                    return
+                
+                view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
 
-                        song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
-                        if song_dot_link:
-                            view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
+                song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
+                if song_dot_link:
+                    view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
 
-                        view.buttons.extend(view_buttons)
-                        view.add_buttons()
-                        await message.edit(embed=embed, view=view)
+                view.buttons.extend(view_buttons)
+                view.add_buttons()
+                await message.edit(embed=embed, view=view)
         except Exception as e:
             logging.error('Error attempting to add Spotify link to message:', exc_info=e)
