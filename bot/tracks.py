@@ -104,9 +104,10 @@ class SearchCommandHandler:
         self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
-        if not interaction.channel.permissions_for(interaction.guild.me).send_messages:
-            await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"I do not have the required permissions to let you choose from {len(matched_tracks)} Jam Tracks in this channel. Please try a different channel."))
-            return None, None
+        if interaction.guild:
+            if not interaction.channel.permissions_for(interaction.guild.me).send_messages:
+                await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"I do not have the required permissions to let you choose from {len(matched_tracks)} Jam Tracks in this channel. Please try a different channel."))
+                return None, None
 
         options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
@@ -114,7 +115,9 @@ class SearchCommandHandler:
 
         total_options = len(matched_tracks)
         message = interaction.message
-        can_react = interaction.message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
+        can_react = interaction.guild == None
+        if interaction.guild:
+            can_react = interaction.message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
 
         if total_options <= 9 and can_react:
             finalized_options_message += ' reacting:'
