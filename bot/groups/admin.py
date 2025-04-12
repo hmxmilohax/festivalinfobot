@@ -315,32 +315,6 @@ class TestCog(commands.Cog):
 
         await interaction.followup.send(content="Test messages have been sent.\nSource attached below.", files=result_files)
 
-    @test_group.command(name="migrate", description="Migrates channels.json to subscriptions.db")
-    async def migrate(self, interaction: discord.Interaction):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-
-        import migrate
-        
-        await interaction.response.defer()
-
-        logging.debug('Starting migration process')
-        results = await migrate.main(self.bot)
-        embeds = []
-
-        for i in range(0, len(results), 10):
-            embed = discord.Embed(title="Migration Results", color=0x8927A1)
-            chunk = results[i:i + 10]
-            text = '\n'.join(chunk)
-            embed.add_field(name="Logs", value=f"```{text}```")
-            embeds.append(embed)
-
-        view = constants.PaginatorView(embeds, interaction.user.id)
-        view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-
-        logging.debug('Migration process is over.')
-
     delete_group = app_commands.Group(name="delete", description="Delete commands", parent=test_group, guild_ids=[constants.TEST_GUILD])
     
     @delete_group.command(name="channel_where", description="Delete a channel where guild_id = ? or channel_id = ?")
