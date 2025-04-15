@@ -1,7 +1,9 @@
 import asyncio
 import difflib
 import logging
-from datetime import datetime, timezone
+import datetime as dt
+from datetime import datetime, timezone, timedelta, time
+from zoneinfo import ZoneInfo
 import os
 import subprocess
 import sys
@@ -256,10 +258,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             logging.error('Ignoring exception in command tree', exc_info=error)
 
     def setup_commands(self):
-
-        # This command is secret; it can be used to inmediately check if Festival Tracker
-        # is online without having to go through application commands
-        # Invokable by "ft!online"
+        
         @self.command(name="online")
         async def checkonline_command(ctx):
             if ctx.message.channel.permissions_for(ctx.message.channel.guild.me).add_reactions:
@@ -283,8 +282,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
 
-        @self.command(name="gitpull")
-        async def git_pull(ctx: commands.Context):
+        @self.command()
+        async def gitpull(ctx: commands.Context):
             if not (ctx.author.id in constants.BOT_OWNERS):
                 return
             
@@ -298,7 +297,15 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             view = discord.ui.View(timeout=None)
             view.add_item(PreviewButton("nevergonnagiveyouup"))
-            await ctx.send("Congrats! Click the button below for free v-bucks:", view=view)
+            await ctx.send("Congrats! You won **0 V-Bucks**! Click the button below to preview your code and claim it!", view=view)
+
+        @self.command()
+        async def licensing(ctx: commands.Context):
+            await ctx.send("Licensing is hard")
+
+        @self.command()
+        async def about(ctx: commands.Context):
+            await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
