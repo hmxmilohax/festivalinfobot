@@ -117,7 +117,7 @@ class SearchCommandHandler:
         message = interaction.message
         can_react = interaction.guild == None
         if interaction.guild:
-            can_react = interaction.message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
+            can_react = message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
 
         if total_options <= 9 and can_react:
             finalized_options_message += ' reacting:'
