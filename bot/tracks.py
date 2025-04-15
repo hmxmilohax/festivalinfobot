@@ -114,7 +114,7 @@ class SearchCommandHandler:
         finalized_options_message = f"Found multiple tracks matching your query. Please choose the correct one by"
 
         total_options = len(matched_tracks)
-        message = interaction.message
+        message = await interaction.original_response()
         can_react = interaction.guild == None
         if interaction.guild:
             can_react = message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
