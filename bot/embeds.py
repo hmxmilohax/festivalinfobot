@@ -120,15 +120,15 @@ class SearchEmbedHandler:
         # ----------
         
         # Difficulty bars
-        vocals_diff = track['in'].get('vl', 0)
-        guitar_diff = track['in'].get('gr', 0)
-        bass_diff = track['in'].get('ba', 0)
-        drums_diff = track['in'].get('ds', 0)
+        vocals_diff = track['in'].get('vl', -1)
+        guitar_diff = track['in'].get('gr', -1)
+        bass_diff = track['in'].get('ba', -1)
+        drums_diff = track['in'].get('ds', -1)
         # pro_vocals_diff = track['in'].get('pv', 0)
-        pro_guitar_diff = track['in'].get('pg', 0)
-        pro_bass_diff = track['in'].get('pb', 0)
-        pro_drums_diff = track['in'].get('pd', 0)
-        band_diff = track['in'].get('bd', 0) # apparently bd
+        pro_guitar_diff = track['in'].get('pg', -1)
+        pro_bass_diff = track['in'].get('pb', -1)
+        pro_drums_diff = track['in'].get('pd', -1)
+        band_diff = track['in'].get('bd', -1) # apparently bd
 
         # average diff
         avg_diff = numpy.average([
