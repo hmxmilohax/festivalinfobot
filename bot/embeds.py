@@ -128,14 +128,14 @@ class SearchEmbedHandler:
         pro_guitar_diff = track['in'].get('pg', 0)
         pro_bass_diff = track['in'].get('pb', 0)
         pro_drums_diff = track['in'].get('pd', 0)
-        pro_vocals_diff = track['in'].get('bd', 0) # apparently bd is pro vocals for now
+        band_diff = track['in'].get('bd', 0) # apparently bd
 
         # average diff
         avg_diff = numpy.average([
             vocals_diff, guitar_diff,
             bass_diff, drums_diff,
             pro_guitar_diff, pro_bass_diff, 
-            pro_drums_diff, pro_vocals_diff
+            pro_drums_diff
         ])+1
 
         embed.add_field(name="Island Code", value=track.get('jc', 'N/A'))
@@ -163,14 +163,14 @@ class SearchEmbedHandler:
         embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=False)
 
         difficulties = (
-            f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
-            f"Bass:       {constants.generate_difficulty_bar(bass_diff)}\n"
-            f"Drums:      {constants.generate_difficulty_bar(drums_diff)}\n"
-            f"Vocals:     {constants.generate_difficulty_bar(vocals_diff)}\n"
-            f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
-            f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
-            f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Pro Vocals: {constants.generate_difficulty_bar(pro_drums_diff)}\n"
+            f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"
+            f"Bass:      {constants.generate_difficulty_bar(bass_diff)}\n"
+            f"Drums:     {constants.generate_difficulty_bar(drums_diff)}\n"
+            f"Vocals:    {constants.generate_difficulty_bar(vocals_diff)}\n"
+            f"Pro Lead:  {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
+            f"Pro Bass:  {constants.generate_difficulty_bar(pro_bass_diff)}\n"
+            f"Pro Drums: {constants.generate_difficulty_bar(pro_drums_diff)}\n"
+            f"Band:      {constants.generate_difficulty_bar(band_diff)}\n"
         )
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
