@@ -112,8 +112,6 @@ class SearchEmbedHandler:
             rating_description = 'Everyone'
         else:
             rating_description = rating
-        
-        embed.set_footer(text="Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
 
         embed.add_field(name="Rating", value=rating_description, inline=True)
         
@@ -128,7 +126,7 @@ class SearchEmbedHandler:
         pro_guitar_diff = track['in'].get('pg', -1)
         pro_bass_diff = track['in'].get('pb', -1)
         pro_drums_diff = track['in'].get('pd', -1)
-        band_diff = track['in'].get('bd', -1) # apparently bd
+        band_diff = track['in'].get('bd', -1) # apparently bd is placeholder for pro vocals
 
         # average diff
         avg_diff = numpy.average([
@@ -163,17 +161,22 @@ class SearchEmbedHandler:
         embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=False)
 
         difficulties = (
-            f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"
-            f"Bass:      {constants.generate_difficulty_bar(bass_diff)}\n"
-            f"Drums:     {constants.generate_difficulty_bar(drums_diff)}\n"
-            f"Vocals:    {constants.generate_difficulty_bar(vocals_diff)}\n"
-            f"Pro Lead:  {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
-            f"Pro Bass:  {constants.generate_difficulty_bar(pro_bass_diff)}\n"
-            f"Pro Drums: {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Band:      {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Lead:            {constants.generate_difficulty_bar(guitar_diff)}\n"
+            f"Bass:            {constants.generate_difficulty_bar(bass_diff)}\n"
+            f"Drums:           {constants.generate_difficulty_bar(drums_diff)}\n"
+            f"Vocals:          {constants.generate_difficulty_bar(vocals_diff)}\n"
+            f"Pro Lead:        {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
+            f"Pro Bass:        {constants.generate_difficulty_bar(pro_bass_diff)}\n"
+            f"Pro Drums:       {constants.generate_difficulty_bar(pro_drums_diff)}\n"
+            f"Pro Vocals/Band: {constants.generate_difficulty_bar(band_diff)}\n"
         )
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
+
+        additional_text = ''
+        if band_diff != -1:
+            additional_text = f' · Pro Vocals/Band difficulty is not counted towards Avg. as it\'s unknown if it\'s for Band or Pro Vocals'
+        embed.set_footer(text=f"Festival Tracker{additional_text}", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
         
         embed.set_thumbnail(url=track['au'])
         
