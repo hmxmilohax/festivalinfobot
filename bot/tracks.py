@@ -29,6 +29,9 @@ class JamTrackHandler:
         if search_term == 'ttfaf':
             return [discord.utils.find(lambda track: track['track']['sn'] == 'throughthefireandflames', tracks)]
 
+        if search_term == 'latest':
+            return [tracks[-1]]
+
         exact_matches = []
         fuzzy_matches = []
 
