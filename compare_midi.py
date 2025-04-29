@@ -419,7 +419,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     
     for time, text1, text2 in text_differences:
         text_times.append(time)
-        text_events.append(f"Text changed: {text1} -> {text2}")
+        text_events.append(f"{text1} > {text2}")
         text_changes.append('changed')
 
     # Convert note and text times to numpy arrays for plotting
