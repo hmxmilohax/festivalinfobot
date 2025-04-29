@@ -137,7 +137,7 @@ class SearchEmbedHandler:
         ])+1
 
         embed.add_field(name="Island Code", value=track.get('jc', 'N/A'))
-        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
+        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
         embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
 
         # ----------
@@ -173,10 +173,7 @@ class SearchEmbedHandler:
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
 
-        additional_text = ''
-        if band_diff != -1:
-            additional_text = f' · Pro Vocals/Band isn\'t counted towards Avg. as it\'s unknown for which one it is'
-        embed.set_footer(text=f"Festival Tracker{additional_text}", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
+        embed.set_footer(text=f"Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
         
         embed.set_thumbnail(url=track['au'])
         
