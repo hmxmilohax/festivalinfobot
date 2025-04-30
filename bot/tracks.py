@@ -34,10 +34,12 @@ class JamTrackHandler:
             'mcls': ['magicalcureloveshot'], 
             'mlcs': ['magicalcureloveshot'], 
             'mscl': ['magicalcureloveshot'],
-            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence'],
+            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday'],
             'peak': ['larrysplace'],
             'comingsoon': ['juicy'],
             'ralph': ['streetsignite'],
+            'cowabunga': ['streetsignite'],
+            'kog': ['streetsignite'],
             'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza'],
             'peak': ['neverbackdown']
         }
