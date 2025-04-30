@@ -54,6 +54,12 @@ class JamTrackHandler:
         if search_term == 'latest':
             return [tracks[-1]]
 
+        if search_term.isdigit():
+            # template id search
+            template_id_result = discord.utils.find(lambda track: int(track['track']['ti'].split('_')[-1]) == int(search_term), tracks)
+            if template_id_result:
+                return [template_id_result]
+
         exact_matches = []
         fuzzy_matches = []
 
