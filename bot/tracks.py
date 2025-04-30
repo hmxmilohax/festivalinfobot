@@ -23,11 +23,31 @@ class JamTrackHandler:
     def fuzzy_search_tracks(self, tracks:list, search_term:str):
         search_term = self.remove_punctuation(search_term.lower())
 
-        if search_term == 'i':
-            return [discord.utils.find(lambda track: track['track']['sn'] == 'i_kendrick', tracks)]
-        
-        if search_term == 'ttfaf':
-            return [discord.utils.find(lambda track: track['track']['sn'] == 'throughthefireandflames', tracks)]
+        custom_results = {
+            'i': ['i_kendrick'],
+            'ttfaf': ['throughthefireandflames'],
+            'btf': ['beyondtheflame'],
+            'mop': ['masterofpuppets'],
+            'dftr': ['dontfearthereaper'],
+            'wtp': ['welcometoparadise'],
+            'nggyu': ['nevergonnagiveyouup'],
+            'mcls': ['magicalcureloveshot'], 
+            'mlcs': ['magicalcureloveshot'], 
+            'mscl': ['magicalcureloveshot'],
+            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence'],
+            'peak': ['larrysplace'],
+            'comingsoon': ['juicy'],
+            'ralph': ['streetsignite'],
+            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza'],
+            'peak': ['neverbackdown']
+        }
+
+        if search_term in custom_results.keys():
+            premature_matches = []
+            for result in custom_results.get(search_term, []):
+                premature_matches.append(discord.utils.find(lambda track: track['track']['sn'] == result, tracks))
+
+            return premature_matches
 
         if search_term == 'latest':
             return [tracks[-1]]
