@@ -40,6 +40,7 @@ class JamTrackHandler:
             'ralph': ['streetsignite'],
             'cowabunga': ['streetsignite'],
             'kog': ['streetsignite'],
+            'one': ['one'],
             'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza']
         }
 
