@@ -35,13 +35,12 @@ class JamTrackHandler:
             'mlcs': ['magicalcureloveshot'], 
             'mscl': ['magicalcureloveshot'],
             'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday'],
-            'peak': ['larrysplace'],
+            'peak': ['larrysplace', 'neverbackdown'],
             'comingsoon': ['juicy'],
             'ralph': ['streetsignite'],
             'cowabunga': ['streetsignite'],
             'kog': ['streetsignite'],
-            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza'],
-            'peak': ['neverbackdown']
+            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza']
         }
 
         if search_term in custom_results.keys():
