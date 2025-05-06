@@ -53,7 +53,7 @@ class JamTrackHandler:
             return premature_matches
 
         if search_term == 'latest':
-            return tracks[-1:-15]
+            return tracks[-1:-15:-1]
 
         if search_term == 'newest':
             return [tracks[-1]]
