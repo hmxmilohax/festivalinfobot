@@ -55,9 +55,21 @@ class JamTrackHandler:
         if search_term == 'latest':
             return tracks[-1:-11:-1]
 
-        if search_term == 'newest':
+        if search_term == 'last':
             return [tracks[-1]]
 
+        if search_term == 'longest':
+            return sorted(tracks, key=lambda t: t['track']['dn'], reverse=True)[0:10]
+
+        if search_term == 'shortest':
+            return sorted(tracks, key=lambda t: t['track']['dn'])[0:10]
+
+        if search_term == 'fastest':
+            return sorted(tracks, key=lambda t: t['track']['mt'], reverse=True)[0:10]
+
+        if search_term == 'slowest':
+            return sorted(tracks, key=lambda t: t['track']['mt'])[0:10]
+            
         if search_term.isdigit():
             # template id search
             template_id_result = discord.utils.find(lambda track: int(track['track']['ti'].split('_')[-1]) == int(search_term), tracks)
