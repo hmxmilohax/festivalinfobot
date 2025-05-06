@@ -53,7 +53,7 @@ class JamTrackHandler:
             return premature_matches
 
         if search_term == 'latest':
-            return [tracks[-1]]
+            return tracks[-1:-15]
 
         if search_term.isdigit():
             # template id search
