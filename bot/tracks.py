@@ -154,7 +154,7 @@ class SearchCommandHandler:
         self.jam_track_handler = JamTrackHandler()
         self.bot : commands.Bot = bot
         self.embed_handler = embeds.SearchEmbedHandler()
-        self.daily_handler = helpers.DailyCommandHandler()
+        self.daily_handler = helpers.DailyCommandHandler(bot)
         self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):

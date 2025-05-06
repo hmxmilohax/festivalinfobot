@@ -13,8 +13,8 @@ from discord.ext import commands
 from bot.embeds import SearchEmbedHandler
 
 class DailyCommandHandler:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, bot) -> None:
+        self.bot = bot
 
     def create_daily_embeds(self, daily_tracks, chunk_size=8):
         embeds = []
@@ -36,7 +36,10 @@ class DailyCommandHandler:
     def fetch_daily_shortnames(self):
         try:
             logging.debug(f'[GET] {constants.DAILY_API}')
-            response = requests.get(constants.DAILY_API)
+            headers = {
+                'Authorization': self.bot.oauth_manager.session_token
+            }
+            response = requests.get(constants.DAILY_API, headers=headers)
             data = response.json()
 
             channels = data.get('channels', {})
@@ -270,7 +273,7 @@ class TracklistHandler:
 class GamblingHandler:
     def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()
-        self.daily_handler = DailyCommandHandler()
+        self.daily_handler = DailyCommandHandler(bot)
         self.shop_handler = ShopCommandHandler(bot)
 
     async def handle_random_track_interaction(self, interaction: discord.Interaction, shop: bool = False, daily: bool = False):
@@ -292,7 +295,9 @@ class GamblingHandler:
 
         if daily:
             def indaily(obj):
-                return obj['track']['sn'] in weekly_tracks
+                sn = obj['track']['sn']
+                return discord.utils.find(lambda t: t['shortname'] == sn, weekly_tracks) != None
+
             track_list = list(filter(indaily, track_list))
 
         async def re_roll():

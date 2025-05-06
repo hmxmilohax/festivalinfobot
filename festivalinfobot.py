@@ -181,7 +181,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         self.lb_handler = LeaderboardCommandHandler(self)
         self.search_handler = SearchCommandHandler(self)
-        self.daily_handler = DailyCommandHandler()
+        self.daily_handler = DailyCommandHandler(self)
         self.shop_handler = ShopCommandHandler(self)
         self.tracklist_handler = TracklistHandler(self)
         self.path_handler = PathCommandHandler()
