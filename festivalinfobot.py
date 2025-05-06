@@ -29,7 +29,7 @@ from bot.groups.subcog import SubscriptionCog
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
+from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
 from bot.groups.oauthmanager import OAuthManager
 
@@ -189,6 +189,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.check_handler = LoopCheckHandler(self)
         self.graph_handler = GraphCommandsHandler()
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
+        self.pro_vocals_handler = ProVocalsHandler(self)
 
         self.setup_commands()
 
@@ -346,6 +347,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def shop_command(interaction: discord.Interaction):
             await self.shop_handler.handle_interaction(interaction=interaction)
+
+        @self.tree.command(name="provocals", description="View how many songs support Pro Vocals.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def provocals_count(interaction: discord.Interaction):
+            await self.pro_vocals_handler.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.allowed_installs(guilds=True, users=True)

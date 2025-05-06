@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import difflib
 import logging
+import os
 import random
 import re
 
@@ -341,3 +342,44 @@ class GamblingHandler:
         reroll_view.message = await interaction.original_response()
 
         await re_roll()
+
+class ProVocalsHandler:
+    def __init__(self, bot) -> None:
+        self.bot = bot
+        self.search_embed_handler = SearchEmbedHandler()
+
+    async def handle_interaction(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        tracks = constants.get_jam_tracks()
+        if not tracks:
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
+            return
+
+        all_midi = [f'dat_{track['track']['sn']}_{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
+        missing_midi = []
+
+        songs_with_pro_vocals = 0
+        songs_without_pro_vocals = 0
+
+        for midi in all_midi:
+            if not os.path.exists(constants.LOCAL_MIDI_FOLDER + midi):
+                missing_midi.append(midi)
+            else:
+                mid = open(constants.LOCAL_MIDI_FOLDER + midi, 'rb')
+                pro_vocals_track = b'PRO VOCALS' in mid.read()
+                mid.close()
+                if pro_vocals_track:
+                    songs_with_pro_vocals += 1
+                else:
+                    songs_without_pro_vocals += 1
+
+        embed = discord.Embed(
+            title="Songs with Pro Vocals",
+            description=f"There are currently **{songs_with_pro_vocals}**/**{len(all_midi)}** songs with Pro Vocals in Fortnite Festival. **{songs_without_pro_vocals}** songs do not have Pro Vocals yet.",
+            color=0x8927A1
+        )
+        if len(missing_midi) > 0:
+            embed.add_field(name="Missing files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
+
+        await interaction.edit_original_response(embed=embed)
