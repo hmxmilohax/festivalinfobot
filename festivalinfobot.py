@@ -303,6 +303,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.reply(f"Congrats, {ctx.author.mention}! You won **0 V-Bucks**! Preview your code below!", view=view)
 
         @self.command()
+        async def jswiki(ctx: commands.Context):
+            await ctx.reply("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
+
+        @self.command()
         async def licensing(ctx: commands.Context):
             await ctx.send("Licensing is hard")
 
