@@ -69,6 +69,12 @@ class JamTrackHandler:
 
         if search_term == 'slowest':
             return sorted(tracks, key=lambda t: t['track']['mt'])[0:10]
+
+        if search_term == 'newest':
+            return sorted(tracks, key=lambda t: t['track']['ry'], reverse=True)[0:10]
+
+        if search_term == 'oldest':
+            return sorted(tracks, key=lambda t: t['track']['ry'])[0:10]
             
         if search_term.isdigit():
             # template id search
