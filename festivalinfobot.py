@@ -1,5 +1,7 @@
 import asyncio
 import difflib
+import io
+import json
 import logging
 import datetime as dt
 from datetime import datetime, timezone, timedelta, time
@@ -370,6 +372,25 @@ class FestivalInfoBot(commands.AutoShardedBot):
             )
 
             await interaction.response.send_message(embed=embed)
+
+        @self.tree.command(name="metadata", description="Get the metadata of a song as a .json file.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def metadata_command(interaction: discord.Interaction, song:str):
+            track_handler = JamTrackHandler()
+            track_list = track_handler.get_jam_tracks()
+            if not track_list:
+                await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
+                return
+
+            matched_track = track_handler.fuzzy_search_tracks(track_list, song)
+            if not matched_track:
+                await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+                return
+            track = matched_track[0]
+
+            await interaction.response.send_message(file=discord.File(io.StringIO(json.dumps(track, indent=4)), f'{track["track"]["sn"]}_metadata.json'))
 
         lb_group = app_commands.Group(name="leaderboard", description="Leaderboard commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 

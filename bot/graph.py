@@ -260,6 +260,7 @@ class GraphingFuncs():
             notes = [0 for i in range(36, 85)]
             start = 36
             end = 84
+            plt.xticks(rotation=90, fontsize=6)
 
         mid = mido.MidiFile(midi_path)
         for track in mid.tracks:
