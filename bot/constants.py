@@ -56,7 +56,7 @@ SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 
 # APIs which the bot uses to source its information
 CONTENT_API = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
-DAILY_API = 'https://api.nitestats.com/v1/epic/modes-smart'
+DAILY_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/calendar/v1/timeline'
 SHOP_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
 LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/' # unused
 
