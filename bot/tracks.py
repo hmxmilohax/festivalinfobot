@@ -35,7 +35,7 @@ class JamTrackHandler:
             'mlcs': ['magicalcureloveshot'], 
             'mscl': ['magicalcureloveshot'],
             'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday'],
-            'peak': ['larrysplace', 'nevergiveup'],
+            'peak': ['larrysplace', 'nevergiveup', 'freebird'],
             'comingsoon': ['juicy'],
             'ralph': ['streetsignite'],
             'cowabunga': ['streetsignite'],
