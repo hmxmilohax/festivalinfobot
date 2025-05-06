@@ -55,6 +55,9 @@ class JamTrackHandler:
         if search_term == 'latest':
             return tracks[-1:-15]
 
+        if search_term == 'newest':
+            return [tracks[-1]]
+
         if search_term.isdigit():
             # template id search
             template_id_result = discord.utils.find(lambda track: int(track['track']['ti'].split('_')[-1]) == int(search_term), tracks)
