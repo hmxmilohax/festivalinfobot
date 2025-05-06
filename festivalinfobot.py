@@ -297,7 +297,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             view = discord.ui.View(timeout=None)
             view.add_item(PreviewButton("nevergonnagiveyouup"))
-            await ctx.send("Congrats! You won **0 V-Bucks**! Click the button below to preview your code and claim it!", view=view)
+            await ctx.reply(f"Congrats, {ctx.author.mention}! You won **0 V-Bucks**! Preview your code below!", view=view)
 
         @self.command()
         async def licensing(ctx: commands.Context):
