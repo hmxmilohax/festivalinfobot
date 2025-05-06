@@ -197,7 +197,13 @@ class GraphingFuncs():
                 break
 
         notes = _notes['tracks'][instrument_idx]['notes']
-        filtered_notes_seconds = [(note["start_time"] / 1000) for note in notes if diff.pitch_ranges[0] <= note["note"] <= diff.pitch_ranges[1]]
+        pitch_start = diff.pitch_ranges[0]
+        pitch_end = diff.pitch_ranges[1]
+        if inst.midi == 'PRO VOCALS':
+            pitch_start = 36
+            pitch_end = 84
+
+        filtered_notes_seconds = [(note["start_time"] / 1000) for note in notes if pitch_start <= note["note"] <= pitch_end]
 
         grouped_by_second = {}
         for note_time in filtered_notes_seconds:
@@ -243,20 +249,27 @@ class GraphingFuncs():
 
     def generate_lanes_chart(self, midi_path : str, spath : str, inst : const.Instrument, diff : const.Difficulty, song_name, song_artist):
         labels = ['Green', 'Red', 'Yellow', 'Blue', 'Orange']
+        colours = ['green', 'red', 'yellow', 'blue', 'orange']
         notes = [0, 0, 0, 0, 0]
+        start = diff.pitch_ranges[0]
+        end = diff.pitch_ranges[1]
+
+        if inst.midi == 'PRO VOCALS':
+            labels = list([str(i-35) for i in range(36, 85)])
+            colours = ['red' for i in range(36, 85)]
+            notes = [0 for i in range(36, 85)]
+            start = 36
+            end = 84
 
         mid = mido.MidiFile(midi_path)
         for track in mid.tracks:
             if track.name == inst.midi:
                 for msg in track:
                     if msg.type == 'note_on':
-                        start = diff.pitch_ranges[0]
-                        end = diff.pitch_ranges[1]
-
                         if msg.note >= start and msg.note <= end:
                             lane = msg.note - start
                             notes[lane] += 1
-        plt.bar(labels, notes, color=['green', 'red', 'yellow', 'blue', 'orange'])
+        plt.bar(labels, notes, color=colours)
 
         for i, value in enumerate(notes):
             plt.text(i, value + 3, str(value), ha='center')
@@ -290,6 +303,15 @@ class GraphingFuncs():
                             if msg.type == 'note_on':
                                 start = difficulty.pitch_ranges[0]
                                 end = difficulty.pitch_ranges[1]
+
+                                if instrument.midi == 'PRO VOCALS':
+                                    if difficulty.chopt == 'expert':
+                                        start = 36
+                                        end = 84
+                                    else:
+                                        start = 128
+                                        end = -1
+
                                 if lifts:
                                     start += 6
                                     end += 6

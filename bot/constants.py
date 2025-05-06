@@ -334,7 +334,7 @@ class ButtonedView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Instrument:
-    def __init__(self, english:str = "Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True) -> None:
+    def __init__(self, english:str = "Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True, path_enabled: bool = True) -> None:
         """Creates an instrument, for easier internal handling.
 
         Properties:
@@ -354,6 +354,7 @@ class Instrument:
         self.midi = midi
         self.replace = replace
         self.lb_enabled = lb_enabled
+        self.path_enabled = path_enabled
 
     def __str__(self) -> str:
         return f"Instrument({self.english=}, {self.lb_code=}, {self.plastic=}, {self.chopt=}, {self.midi=}, {self.replace=}, {self.lb_enabled=})".replace('self.', '')
@@ -398,6 +399,7 @@ class Instruments(enum.Enum):
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS")
     ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", replace="PART DRUMS", lb_enabled=False)
+    ProVocals = Instrument(english="Pro Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=False, path_enabled=False)
     Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS")
     Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR")
     Drums = Instrument(english="Drums", lb_code="Solo_Drums", chopt="drums", midi="PART DRUMS")
@@ -406,7 +408,7 @@ class Instruments(enum.Enum):
     # The @classmethod decorator just works!
     @classmethod
     def getall(self) -> list[Instrument]:
-        return [self.ProLead.value, self.ProBass.value, self.ProDrums.value, self.Bass.value, self.Lead.value, self.Drums.value, self.Vocals.value]
+        return [self.ProLead.value, self.ProBass.value, self.ProDrums.value, self.Bass.value, self.Lead.value, self.Drums.value, self.Vocals.value, self.ProVocals.value]
 
 class Difficulties(enum.Enum):
     Expert = Difficulty()
