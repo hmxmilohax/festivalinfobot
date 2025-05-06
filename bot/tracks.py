@@ -42,7 +42,8 @@ class JamTrackHandler:
             'kog': ['streetsignite'],
             'one': ['one'],
             'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza'],
-            '🥦': ['broccoli']
+            '🥦': ['broccoli'],
+            '🐦': ['freebird']
         }
 
         if search_term in custom_results.keys():
