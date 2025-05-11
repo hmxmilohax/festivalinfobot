@@ -23,11 +23,65 @@ class JamTrackHandler:
     def fuzzy_search_tracks(self, tracks:list, search_term:str):
         search_term = self.remove_punctuation(search_term.lower())
 
-        if search_term == 'i':
-            return [discord.utils.find(lambda track: track['track']['sn'] == 'i_kendrick', tracks)]
-        
-        if search_term == 'ttfaf':
-            return [discord.utils.find(lambda track: track['track']['sn'] == 'throughthefireandflames', tracks)]
+        custom_results = {
+            'i': ['i_kendrick'],
+            'ttfaf': ['throughthefireandflames'],
+            'btf': ['beyondtheflame'],
+            'mop': ['masterofpuppets'],
+            'dftr': ['dontfearthereaper'],
+            'wtp': ['welcometoparadise'],
+            'nggyu': ['nevergonnagiveyouup'],
+            'mcls': ['magicalcureloveshot'], 
+            'mlcs': ['magicalcureloveshot'], 
+            'mscl': ['magicalcureloveshot'],
+            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday'],
+            'peak': ['larrysplace', 'nevergiveup', 'freebird'],
+            'comingsoon': ['juicy'],
+            'ralph': ['streetsignite'],
+            'cowabunga': ['streetsignite'],
+            'kog': ['streetsignite'],
+            'one': ['one'],
+            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza'],
+            '🥦': ['broccoli'],
+            '🐦': ['freebird']
+        }
+
+        if search_term in custom_results.keys():
+            premature_matches = []
+            for result in custom_results.get(search_term, []):
+                premature_matches.append(discord.utils.find(lambda track: track['track']['sn'] == result, tracks))
+
+            return premature_matches
+
+        if search_term == 'latest':
+            return tracks[-1:-11:-1]
+
+        if search_term == 'last':
+            return [tracks[-1]]
+
+        if search_term == 'longest':
+            return sorted(tracks, key=lambda t: t['track']['dn'], reverse=True)[0:10]
+
+        if search_term == 'shortest':
+            return sorted(tracks, key=lambda t: t['track']['dn'])[0:10]
+
+        if search_term == 'fastest':
+            return sorted(tracks, key=lambda t: t['track']['mt'], reverse=True)[0:10]
+
+        if search_term == 'slowest':
+            return sorted(tracks, key=lambda t: t['track']['mt'])[0:10]
+
+        if search_term == 'newest':
+            return sorted(tracks, key=lambda t: t['track']['ry'], reverse=True)[0:10]
+
+        if search_term == 'oldest':
+            return sorted(tracks, key=lambda t: t['track']['ry'])[0:10]
+            
+        if search_term.isdigit():
+            # template id search
+            template_id_result = discord.utils.find(lambda track: int(track['track']['ti'].split('_')[-1]) == int(search_term), tracks)
+            if template_id_result:
+                return [template_id_result]
 
         exact_matches = []
         fuzzy_matches = []
@@ -100,21 +154,24 @@ class SearchCommandHandler:
         self.jam_track_handler = JamTrackHandler()
         self.bot : commands.Bot = bot
         self.embed_handler = embeds.SearchEmbedHandler()
-        self.daily_handler = helpers.DailyCommandHandler()
+        self.daily_handler = helpers.DailyCommandHandler(bot)
         self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
-        if not interaction.channel.permissions_for(interaction.guild.me).send_messages:
-            await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"I do not have the required permissions to let you choose from {len(matched_tracks)} Jam Tracks in this channel. Please try a different channel."))
-            return None, None
+        if interaction.guild:
+            if not interaction.channel.permissions_for(interaction.guild.me).send_messages:
+                await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"I do not have the required permissions to let you choose from {len(matched_tracks)} Jam Tracks in this channel. Please try a different channel."))
+                return None, None
 
         options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
         options_message = "\n".join(options)
         finalized_options_message = f"Found multiple tracks matching your query. Please choose the correct one by"
 
         total_options = len(matched_tracks)
-        message = interaction.message
-        can_react = interaction.message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
+        message = await interaction.original_response()
+        can_react = interaction.guild == None
+        if interaction.guild:
+            can_react = message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
 
         if total_options <= 9 and can_react:
             finalized_options_message += ' reacting:'

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import difflib
 import logging
+import os
 import random
 import re
 
@@ -12,8 +13,8 @@ from discord.ext import commands
 from bot.embeds import SearchEmbedHandler
 
 class DailyCommandHandler:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, bot) -> None:
+        self.bot = bot
 
     def create_daily_embeds(self, daily_tracks, chunk_size=8):
         embeds = []
@@ -35,7 +36,10 @@ class DailyCommandHandler:
     def fetch_daily_shortnames(self):
         try:
             logging.debug(f'[GET] {constants.DAILY_API}')
-            response = requests.get(constants.DAILY_API)
+            headers = {
+                'Authorization': self.bot.oauth_manager.session_token
+            }
+            response = requests.get(constants.DAILY_API, headers=headers)
             data = response.json()
 
             channels = data.get('channels', {})
@@ -269,7 +273,7 @@ class TracklistHandler:
 class GamblingHandler:
     def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()
-        self.daily_handler = DailyCommandHandler()
+        self.daily_handler = DailyCommandHandler(bot)
         self.shop_handler = ShopCommandHandler(bot)
 
     async def handle_random_track_interaction(self, interaction: discord.Interaction, shop: bool = False, daily: bool = False):
@@ -291,7 +295,9 @@ class GamblingHandler:
 
         if daily:
             def indaily(obj):
-                return obj['track']['sn'] in weekly_tracks
+                sn = obj['track']['sn']
+                return discord.utils.find(lambda t: t['shortname'] == sn, weekly_tracks) != None
+
             track_list = list(filter(indaily, track_list))
 
         async def re_roll():
@@ -341,3 +347,44 @@ class GamblingHandler:
         reroll_view.message = await interaction.original_response()
 
         await re_roll()
+
+class ProVocalsHandler:
+    def __init__(self, bot) -> None:
+        self.bot = bot
+        self.search_embed_handler = SearchEmbedHandler()
+
+    async def handle_interaction(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        tracks = constants.get_jam_tracks()
+        if not tracks:
+            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
+            return
+
+        all_midi = [f'dat_{track['track']['sn']}_{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
+        missing_midi = []
+
+        songs_with_pro_vocals = 0
+        songs_without_pro_vocals = 0
+
+        for midi in all_midi:
+            if not os.path.exists(constants.LOCAL_MIDI_FOLDER + midi):
+                missing_midi.append(midi)
+            else:
+                mid = open(constants.LOCAL_MIDI_FOLDER + midi, 'rb')
+                pro_vocals_track = b'PRO VOCALS' in mid.read()
+                mid.close()
+                if pro_vocals_track:
+                    songs_with_pro_vocals += 1
+                else:
+                    songs_without_pro_vocals += 1
+
+        embed = discord.Embed(
+            title="Songs with Pro Vocals",
+            description=f"There are currently **{songs_with_pro_vocals}**/**{len(all_midi)}** songs with Pro Vocals in Fortnite Festival. **{songs_without_pro_vocals}** songs do not have Pro Vocals yet.",
+            color=0x8927A1
+        )
+        if len(missing_midi) > 0:
+            embed.add_field(name="Missing files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
+
+        await interaction.edit_original_response(embed=embed)

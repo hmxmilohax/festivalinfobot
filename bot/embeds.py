@@ -5,6 +5,7 @@ import subprocess
 import discord
 import numpy
 import requests
+from bot.midi import MidiArchiveTools
 
 from bot import constants
     
@@ -112,22 +113,21 @@ class SearchEmbedHandler:
             rating_description = 'Everyone'
         else:
             rating_description = rating
-        
-        embed.set_footer(text="Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
 
         embed.add_field(name="Rating", value=rating_description, inline=True)
         
         # ----------
         
         # Difficulty bars
-        vocals_diff = track['in'].get('vl', 0)
-        guitar_diff = track['in'].get('gr', 0)
-        bass_diff = track['in'].get('ba', 0)
-        drums_diff = track['in'].get('ds', 0)
+        vocals_diff = track['in'].get('vl', -1)
+        guitar_diff = track['in'].get('gr', -1)
+        bass_diff = track['in'].get('ba', -1)
+        drums_diff = track['in'].get('ds', -1)
         # pro_vocals_diff = track['in'].get('pv', 0)
-        pro_guitar_diff = track['in'].get('pg', 0)
-        pro_bass_diff = track['in'].get('pb', 0)
-        pro_drums_diff = track['in'].get('pd', 0)
+        pro_guitar_diff = track['in'].get('pg', -1)
+        pro_bass_diff = track['in'].get('pb', -1)
+        pro_drums_diff = track['in'].get('pd', -1)
+        band_diff = track['in'].get('bd', -1) # apparently bd is placeholder for pro vocals
 
         # average diff
         avg_diff = numpy.average([
@@ -138,7 +138,7 @@ class SearchEmbedHandler:
         ])+1
 
         embed.add_field(name="Island Code", value=track.get('jc', 'N/A'))
-        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7')
+        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
         embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
 
         # ----------
@@ -159,7 +159,16 @@ class SearchEmbedHandler:
         gameplay_tags = track.get('gt')
         if gameplay_tags == None:
             gameplay_tags = ['N/A']
-        embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=False)
+        embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
+
+        midi_tool = MidiArchiveTools()
+        user_id = track.get('ry', 2025)
+        session_hash = constants.generate_session_hash(user_id, track['sn'])
+        local_midi_file = midi_tool.download_and_archive_midi_file(track['mu'], track['sn'])  # Download the .dat file
+        midi_file = midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+        has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
+
+        embed.add_field(name="Has Pro Vocals", value='Yes' if has_pro_vocals else 'No', inline=True)
 
         difficulties = (
             f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"
@@ -168,10 +177,13 @@ class SearchEmbedHandler:
             f"Vocals:    {constants.generate_difficulty_bar(vocals_diff)}\n"
             f"Pro Lead:  {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
             f"Pro Bass:  {constants.generate_difficulty_bar(pro_bass_diff)}\n"
-            f"Pro Drums: {constants.generate_difficulty_bar(pro_drums_diff)}"
+            f"Pro Drums: {constants.generate_difficulty_bar(pro_drums_diff)}\n"
+            f"Vox/Band:  {constants.generate_difficulty_bar(band_diff)}\n"
         )
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
+
+        embed.set_footer(text=f"Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
         
         embed.set_thumbnail(url=track['au'])
         

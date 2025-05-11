@@ -1,7 +1,11 @@
 import asyncio
 import difflib
+import io
+import json
 import logging
-from datetime import datetime, timezone
+import datetime as dt
+from datetime import datetime, timezone, timedelta, time
+from zoneinfo import ZoneInfo
 import os
 import subprocess
 import sys
@@ -28,7 +32,7 @@ from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
+from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
 from bot.groups.oauthmanager import OAuthManager
 
@@ -180,7 +184,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         self.lb_handler = LeaderboardCommandHandler(self)
         self.search_handler = SearchCommandHandler(self)
-        self.daily_handler = DailyCommandHandler()
+        self.daily_handler = DailyCommandHandler(self)
         self.shop_handler = ShopCommandHandler(self)
         self.tracklist_handler = TracklistHandler(self)
         self.path_handler = PathCommandHandler()
@@ -188,6 +192,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.check_handler = LoopCheckHandler(self)
         self.graph_handler = GraphCommandsHandler()
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
+        self.pro_vocals_handler = ProVocalsHandler(self)
 
         self.setup_commands()
 
@@ -257,10 +262,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             logging.error('Ignoring exception in command tree', exc_info=error)
 
     def setup_commands(self):
-
-        # This command is secret; it can be used to inmediately check if Festival Tracker
-        # is online without having to go through application commands
-        # Invokable by "ft!online"
+        
         @self.command(name="online")
         async def checkonline_command(ctx):
             if ctx.message.channel.permissions_for(ctx.message.channel.guild.me).add_reactions:
@@ -284,8 +286,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
 
-        @self.command(name="gitpull")
-        async def git_pull(ctx: commands.Context):
+        @self.command()
+        async def gitpull(ctx: commands.Context):
             if not (ctx.author.id in constants.BOT_OWNERS):
                 return
             
@@ -299,7 +301,19 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             view = discord.ui.View(timeout=None)
             view.add_item(PreviewButton("nevergonnagiveyouup"))
-            await ctx.send("Congrats! Click the button below for free v-bucks:", view=view)
+            await ctx.reply(f"Congrats, {ctx.author.mention}! You won **0 V-Bucks**! Preview your code below!", view=view)
+
+        @self.command()
+        async def jswiki(ctx: commands.Context):
+            await ctx.reply("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
+
+        @self.command()
+        async def licensing(ctx: commands.Context):
+            await ctx.send("Licensing is hard")
+
+        @self.command()
+        async def about(ctx: commands.Context):
+            await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
@@ -348,6 +362,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def shop_command(interaction: discord.Interaction):
             await self.shop_handler.handle_interaction(interaction=interaction)
 
+        @self.tree.command(name="provocals", description="View how many songs support Pro Vocals.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def provocals_count(interaction: discord.Interaction):
+            await self.pro_vocals_handler.handle_interaction(interaction=interaction)
+
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -364,6 +384,25 @@ class FestivalInfoBot(commands.AutoShardedBot):
             )
 
             await interaction.response.send_message(embed=embed)
+
+        @self.tree.command(name="metadata", description="Get the metadata of a song as a .json file.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def metadata_command(interaction: discord.Interaction, song:str):
+            track_handler = JamTrackHandler()
+            track_list = track_handler.get_jam_tracks()
+            if not track_list:
+                await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
+                return
+
+            matched_track = track_handler.fuzzy_search_tracks(track_list, song)
+            if not matched_track:
+                await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+                return
+            track = matched_track[0]
+
+            await interaction.response.send_message(file=discord.File(io.StringIO(json.dumps(track, indent=4)), f'{track["track"]["sn"]}_metadata.json'))
 
         lb_group = app_commands.Group(name="leaderboard", description="Leaderboard commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 

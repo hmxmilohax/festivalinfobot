@@ -93,6 +93,10 @@ class PathCommandHandler():
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
         chosen_diff = constants.Difficulties[str(difficulty).replace('Difficulties.', '')].value
 
+        if not chosen_instrument.path_enabled:
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"Path generation is not enabled for {chosen_instrument.english}. Please use a different instrument."))
+            return
+
         tracklist = self.jam_track_handler.get_jam_tracks()
         if not tracklist:
             await interaction.edit_original_response(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
