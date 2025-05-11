@@ -88,12 +88,11 @@ class Config:
             )
             await self.db.commit()
 
-    async def _channel_add(self, channel: discord.TextChannel) -> None:
-        default_events = ['added', 'modified', 'removed']
+    async def _channel_add(self, channel: discord.TextChannel, default_events = ['added', 'modified', 'removed'], role_ids = []) -> None:
         async with self.lock:
             await self.db.execute(
-                "INSERT OR IGNORE INTO channel_subscriptions (guild_id, channel_id, events, roles) VALUES (?, ?, ?, '')",
-                (str(channel.guild.id), str(channel.id), ",".join(default_events))
+                "INSERT OR IGNORE INTO channel_subscriptions (guild_id, channel_id, events, roles) VALUES (?, ?, ?, ?)",
+                (str(channel.guild.id), str(channel.id), ",".join(default_events), ",".join(role_ids))
             )
             await self.db.commit()
 

@@ -63,46 +63,6 @@ class AdminCog(commands.Cog):
 
         return True
 
-    @admin_group.command(name="subscribe", description="Subscribe a channel to Jam Track events")
-    @app_commands.describe(channel = "The channel to send Jam Track events to.")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def subscribe(self, interaction: discord.Interaction, channel: discord.channel.TextChannel):
-        # raise ValueError("No more festival tracker!!")
-
-        permission_result = await self.check_permissions(interaction=interaction, channel=channel)
-        if not permission_result:
-            return
-        
-        subscription_result = await self.set_channel_subscription(interaction=interaction, channel=channel, remove=False)
-        if not subscription_result:
-            return
-        
-        # Reaction stuff to check if the channel works
-        if interaction.channel.permissions_for(interaction.guild.me).add_reactions:
-            await interaction.response.send_message(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*React with ✅ to send a test message.*"))
-            message = await interaction.original_response()  # Retrieve the message object for reactions
-            await message.add_reaction("✅")
-
-            def check(reaction, user):
-                return (
-                    user == interaction.user and
-                    user.guild_permissions.administrator and
-                    str(reaction.emoji) == "✅" and
-                    reaction.message.id == message.id
-                )
-
-            try:
-                reaction, user = await self.bot.wait_for('reaction_add', timeout=30.0, check=check)
-            except asyncio.TimeoutError:
-                # await message.clear_reactions()
-                await interaction.edit_original_response(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events."))
-            else:
-                await channel.send("This channel is now subscribed to Jam Track events.\n*This is a test message.*")
-                # await message.clear_reactions() # Bot will throw 403 if it can't manage messages
-                await interaction.edit_original_response(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events.\n*Test message sent successfully.*"))
-        else:
-            await interaction.response.send_message(embed=constants.common_success_embed(f"The channel {channel.mention} has been subscribed to all Jam Track events."))
-
     @admin_group.command(name="unsubscribe", description="Unsubscribe a channel from Jam Track events")
     @app_commands.describe(channel = "The channel to stop sending Jam Track events to.")
     @app_commands.checks.has_permissions(administrator=True)
@@ -207,32 +167,6 @@ class AdminCog(commands.Cog):
             else:
                 await interaction.response.send_message(embed=constants.common_error_embed(f"This role ping is not assigned to the channel {channel.mention}."))
 
-    @admin_group.command(name="subscriptions", description="View the subscriptions in this guild")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def subscriptions(self, interaction: discord.Interaction):
-        embed = discord.Embed(title=f"Subscriptions for **{interaction.guild.name}**", color=0x8927A1)
-        total_channels = 0
-        guild_subscribed_channels: List[config.SubscriptionChannel] = await self.config._guild_channels(guild=interaction.guild)
-        for channel_to_search in guild_subscribed_channels:
-            channel = self.bot.get_channel(channel_to_search.id)
-
-            if channel:
-                if channel.guild.id == interaction.guild.id:
-                    total_channels += 1
-                    events_content = "**Events:** " + ", ".join([constants.EVENT_NAMES[event] for event in channel_to_search.events])
-                    role_content = ""
-                    if channel_to_search.roles:
-                        if len(channel_to_search.roles) > 0:
-                            role_content = "**Roles:** " + ", ".join([f'<@&{role}>' for role in channel_to_search.roles])
-                    embed.add_field(name=f"{channel.mention}", value=f"{events_content}\n{role_content}", inline=False)
-
-        if total_channels < 1:
-            embed.add_field(name="There are no subscriptions in this guild.", value="")
-        else:
-            embed.description = f'{total_channels} found'
-
-        await interaction.response.send_message(embed=embed)
-
     async def on_subscription_error(self, interaction: discord.Interaction, error: app_commands.AppCommandError):
         if isinstance(interaction.channel, discord.DMChannel) and interaction.command.guild_only: # just in case
             await interaction.response.send_message(embed=constants.common_error_embed("You cannot run this command in DMs."))
@@ -243,13 +177,11 @@ class AdminCog(commands.Cog):
         # actually not needed!!
         # await self.bot.tree.on_error(interaction, error)
 
-    subscribe.on_error = on_subscription_error
     unsubscribe.on_error = on_subscription_error
     add_event.on_error = on_subscription_error
     remove_event.on_error = on_subscription_error
     add_role.on_error = on_subscription_error
     remove_role.on_error = on_subscription_error
-    subscriptions.on_error = on_subscription_error
 
 # jnacks personal commands
 class TestCog(commands.Cog):
