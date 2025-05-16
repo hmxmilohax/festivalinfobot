@@ -101,7 +101,7 @@ class ServerSubscriptionsView(discord.ui.View):
             await view.reply_to_initial(self.message)
 
         self.add_item(constants.StandaloneSimpleBtn(label="Add New", style=discord.ButtonStyle.secondary, on_press=on_add_btn))
-        self.add_item(constants.StandaloneSimpleBtn(label="Unsubscribe Server", style=discord.ButtonStyle.danger, on_press=None))
+        self.add_item(constants.StandaloneSimpleBtn(label="Unsubscribe Server", style=discord.ButtonStyle.danger, on_press=None)) # TBD
         
         if len(channels_subscribed) > 0:
             self.add_item(GuildManageableSubscriptionChannelsDropdown(self.bot, channels_subscribed))
