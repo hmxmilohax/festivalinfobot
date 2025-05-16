@@ -158,65 +158,38 @@ class SearchCommandHandler:
         self.shop_handler = helpers.ShopCommandHandler(bot)
 
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
-        if interaction.guild:
-            if not interaction.channel.permissions_for(interaction.guild.me).send_messages:
-                await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"I do not have the required permissions to let you choose from {len(matched_tracks)} Jam Tracks in this channel. Please try a different channel."))
-                return None, None
+        view: ResultsJamTracks
 
-        options = [f"{i + 1}. **{track['track']['tt']}** - *{track['track']['an']}*" for i, track in enumerate(matched_tracks)]
-        options_message = "\n".join(options)
-        finalized_options_message = f"Found multiple tracks matching your query. Please choose the correct one by"
+        if len(matched_tracks) > 25:
+            await interaction.edit_original_response(content="", embed=constants.common_error_embed("There are too many results. Please try another query, or use </tracklist filter artist:1287199873116143628>."))
+            return None
 
-        total_options = len(matched_tracks)
-        message = await interaction.original_response()
-        can_react = interaction.guild == None
-        if interaction.guild:
-            can_react = message.channel.permissions_for(message.guild.me).add_reactions and message.channel.permissions_for(message.guild.me).read_message_history
+        async def selected(new_interaction: discord.Interaction):
+            if new_interaction:
+                if new_interaction.user.id != interaction.user.id:
+                    await interaction.edit_original_response(content="", embed=constants.common_error_embed("This is not your session. Please start your own session."))
+                    return
 
-        if total_options <= 9 and can_react:
-            finalized_options_message += ' reacting:'
-        else:
-            finalized_options_message += ' typing the correct number:'
+                await new_interaction.response.defer()
 
-        finalized_options_message += f"\n{options_message}"
-        if len(finalized_options_message) > 2000:
-            await interaction.edit_original_response(content="", embed=constants.common_error_embed("The result is too large. Please try another query, or use </tracklist filter artist:1287199873116143628>."))
-            return None, None
+            is_timed_out = len(view.select.values) < 1
+            if is_timed_out:
+                return None
 
-        message = await interaction.edit_original_response(content=finalized_options_message)
-
-        # ------------------------------
-
-        is_reaction = total_options <= 9 and can_react
+            shortname = view.select.values[0]
+            view.stop()
+            return discord.utils.find(lambda t: t['track']['sn'] == shortname, matched_tracks)
         
-        def message_check(m: discord.Message):
-            return (m.author == interaction.user) and (m.channel.id == interaction.channel.id)
-        
-        valid_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
-        def reaction_check(r: discord.Reaction, u: discord.User):
-            return (r.message.id == message.id) and (u.id == message.interaction_metadata.user.id) and r.emoji in valid_emojis[:total_options]
+        async def timed_out():
+            await interaction.edit_original_response(content="", embed=constants.common_error_embed("You didn't respond in time. Search cancelled."), view=None)
+            view.stop()
 
-        try:
-            chosen_index: int = 0
-            if is_reaction:
-                for emoji in valid_emojis[:total_options]:
-                    await message.add_reaction(emoji)
+        view = ResultsJamTracks(matched_tracks, selected)
+        view.on_timeout = timed_out
+        await interaction.edit_original_response(view=view)
+        await view.wait()
 
-                reaction, user = await self.bot.wait_for("reaction_add", check=reaction_check, timeout=30)
-                chosen_index = valid_emojis.index(reaction.emoji)
-                msg = message
-            else:
-                msg = await self.bot.wait_for("message", check=message_check, timeout=30)
-                if not msg.content.isdigit() or not 1 <= int(msg.content) <= len(matched_tracks):
-                    await interaction.edit_original_response(content="", embed=constants.common_error_embed("Search cancelled."))
-                    return None, None
-                chosen_index = int(msg.content) - 1
-            
-            chosen_track = matched_tracks[chosen_index]
-            return msg, chosen_track
-        except TimeoutError:
-            await interaction.edit_original_response(content="", embed=constants.common_error_embed("You didn't respond in time. Search cancelled."))
-            return None, None
+        return await selected(None)
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
         with open('bot/imacat.json', 'r') as imacat_file:
@@ -261,22 +234,15 @@ class SearchCommandHandler:
         message = None
         
         if len(matched_tracks) != 1:
-            message, chosen_track = await self.prompt_user_for_selection(interaction=interaction, matched_tracks=matched_tracks)
-            if not message:
+            track = await self.prompt_user_for_selection(interaction=interaction, matched_tracks=matched_tracks)
+            if not track:
                 return
-            
-            track = chosen_track
-
-            embed = self.embed_handler.generate_track_embed(chosen_track)
-            constants.add_fields(chosen_track, embed, weekly_tracks, shop_tracks)
-
-            message = await message.reply(embed=embed, mention_author=False)
         else:
-            _track = matched_tracks[0]
-            track = _track
-            embed = self.embed_handler.generate_track_embed(_track)
-            constants.add_fields(_track, embed, weekly_tracks, shop_tracks)
-            message = await interaction.edit_original_response(embed=embed)
+            track = matched_tracks[0]
+
+        embed = self.embed_handler.generate_track_embed(track)
+        constants.add_fields(track, embed, weekly_tracks, shop_tracks)
+        message = await interaction.edit_original_response(embed=embed)
 
         async def something(interaction: discord.Interaction):
             view.buttons[0].disabled = True
@@ -318,3 +284,18 @@ class SearchCommandHandler:
                 await message.edit(embed=embed, view=view)
         except Exception as e:
             logging.error('Error attempting to add Spotify link to message:', exc_info=e)
+
+class ResultsJamTracks(discord.ui.View):
+    def __init__(self, tracks: list, on_select):
+        super().__init__(timeout=30)
+        self.tracks = tracks
+        self.select = ResultsJamTracksDropdown(tracks)
+        self.add_item(self.select)
+        self.select.callback = on_select
+
+class ResultsJamTracksDropdown(discord.ui.Select):
+    def __init__(self, tracks: list):
+        self.tracks = tracks
+
+        options = [discord.SelectOption(label=track['track']['tt'], value=track['track']['sn'], description=track['track']['an']) for track in tracks]
+        super().__init__(placeholder="Select from results...", min_values=1, max_values=1, options=options)

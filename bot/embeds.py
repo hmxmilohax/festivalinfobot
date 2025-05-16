@@ -164,8 +164,8 @@ class SearchEmbedHandler:
         midi_tool = MidiArchiveTools()
         user_id = track.get('ry', 2025)
         session_hash = constants.generate_session_hash(user_id, track['sn'])
-        local_midi_file = midi_tool.download_and_archive_midi_file(track['mu'], track['sn'])  # Download the .dat file
-        midi_file = midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+
+        midi_file = midi_tool.save_chart(track['mu'])
         has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
 
         embed.add_field(name="Has Pro Vocals", value='Yes' if has_pro_vocals else 'No', inline=True)

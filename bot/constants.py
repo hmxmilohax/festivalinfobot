@@ -220,6 +220,15 @@ class LastButton(PaginatorButton):
     def update_page(self, view: PaginatorView):
         view.current_page = view.total_pages - 1
 
+class StandaloneSimpleBtn(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.callback = kwargs.pop('on_press')
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        if self.callback:
+            await self.callback(interaction)
+
 class OneButton(discord.ui.Button):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id')

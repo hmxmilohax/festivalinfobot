@@ -116,7 +116,7 @@ class HistoryHandler():
 
                 if midi_file_url and midi_file_url not in seen_midi_files:
                     seen_midi_files[midi_file_url] = True
-                    local_midi_file = self.midi_handler.download_and_archive_midi_file(midi_file_url, shortname)  # Download the .dat file
+                    local_midi_file = self.midi_handler.save_chart(midi_file_url)
                     midi_file_changes.append((last_modified, local_midi_file))
 
         except Exception as e:
@@ -166,9 +166,8 @@ class HistoryHandler():
         """
         this function now returns only a List[Tuple(Embed, File)]
         """
-        old_midi_file = self.midi_handler.decrypt_dat_file(old_url, session_hash)
-
-        new_midi_file = self.midi_handler.decrypt_dat_file(new_url, session_hash)
+        old_midi_file = self.midi_handler.save_chart(old_url)
+        new_midi_file = self.midi_handler.save_chart(new_url)
 
         if old_midi_file and new_midi_file:
             old_midi_out_path = os.path.join(constants.TEMP_FOLDER, f"{track_name}_old_{session_hash}.mid")
@@ -505,8 +504,8 @@ class LoopCheckHandler():
             album_art_url = new_song['track']['au']
             last_modified_old = old_song.get('lastModified', None)
             last_modified_new = new_song.get('lastModified', None)
-            local_midi_file_old = self.midi_tools.download_and_archive_midi_file(old_url, short_name)
-            local_midi_file_new = self.midi_tools.download_and_archive_midi_file(new_url, short_name)
+            local_midi_file_old = self.midi_tools.save_chart(old_url)
+            local_midi_file_new = self.midi_tools.save_chart(new_url)
 
             embed_list_diff = []
 
