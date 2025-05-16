@@ -21,7 +21,7 @@ from bot import config, constants, embeds
 from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
 from bot.tools.log import setup as setup_log
-from bot.groups.admin import AdminCog, TestCog
+from bot.groups.admin import TestCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
@@ -706,9 +706,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.tree.add_command(graph_group)
 
     async def setup_cogs(self):
-        admin_cog = AdminCog(self)
-        self.tree.add_command(admin_cog.admin_group)
-
         test_cog = TestCog(self)
         await self.add_cog(test_cog)
 

@@ -13,11 +13,6 @@ from bot.groups.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 
-class AdminCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
-        self.config: config.Config = self.bot.config
-
 # jnack and tpose's personal commands
 class TestCog(commands.Cog):
     def __init__(self, bot: commands.Bot):

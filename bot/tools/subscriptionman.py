@@ -239,7 +239,7 @@ class ChannelSetupView(discord.ui.View):
         role_ids = self.roles_view.values
         
         if len(event_types) == 0:
-            embed = constants.common_error_embed("You didn't select any events! \nThere is a Discord bug that if you don't mess with the dropdown before continuing, there will be nothing selected! Please deselect and reselect any event type to fix this.")
+            embed = constants.common_error_embed("You didn't select any events! \nThere is a Discord bug that if you don't mess with the dropdown before continuing, there will be nothing selected! Please deselect and reselect any event type to try to fix it.")
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             view = SubscriptionSetupConfirmationView(self.bot, self.channel, event_types, role_ids)
@@ -310,9 +310,7 @@ class GuildManageChannelView(discord.ui.View):
     async def reply_to_initial(self, message: discord.Message):
         self.message = message
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscription for {self.channel.mention}", color=0x8927A1)
-
-        channel_list: list[config.SubscriptionChannel] = await self.bot.config._channels()
-        channel_subscription: config.SubscriptionChannel = discord.utils.find(lambda ch: ch.id == self.channel.id, channel_list)
+        channel_subscription: config.SubscriptionChannel = await self.bot.config._channel(self.channel)
 
         embed.add_field(name="Subscription types", value=", ".join(channel_subscription.events), inline=False)
 
@@ -351,7 +349,9 @@ class ChannelManageEventTypesSelect(discord.ui.Select):
         super().__init__(placeholder='Select subscription events...', min_values=1, max_values=len(valid_options), options=valid_options)
 
     async def callback(self, interaction: discord.Interaction):
-        # TBD edit channel function missing
+        event_types = self.values
+        await self.bot.config._channel_edit_events(self.channel, events=event_types)
+
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)
         await new_view.reply_to_initial(self.message)
@@ -392,7 +392,10 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         super().__init__(placeholder='Select roles to mention...', min_values=0, max_values=len(options), options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        # TBD edit channel function missing
+        role_ids = self.values
+        objects = [discord.Object(id=int(role_id)) for role_id in role_ids]
+        await self.bot.config._channel_edit_roles(self.channel, roles=objects)
+
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)
         await new_view.reply_to_initial(self.message)
