@@ -38,8 +38,6 @@ note_name_maps = {
         62: "EASY Yellow",
         61: "EASY Red",
         60: "EASY Green",
-        59: "Left Hand Highest",
-        40: "Left Hand Lowest"
     },
     'PLASTIC BASS': {
         127: "Trill Marker",
@@ -70,8 +68,6 @@ note_name_maps = {
         62: "EASY Yellow",
         61: "EASY Red",
         60: "EASY Green",
-        59: "Left Hand Highest",
-        40: "Left Hand Lowest"
     },
     'PLASTIC DRUMS': {
         127: "Cymbal Swells",
@@ -109,8 +105,63 @@ note_name_maps = {
     },
     # Beat
     'BEAT': {
-        13: "Up Beats",
-        12: "Downbeat"
+        13: "Measure",
+        12: "Beat"
+    },
+    'SECTION': {
+        10: "Note 10 (???)"
+    },
+    'PRO VOCALS': {
+        116: "Overdrive",
+        105: "Phrase Marker",
+        84: "Pitched Vocals 48",
+        83: "Pitched Vocals 47",
+        82: "Pitched Vocals 46",
+        81: "Pitched Vocals 45",
+        80: "Pitched Vocals 44",
+        79: "Pitched Vocals 43",
+        78: "Pitched Vocals 42",
+        77: "Pitched Vocals 41",
+        76: "Pitched Vocals 40",
+        75: "Pitched Vocals 39",
+        74: "Pitched Vocals 38",
+        73: "Pitched Vocals 37",
+        72: "Pitched Vocals 36",
+        71: "Pitched Vocals 35",
+        70: "Pitched Vocals 34",
+        69: "Pitched Vocals 33",
+        68: "Pitched Vocals 32",
+        67: "Pitched Vocals 31",
+        66: "Pitched Vocals 30",
+        65: "Pitched Vocals 29",
+        64: "Pitched Vocals 28",
+        63: "Pitched Vocals 27",
+        62: "Pitched Vocals 26",
+        61: "Pitched Vocals 25",
+        60: "Pitched Vocals 24",
+        59: "Pitched Vocals 23",
+        58: "Pitched Vocals 22",
+        57: "Pitched Vocals 21",
+        56: "Pitched Vocals 20",
+        55: "Pitched Vocals 19",
+        54: "Pitched Vocals 18",
+        53: "Pitched Vocals 17",
+        52: "Pitched Vocals 16",
+        51: "Pitched Vocals 15",
+        50: "Pitched Vocals 14",
+        49: "Pitched Vocals 13",
+        48: "Pitched Vocals 12",
+        47: "Pitched Vocals 11",
+        46: "Pitched Vocals 10",
+        45: "Pitched Vocals 9",
+        44: "Pitched Vocals 8",
+        43: "Pitched Vocals 7",
+        42: "Pitched Vocals 6",
+        41: "Pitched Vocals 5",
+        40: "Pitched Vocals 4",
+        39: "Pitched Vocals 3",
+        38: "Pitched Vocals 2",
+        37: "Pitched Vocals 1"
     },
     # Normal Charts
     'PART VOCALS': {
@@ -186,8 +237,18 @@ note_name_maps = {
         62: "EASY 3",
         61: "EASY 2",
         60: "EASY 1",
-        59: "Left Hand Highest",
-        40: "Left Hand Lowest"
+        59: "Fret 12",
+        57: "Fret 11",
+        56: "Fret 10",
+        55: "Fret 9",
+        53: "Fret 8",
+        52: "Fret 7",
+        50: "Fret 6",
+        49: "Fret 5",
+        47: "Fret 4",
+        45: "Fret 3",
+        43: "Fret 2",
+        40: "Fret 1"
     },
     'PART DRUMS': {
         116: "Overdrive",
@@ -225,34 +286,33 @@ note_name_maps = {
         62: "EASY 3",
         61: "EASY 2",
         60: "EASY 1",
-        52: "DRUM ANIMATION",
-        51: "FLOOR TOM RH",
-        50: "FLOOR TOM LH",
-        49: "TOM2 RH",
-        48: "TOM2 LH",
-        47: "TOM1 RH",
-        46: "TOM1 LH",
-        45: "SOFT CRASH 2 LH",
-        44: "CRASH 2 LH",
-        43: "RIDE LH",
-        42: "RIDE CYM RH",
-        41: "CRASH2 CHOKE",
-        40: "CRASH1 CHOKE",
-        39: "CRASH2 SOFT RH",
-        38: "CRASH2 HARD RH",
-        37: "CRASH1 SOFT RH",
-        36: "CRASH1 HARD RH",
-        35: "CRASH1 SOFT LH",
-        34: "CRASH1 HARD LH",
-        32: "PERCUSSION RH",
-        31: "HI-HAT RH",
-        30: "HI-HAT LH",
-        29: "SOFT SNARE RH",
-        28: "SOFT SNARE LH",
-        27: "SNARE RH",
-        26: "SNARE LH",
-        25: "HI-HAT OPEN",
-        24: "KICK RF"
+        51: "Floor Tom hit w/RH",
+        50: "Floor Tom hit w/LH",
+        49: "Tom2 hit w/RH",
+        48: "Tom2 hit w/LH",
+        47: "Tom1 hit w/RH",
+        46: "Tom1 hit w/LH",
+        45: "A soft hit on crash 2 with the left hand",
+        44: "A hit on crash 2 with the left hand",
+        43: "A ride hit with the left hand",
+        42: "Ride Cym hit w/RH",
+        41: "Crash2 Choke (hit w/RH, choke w/LH)",
+        40: "Crash1 Choke (hit w/RH, choke w/LH)",
+        39: "Crash2 (near Ride Cym) soft hit w/RH",
+        38: "Crash2 hard hit w/RH",
+        37: "Crash1 (near Hi-Hat) soft hit w/RH",
+        36: "Crash1 hard hit w/RH",
+        35: "Crash1 soft hit w/LH",
+        34: "Crash1 hard hit w/LH",
+        32: "Percussion w/ RH",
+        31: "Hi-Hat hit w/RH",
+        30: "Hi-Hat hit w/LH",
+        29: "A soft snare hit with the right hand",
+        28: "A soft snare hit with the left hand",
+        27: "Snare hit w/RH",
+        26: "Snare hit w/LH",
+        25: "Hi-Hat pedal up (hat open) w/LF",
+        24: "Kick hit w/RF",
     },
     'PART GUITAR': {
         116: "Overdrive",
@@ -290,8 +350,18 @@ note_name_maps = {
         62: "EASY 3",
         61: "EASY 2",
         60: "EASY 1",
-        59: "Left Hand Highest",
-        40: "Left Hand Lowest"
+        59: "Fret 12",
+        57: "Fret 11",
+        56: "Fret 10",
+        55: "Fret 9",
+        53: "Fret 8",
+        52: "Fret 7",
+        50: "Fret 6",
+        49: "Fret 5",
+        47: "Fret 4",
+        45: "Fret 3",
+        43: "Fret 2",
+        40: "Fret 1"
     },
 }
 
@@ -301,13 +371,10 @@ TIME_WINDOW = 10  # 60 ms window for grouping events
 TIME_THRESHOLD = 10
 
 # Define the notes to ignore for specific tracks
-IGNORED_NOTES = {
-    'PART POOP': {102},  # Ignore note 95 (2x kick) in PART DRUMS
-}
 
 # Define the tracks to compare
 TRACKS_TO_COMPARE = [
-    'PART BASS', 'PART GUITAR', 'PART DRUMS', 'PART VOCALS', "PLASTIC GUITAR", "PLASTIC DRUMS", "PLASTIC BASS", 'BEAT', 'EVENTS', 'SECTION'
+    'PART BASS', 'PART GUITAR', 'PART DRUMS', 'PART VOCALS', "PRO VOCALS", "PLASTIC GUITAR", "PLASTIC DRUMS", "PLASTIC BASS", 'BEAT', 'EVENTS', 'SECTION'
 ]
 
 def load_midi_tracks(file_path):
@@ -369,7 +436,7 @@ def extract_text_events(track):
     current_time = 0
     for msg in track:
         current_time += msg.time
-        if msg.type == 'text':
+        if msg.type == 'text' or msg.type == 'lyrics':
             text_events.append((current_time, msg.text))
     return text_events
 
@@ -571,7 +638,7 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         new_mid.save(output_file)
         print(f"Filtered update MIDI saved to '{output_file}'")
 
-def main(midi_file1, midi_file2, session_id, note_range=range(60, 128)):
+def main(midi_file1, midi_file2, session_id, note_range=range(1, 128)):
     base_name1, ext1 = os.path.splitext(midi_file1)
     base_name2, ext2 = os.path.splitext(midi_file2)
     session_id, ext3 = os.path.splitext(session_id)
@@ -608,20 +675,23 @@ def main(midi_file1, midi_file2, session_id, note_range=range(60, 128)):
 
     # Compare existing tracks
     common_tracks = sorted(set(tracks1) & set(tracks2))
+    if 'PRO VOCALS' not in common_tracks:
+        common_tracks.append('PRO VOCALS')
+
     for track_name in common_tracks:
         if track_name not in TRACKS_TO_COMPARE:
             continue
         
         # Compare note events
-        track1_events = extract_note_events(tracks1[track_name], note_range)
-        track2_events = extract_note_events(tracks2[track_name], note_range)
+        track1_events = extract_note_events(tracks1.get(track_name, []), note_range)
+        track2_events = extract_note_events(tracks2.get(track_name, []), note_range)
         
         differences = compare_tracks(track1_events, track2_events, TIME_WINDOW, TIME_THRESHOLD)
         note_name_map = note_name_maps.get(track_name, {})
         
         # Compare text events (track events)
-        track1_text_events = extract_text_events(tracks1[track_name])
-        track2_text_events = extract_text_events(tracks2[track_name])
+        track1_text_events = extract_text_events(tracks1.get(track_name, []))
+        track2_text_events = extract_text_events(tracks2.get(track_name, []))
         
         text_differences = compare_text_events(track1_text_events, track2_text_events)
         
