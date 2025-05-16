@@ -42,8 +42,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        local_midi_file = self.midi_tool.download_and_archive_midi_file(song_url, short_name)
-        midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+        midi_file = self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_pdi_graph_{session_hash}.png'
         GraphingFuncs().generate_no_notes_pdi_chart(midi_path=midi_file, path=image_path, song_name=track_title, song_artist=artist_title)
@@ -81,8 +80,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        local_midi_file = self.midi_tool.download_and_archive_midi_file(song_url, short_name)
-        midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+        midi_file = self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_lift_graph_{session_hash}.png'
         GraphingFuncs().generate_no_notes_pdi_chart(midi_path=midi_file, path=image_path, song_name=track_title, song_artist=artist_title, lifts=True)
@@ -123,9 +121,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        local_midi_file = self.midi_tool.download_and_archive_midi_file(song_url, short_name)
-
-        midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+        midi_file = self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_nps_graph_{session_hash}.png'
         GraphingFuncs().generate_nps_chart(midi_path=midi_file, path=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)
@@ -167,9 +163,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        local_midi_file = self.midi_tool.download_and_archive_midi_file(song_url, short_name)
-
-        midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+        midi_file = self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_lanes_graph_{session_hash}.png'
         GraphingFuncs().generate_lanes_chart(midi_path=midi_file, spath=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)

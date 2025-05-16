@@ -1,24 +1,28 @@
 from datetime import datetime as dt
 import datetime
 import discord
+from discord.ext import commands
 import logging
+from bot.groups.oauthmanager import OAuthManager
 
 import requests
 
 from bot.constants import OneButtonSimpleView
 
 class StatusHandler():
-    def __init__(self) -> None:
-        pass
+    def __init__(self, bot: commands.Bot) -> None:
+        self.oauth: OAuthManager = bot.oauth_manager
 
     async def handle_fortnitestatus_interaction(self, interaction: discord.Interaction):
-        lightswitch_url = 'https://api.nitestats.com/v1/epic/lightswitch'
+        lightswitch_url = 'http://lightswitch-public-service-prod.ol.epicgames.com/lightswitch/api/service/Fortnite/status'
         logging.debug(f'[GET] {lightswitch_url}')
 
         await interaction.response.defer()
 
-        response = requests.get(lightswitch_url)
-        data = response.json()[0]
+        response = requests.get(lightswitch_url, headers={
+            'Authorization': self.oauth.session_token    
+        })
+        data = response.json()
 
         is_fortnite_online = data['status'] == 'UP'
         status_unknown = False
@@ -36,47 +40,30 @@ class StatusHandler():
 
         await interaction.edit_original_response(embed=embed)
 
-    async def handle_gamemode_interaction(self, interaction: discord.Interaction, search_for:str = 'Festival Main Stage'):
-        manifest_url = 'https://raw.githubusercontent.com/FNLookup/data/main/page/context_en-US.json'
-        logging.debug(f'[GET] {manifest_url}')
+    async def handle_gamemode_interaction(self, interaction: discord.Interaction):
+        # battle stage: playlist_pilgrimbattlestage | set_battlestage_playlists
+        # main stage: playlist_pilgrimquickplay
+        # jam stage: playlist_fmclubisland
+
+        discovery_profile = f'https://fn-service-discovery-live-public.ogs.live.on.epicgames.com/api/v1/creator/page/epic?playerId={self.oauth.account_id}&limit=100'
+        logging.debug(f'[GET] {discovery_profile}')
 
         await interaction.response.defer()
 
-        response = requests.get(manifest_url)
-        island_groups = response.json()['state']['loaderData']['routes/_index']['islands'] # hopefully this doesnt break
-        
-        island_data = None
+        response = requests.get(discovery_profile, headers={
+            'Authorization': self.oauth.session_token
+        })
 
-        for group in island_groups:
-            for island in group['islands']:
-                if island.get('title', '') == search_for:
-                    island_data = island
+        data = response.json()
+        jam_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_fmclubisland', data['links'])
+        battle_stage = discord.utils.find(lambda p: p['linkCode'] == 'set_battlestage_playlists', data['links'])
+        main_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_pilgrimquickplay', data['links'])
 
-        if island_data:
-            desc = "Play in a band with friends or perform solo on stage with hit music by your favorite artists in Fortnite Festival! On the Main Stage, play a featured rotation of Jam Tracks. Compete against friends for the best performance or team up to climb the leaderboards. The festival is just beginning with more Jam Tracks, Music Icons, concerts, and stages coming soon. Take your stage in Fortnite Festival!"
-            if search_for == 'Festival Battle Stage':
-                desc = "Let the battle begin! Compete in a musical free-for-all where only one player will emerge victorious. Perform a 4-song setlist of hit music, while taking and launching attacks. Seize the stage!"
-            elif search_for == 'Festival Jam Stage':
-                desc = "Explore the Jam Stage festival grounds to find friends and stages where you can mix hit music using the Jam Tracks in your locker. The festival is just beginning with more Jam Tracks, Music Icons, concerts, and stages coming soon. Take your stage in Fortnite Festival!"
+        total_ccu = jam_stage['globalCCU'] + battle_stage['globalCCU'] + main_stage['globalCCU']
 
-            embed = discord.Embed(title=island_data['title'], description=desc, color=0x8927A1)
-            if island_data.get('label', False):
-                embed.add_field(name="Label", value=island_data['label'])
-            embed.add_field(name="Players", value=island_data['ccu'])
-
-            rating = island_data['ageRatingTextAbbr']
-            if island_data['ageRatingTextAbbr'] == 'T':
-                rating = 'Teen'
-            if island_data['ageRatingTextAbbr'] == 'E10+':
-                rating = 'Everyone 10+'
-
-            embed.add_field(name="Rating", value=rating)
-            embed.set_image(url=island_data['squareImgSrc'])
-
-            view = OneButtonSimpleView(on_press=None, user_id=interaction.user.id, label="View More", link=f"https://fortnite.com{island_data['islandUrl']}", emoji=None)
-            view.message = await interaction.original_response()
-
-            await interaction.edit_original_response(embed=embed, view=view)
-        else:
-            embed = discord.Embed(title=search_for, description="The island is currently not available in the API.", color=0x8927A1)
-            await interaction.edit_original_response(embed=embed)
+        embed = discord.Embed(title="Fortnite Festival Active Players", color=0x8927A1)
+        embed.add_field(name="Total", value=total_ccu, inline=False)
+        embed.add_field(name="Jam Stage", value=jam_stage['globalCCU'])
+        embed.add_field(name="Battle Stage", value=battle_stage['globalCCU'])
+        embed.add_field(name="Main Stage", value=main_stage['globalCCU'])
+        await interaction.edit_original_response(embed=embed)

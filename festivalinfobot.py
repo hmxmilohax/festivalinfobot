@@ -105,8 +105,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
             )
 
         logging.debug("Syncing slash command tree...")
-        # await self.tree.sync()
-        # await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        await self.tree.sync()
+        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
     
         if not self.activity_task.is_running():
             self.activity_task.start()
