@@ -348,12 +348,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
 
-        @filter_group.command(name="regex", description="Browse the list of available Jam Tracks that match a Regex pattern in a customizable query format.")
-        @app_commands.describe(regex = "A Regular Expression (Regex) to match. Leave empty to show help with this command.")
-        @app_commands.describe(query = "A query that the Regex will match.")
-        async def tracklist_command(interaction: discord.Interaction, regex:str = None, query:str = "%an - %tt"):
-            await self.tracklist_handler.handle_regex_interaction(interaction=interaction, regex=regex, matched=query)
-
         self.tree.add_command(tracklist_group)
 
         @self.tree.command(name="shop", description="Display the tracks currently in the shop.")
@@ -423,15 +417,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(type = "The leaderboard type to view the all-time leaderboard of.")
         async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.AllTimeLBTypes):
             await self.lb_handler.handle_alltime_interaction(interaction, song=song, type=type)
-
-        # @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
-        # @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        # @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
-        # @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
-        # @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
-        # @app_commands.describe(account_id = "An Epic Games account ID.")
-        # async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
-        #     await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
 
         self.tree.add_command(lb_group)
 
