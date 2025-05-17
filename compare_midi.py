@@ -508,7 +508,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
         for i, txt in enumerate(text_events):
             ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=8)
 
-    ax.set_xlabel('Time (ms)')
+    ax.set_xlabel('Time')
     ax.set_ylabel('MIDI Note/Text')
     ax.set_title(f'MIDI Changes for {track_name}')
     
