@@ -21,15 +21,15 @@ from bot import config, constants, embeds
 from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
 from bot.tools.log import setup as setup_log
-from bot.groups.admin import AdminCog, TestCog
+from bot.groups.admin import TestCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
 from bot.groups.randomcog import RandomCog
-from bot.groups.subcog import SubscriptionCog
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
+from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
@@ -327,6 +327,13 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def daily_command(interaction: discord.Interaction):
             await self.daily_handler.handle_interaction(interaction=interaction)
 
+        @self.tree.command(name="subscriptions", description="Manage your subscription or this server's subscriptions")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def subscriptions_command(interaction: discord.Interaction):
+            manager = SubscriptionManager(self)
+            await manager.handle_interaction(interaction=interaction)
+
         tracklist_group = app_commands.Group(name="tracklist", description="Tracklist commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 
         filter_group = app_commands.Group(name="filter", description="Tracklist commands", parent=tracklist_group)
@@ -339,12 +346,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(artist = "A search query to use in the song name.")
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
-
-        @filter_group.command(name="regex", description="Browse the list of available Jam Tracks that match a Regex pattern in a customizable query format.")
-        @app_commands.describe(regex = "A Regular Expression (Regex) to match. Leave empty to show help with this command.")
-        @app_commands.describe(query = "A query that the Regex will match.")
-        async def tracklist_command(interaction: discord.Interaction, regex:str = None, query:str = "%an - %tt"):
-            await self.tracklist_handler.handle_regex_interaction(interaction=interaction, regex=regex, matched=query)
 
         self.tree.add_command(tracklist_group)
 
@@ -416,15 +417,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.AllTimeLBTypes):
             await self.lb_handler.handle_alltime_interaction(interaction, song=song, type=type)
 
-        # @lb_group.command(name="entry", description="View a specific entry in the leaderboards of a song.")
-        # @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        # @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
-        # @app_commands.describe(rank = "A number from 1 to 500 to view a specific entry in the leaderboard.")
-        # @app_commands.describe(username = "An Epic Games account's username. Not case-sensitive.")
-        # @app_commands.describe(account_id = "An Epic Games account ID.")
-        # async def leaderboard_entry_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, rank: discord.app_commands.Range[int, 1, 500] = 1, username:str = None, account_id:str = None):
-        #     await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument, rank=rank, username=username, account_id=account_id)
-
         self.tree.add_command(lb_group)
 
         @self.tree.command(name="path", description="Generates an Overdrive path for a song using CHOpt.")
@@ -470,7 +462,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
     
             await self.history_handler.handle_interaction(interaction=interaction, song=song)
 
-        @history_group.command(name="metadata", description="View the metadata history of a Jam Track.")
+        @history_group.command(name="meta", description="View the metadata history of a Jam Track.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         async def metahistory_command(interaction: discord.Interaction, song:str):
             await self.history_handler.handle_metahistory_interaction(interaction=interaction, song=song)
@@ -698,17 +690,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.tree.add_command(graph_group)
 
     async def setup_cogs(self):
-        admin_cog = AdminCog(self)
-        self.tree.add_command(admin_cog.admin_group)
-
         test_cog = TestCog(self)
         await self.add_cog(test_cog)
 
         fort_cog = FortniteCog(self)
         await self.add_cog(fort_cog)
-
-        sub_cog = SubscriptionCog(self)
-        await self.add_cog(sub_cog)
 
         random_cog = RandomCog(self)
         await self.add_cog(random_cog)
