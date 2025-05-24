@@ -43,7 +43,7 @@ class SubscriptionTypesDropdown(discord.ui.Select):
 
         # Set the options that will be presented inside the dropdown
         options = [
-            discord.SelectOption(label='Server Subscriptions', description='Manage the subscriptions in this server'),
+            discord.SelectOption(label='Server Subscriptions', description='Manage the subscriptions in this server', value='server'),
             discord.SelectOption(label='My Subscription', description='Manage your subscription')
         ]
 
@@ -55,10 +55,23 @@ class SubscriptionTypesDropdown(discord.ui.Select):
         # Select object, and the values attribute gets a list of the user's
         # selected options. We only want the first one.
         view: SubscriptionsView = self.view
-        new_view = ServerSubscriptionsView(view.bot)
-        await interaction.response.defer()
-        await new_view.reply_to_initial(view.message)
-        # await interaction.response.defer()
+        message = view.message
+        if self.values[0] == "server":
+            if not message.guild:
+                await interaction.response.send_message(embed=constants.common_error_embed("You are not in a server!"), ephemeral=True)
+                return
+            
+            if not message.guild.get_member(interaction.user.id).guild_permissions.administrator:
+                await interaction.response.send_message(embed=constants.common_error_embed("You do not have permission to manage subscriptions in this server! You need Administrator permissions."), ephemeral=True)
+                return
+
+            await interaction.response.defer()
+            new_view = ServerSubscriptionsView(view.bot)
+            await new_view.reply_to_initial(message)
+        else:
+            await interaction.response.defer()
+            new_view = UserSubscriptionsView(view.bot)
+            await new_view.reply_to_initial(message, interaction.user)
 
 class ServerSubscriptionsView(discord.ui.View):
     def __init__(self, bot: commands.Bot, timeout=30):
@@ -75,10 +88,6 @@ class ServerSubscriptionsView(discord.ui.View):
         self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
 
     async def reply_to_initial(self, message: discord.Message):
-        if not message.guild:
-            await message.edit(embed=constants.common_error_embed("You are not in a server!"), view=self)
-            return
-
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscriptions for {message.guild.name}", color=0x8927A1)
 
         channels_subscribed: List[config.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
@@ -103,6 +112,8 @@ class ServerSubscriptionsView(discord.ui.View):
         async def on_unsubscribe_btn(interaction: discord.Interaction):
             await interaction.response.defer()
             await self.bot.config._guild_remove(interaction.guild)
+            new_view = ServerSubscriptionsView(self.bot)
+            await new_view.reply_to_initial(self.message)
 
         self.add_item(constants.StandaloneSimpleBtn(label="Add New", style=discord.ButtonStyle.secondary, on_press=on_add_btn))
         self.add_item(constants.StandaloneSimpleBtn(label="Unsubscribe Server", style=discord.ButtonStyle.danger, on_press=on_unsubscribe_btn))
@@ -112,6 +123,68 @@ class ServerSubscriptionsView(discord.ui.View):
 
         await message.edit(embed=embed, view=self)
         self.message = message
+
+class UserSubscriptionsView(discord.ui.View):
+    def __init__(self, bot: commands.Bot, timeout=30):
+        super().__init__(timeout=timeout)
+
+        self.message: discord.Message = None
+        self.bot: commands.Bot = bot
+
+        async def on_back_button(interaction: discord.Interaction):
+            view = SubscriptionsView(self.bot)
+            await interaction.response.defer()
+            await view.reply_to_initial(self.message)
+
+        self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
+
+    async def reply_to_initial(self, message: discord.Message, user: discord.User):
+        embed = discord.Embed(title=f"My Subscription", description=f"Manage your subscription.", color=0x8927A1)
+
+        embed.add_field(name="Managing", value="Select or deselect Jam Track events to be subscribed to.", inline=False)
+        embed.add_field(name="Information", value="You must share at least one (1) mutual server with Festival Tracker to receive subscription messages.", inline=False)
+
+        sub_user: config.SubscriptionUser = await self.bot.config._user(user)
+        self.add_item(UserSubscriptionTypesDropdown(self.bot, message, sub_user))
+
+        await message.edit(embed=embed, view=self)
+        self.message = message
+
+class UserSubscriptionTypesDropdown(discord.ui.Select):
+    def __init__(self, bot: commands.Bot, message: discord.Message, sub_user: config.SubscriptionUser):
+        self.bot = bot
+        self.message = message
+        self.sub_user = sub_user
+
+        # Set the options that will be presented inside the dropdown
+        options = [
+            discord.SelectOption(label='New Jam Track Added', description='A Jam Track has been added to the API.', value='added'),
+            discord.SelectOption(label='Jam Track Modified', description='A Jam Track has been modified.', value='modified'),
+            discord.SelectOption(label='Jam Track Removed', description='A Jam Track has been removed from the API.', value='removed')
+        ]
+
+        if sub_user:
+            for option in options:
+                if option.value in sub_user.events:
+                    option.default = True
+
+        super().__init__(placeholder='Select subscription events...', min_values=0, max_values=len(options), options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        event_types = self.values
+        await self.bot.config._user_edit_events(interaction.user, events=event_types)
+
+        text = '[placeholder]'
+        if not self.sub_user:
+            text = 'You have been subscribed; changes saved successfully'
+        elif len(event_types) == 0:
+            text = 'You have been unsubscribed; changes saved successfully'
+        else:
+            text = 'Changes saved successfully'
+
+        await interaction.response.send_message(embed=constants.common_success_embed(text), ephemeral=True)
+        new_view = UserSubscriptionsView(self.bot)
+        await new_view.reply_to_initial(self.message, interaction.user)
 
 class GuildManageableSubscriptionChannelsDropdown(discord.ui.Select):
     def __init__(self, bot: commands.Bot, subscribed_channels: List[config.SubscriptionChannel] = []):

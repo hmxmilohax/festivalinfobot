@@ -27,7 +27,6 @@ from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
 from bot.groups.randomcog import RandomCog
-from bot.groups.subcog import SubscriptionCog
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
@@ -696,9 +695,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         fort_cog = FortniteCog(self)
         await self.add_cog(fort_cog)
-
-        sub_cog = SubscriptionCog(self)
-        await self.add_cog(sub_cog)
 
         random_cog = RandomCog(self)
         await self.add_cog(random_cog)

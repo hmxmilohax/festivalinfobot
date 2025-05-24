@@ -138,74 +138,43 @@ class Config:
             )
             await self.db.commit()
 
-    async def _user_exists(self, user: discord.User) -> bool:
+    async def _user(self, user: discord.User) -> SubscriptionUser:
         async with self.lock:
-            print(len(str(user.id)))
             async with self.db.execute(
-                "SELECT COUNT(*) FROM user_subscriptions WHERE user_id = ?",
+                "SELECT user_id, events FROM user_subscriptions WHERE user_id = ?",
                 (str(user.id),)
             ) as cursor:
                 row = await cursor.fetchone()
-                print(row[0])
-                return row[0] > 0
+                if row:
+                    user_id, events_str = row
+                    events = events_str.split(',')
+                    return SubscriptionUser(int(user_id), events)
+                return None
 
-    async def _user_remove(self, user: discord.User) -> None:
-        async with self.lock:
-            await self.db.execute(
-                "DELETE FROM user_subscriptions WHERE user_id = ?",
-                (str(user.id),)
-            )
-            await self.db.commit()
-
-    async def _user_add(self, user: discord.User) -> None:
-        default_events = ['added', 'modified', 'removed']
-        async with self.lock:
-            await self.db.execute(
-                "INSERT INTO user_subscriptions (user_id, events) VALUES (?, ?)",
-                (str(user.id), ",".join(default_events))
-            )
-            await self.db.commit()
-
-    async def _user_add_event(self, user: discord.User, event: JamTrackEvent) -> None:
-        current_events = await self._user_events(user=user)
-
-        async with self.lock:
-            if event.value not in current_events:
-                current_events.append(event.value)
-                await self.db.execute(
-                    "UPDATE user_subscriptions SET events = ? WHERE user_id = ?",
-                    (",".join(current_events), str(user.id))
-                )
-                await self.db.commit()
-    
-    async def _user_remove_event(self, user: discord.User, event: JamTrackEvent) -> None:
-        current_events = await self._user_events(user=user)
-
-        async with self.lock:
-            if event.value in current_events:
-                current_events.remove(event.value)
-                await self.db.execute(
-                    "UPDATE user_subscriptions SET events = ? WHERE user_id = ?",
-                    (",".join(current_events), str(user.id))
-                )
-                await self.db.commit()
-
-    async def _user_events(self, user: discord.User) -> List[str]:
+    async def _user_edit_events(self, user: discord.User, events: list[str]) -> None:
         async with self.lock:
             async with self.db.execute(
-                "SELECT events FROM user_subscriptions WHERE user_id = ?",
-                (str(user.id),)
+            "SELECT user_id FROM user_subscriptions WHERE user_id = ?",
+            (str(user.id),)
             ) as cursor:
                 row = await cursor.fetchone()
-                return row[0].split(',') if row else []
-            
-    async def _user_add_with_event(self, user: discord.User, event: JamTrackEvent) -> None:
-        async with self.lock:
-            await self.db.execute(
-                "INSERT OR IGNORE INTO user_subscriptions (user_id, events) VALUES (?, ?)",
-                (str(user.id), event.value)
-            )
-            await self.db.commit()
+                if row:
+                    if len(events) > 0:
+                        await self.db.execute(
+                            "UPDATE user_subscriptions SET events = ? WHERE user_id = ?",
+                            (",".join(events), str(user.id))
+                        )
+                    else:
+                        await self.db.execute(
+                            "DELETE FROM user_subscriptions WHERE user_id = ?",
+                            (str(user.id),)
+                        )
+                else:
+                    await self.db.execute(
+                        "INSERT INTO user_subscriptions (user_id, events) VALUES (?, ?)",
+                        (str(user.id), ",".join(events))
+                    )
+                await self.db.commit()
 
     async def _channels(self) -> list[SubscriptionChannel]:
         async with self.lock:
