@@ -138,6 +138,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
         logging.info(f"Guilds chunked in {guild_chunk_end_time.seconds}s")
         await self.get_channel(constants.LOG_CHANNEL).send(content=f"Chunked guilds in in {guild_chunk_end_time.seconds}s")
+        self.is_done_chunking = True
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
             self.check_new_songs_task.start()
@@ -151,6 +152,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         self.config : Config = Config()
         self.suggestions_enabled = True
+        self.is_done_chunking = False
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')

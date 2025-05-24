@@ -530,7 +530,7 @@ class TestCog(commands.Cog):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
         
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
 
         with open('logs/festivalinfobot.log', 'r') as f:
             lines = f.readlines()[-100:]
