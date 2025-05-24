@@ -71,15 +71,6 @@ class Config:
         if self.db:
             await self.db.close()
 
-    async def _channel_exists(self, channel: discord.TextChannel) -> bool:
-        async with self.lock:
-            async with self.db.execute(
-                "SELECT COUNT(*) FROM channel_subscriptions WHERE guild_id = ? AND channel_id = ?",
-                (str(channel.guild.id), str(channel.id))
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0] > 0
-
     async def _channel_remove(self, channel: discord.TextChannel) -> None:
         async with self.lock:
             await self.db.execute(
@@ -88,67 +79,44 @@ class Config:
             )
             await self.db.commit()
 
-    async def _channel_add(self, channel: discord.TextChannel) -> None:
-        default_events = ['added', 'modified', 'removed']
-        async with self.lock:
-            await self.db.execute(
-                "INSERT OR IGNORE INTO channel_subscriptions (guild_id, channel_id, events, roles) VALUES (?, ?, ?, '')",
-                (str(channel.guild.id), str(channel.id), ",".join(default_events))
-            )
-            await self.db.commit()
-
-    async def _channel_add_with_event(self, channel: discord.TextChannel, event: JamTrackEvent) -> None:
-        async with self.lock:
-            await self.db.execute(
-                "INSERT OR IGNORE INTO channel_subscriptions (guild_id, channel_id, events, roles) VALUES (?, ?, ?, '')",
-                (str(channel.guild.id), str(channel.id), event.value)
-            )
-            await self.db.commit()
-
-    async def _channel_event_exists(self, channel: discord.TextChannel, event: JamTrackEvent) -> bool:
+    async def _channel(self, channel: discord.TextChannel) -> SubscriptionChannel:
         async with self.lock:
             async with self.db.execute(
-                "SELECT events FROM channel_subscriptions WHERE guild_id = ? AND channel_id = ?",
+                "SELECT channel_id, events, roles FROM channel_subscriptions WHERE guild_id = ? AND channel_id = ?",
                 (str(channel.guild.id), str(channel.id))
             ) as cursor:
                 row = await cursor.fetchone()
                 if row:
-                    subscribed_events = row[0].split(',')
-                    return event.value in subscribed_events
-                return False
-
-    async def _channel_events(self, channel: discord.TextChannel) -> List[str]:
+                    channel_id, events_str, roles_str = row
+                    events = events_str.split(',') 
+                    roles = [int(role_id) for role_id in roles_str.split(',') if len(role_id) > 0] if roles_str else []
+                    return SubscriptionChannel(int(channel_id), events, roles)
+                return None
+            
+    async def _channel_add(self, channel: discord.TextChannel, default_events = ['added', 'modified', 'removed'], role_ids = []) -> None:
         async with self.lock:
-            async with self.db.execute(
-                "SELECT events FROM channel_subscriptions WHERE guild_id = ? AND channel_id = ?",
-                (str(channel.guild.id), str(channel.id))
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0].split(',') if row else []
+            await self.db.execute(
+                "INSERT OR IGNORE INTO channel_subscriptions (guild_id, channel_id, events, roles) VALUES (?, ?, ?, ?)",
+                (str(channel.guild.id), str(channel.id), ",".join(default_events), ",".join(role_ids))
+            )
+            await self.db.commit()
 
-    async def _channel_add_event(self, channel: discord.TextChannel, event: JamTrackEvent) -> None:
-        current_events = await self._channel_events(channel=channel)
-
+    async def _channel_edit_events(self, channel: discord.TextChannel, events: list[str]) -> None:
         async with self.lock:
-            if event.value not in current_events:
-                current_events.append(event.value)
-                await self.db.execute(
-                    "UPDATE channel_subscriptions SET events = ? WHERE guild_id = ? AND channel_id = ?",
-                    (",".join(current_events), str(channel.guild.id), str(channel.id))
-                )
-                await self.db.commit()
-    
-    async def _channel_remove_event(self, channel: discord.TextChannel, event: JamTrackEvent) -> None:
-        current_events = await self._channel_events(channel=channel)
+            await self.db.execute(
+                "UPDATE channel_subscriptions SET events = ? WHERE guild_id = ? AND channel_id = ?",
+                (",".join(events), str(channel.guild.id), str(channel.id))
+            )
+            await self.db.commit()
 
+    async def _channel_edit_roles(self, channel: discord.TextChannel, roles: list[discord.Object]) -> None:
+        role_ids = [str(role.id) for role in roles]
         async with self.lock:
-            if event.value in current_events:
-                current_events.remove(event.value)
-                await self.db.execute(
-                    "UPDATE channel_subscriptions SET events = ? WHERE guild_id = ? AND channel_id = ?",
-                    (",".join(current_events), str(channel.guild.id), str(channel.id))
-                )
-                await self.db.commit()
+            await self.db.execute(
+                "UPDATE channel_subscriptions SET roles = ? WHERE guild_id = ? AND channel_id = ?",
+                (",".join(role_ids), str(channel.guild.id), str(channel.id))
+            )
+            await self.db.commit()
 
     async def _guild_channels(self, guild: discord.Guild) -> List[SubscriptionChannel]:
         async with self.lock:
@@ -160,109 +128,53 @@ class Config:
                     events = events_str.split(',') 
                     roles = [int(role_id) for role_id in roles_str.split(',') if len(role_id) > 0] if roles_str else []
                     channels.append(SubscriptionChannel(int(channel_id), events, roles)) 
-                return channels
+                return channels            
             
-    async def _channel_roles(self, channel: discord.TextChannel) -> List[str]:
-        async with self.lock:
-            async with self.db.execute(
-                "SELECT roles FROM channel_subscriptions WHERE guild_id = ? AND channel_id = ?",
-                (str(channel.guild.id), str(channel.id))
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0].split(',') if row else []
-            
-    async def _channel_add_role(self, channel: discord.TextChannel, role: discord.Role) -> None:
-        current_roles = await self._channel_roles(channel=channel)
-
-        async with self.lock:
-            if str(role.id) not in current_roles:
-                current_roles.append(str(role.id))
-                await self.db.execute(
-                    "UPDATE channel_subscriptions SET roles = ? WHERE guild_id = ? AND channel_id = ?",
-                    (",".join(current_roles), str(channel.guild.id), str(channel.id))
-                )
-                await self.db.commit()
-    
-    async def _channel_remove_role(self, channel: discord.TextChannel, role: discord.Role) -> None:
-        current_roles = await self._channel_roles(channel=channel)
-
-        async with self.lock:
-            if str(role.id) in current_roles:
-                current_roles.remove(str(role.id))
-                await self.db.execute(
-                    "UPDATE channel_subscriptions SET roles = ? WHERE guild_id = ? AND channel_id = ?",
-                    (",".join(current_roles), str(channel.guild.id), str(channel.id))
-                )
-                await self.db.commit()
-
-    async def _user_exists(self, user: discord.User) -> bool:
-        async with self.lock:
-            print(len(str(user.id)))
-            async with self.db.execute(
-                "SELECT COUNT(*) FROM user_subscriptions WHERE user_id = ?",
-                (str(user.id),)
-            ) as cursor:
-                row = await cursor.fetchone()
-                print(row[0])
-                return row[0] > 0
-
-    async def _user_remove(self, user: discord.User) -> None:
+    async def _guild_remove(self, guild: discord.Guild) -> None:
         async with self.lock:
             await self.db.execute(
-                "DELETE FROM user_subscriptions WHERE user_id = ?",
-                (str(user.id),)
+                "DELETE FROM channel_subscriptions WHERE guild_id = ?",
+                (str(guild.id),)
             )
             await self.db.commit()
 
-    async def _user_add(self, user: discord.User) -> None:
-        default_events = ['added', 'modified', 'removed']
-        async with self.lock:
-            await self.db.execute(
-                "INSERT INTO user_subscriptions (user_id, events) VALUES (?, ?)",
-                (str(user.id), ",".join(default_events))
-            )
-            await self.db.commit()
-
-    async def _user_add_event(self, user: discord.User, event: JamTrackEvent) -> None:
-        current_events = await self._user_events(user=user)
-
-        async with self.lock:
-            if event.value not in current_events:
-                current_events.append(event.value)
-                await self.db.execute(
-                    "UPDATE user_subscriptions SET events = ? WHERE user_id = ?",
-                    (",".join(current_events), str(user.id))
-                )
-                await self.db.commit()
-    
-    async def _user_remove_event(self, user: discord.User, event: JamTrackEvent) -> None:
-        current_events = await self._user_events(user=user)
-
-        async with self.lock:
-            if event.value in current_events:
-                current_events.remove(event.value)
-                await self.db.execute(
-                    "UPDATE user_subscriptions SET events = ? WHERE user_id = ?",
-                    (",".join(current_events), str(user.id))
-                )
-                await self.db.commit()
-
-    async def _user_events(self, user: discord.User) -> List[str]:
+    async def _user(self, user: discord.User) -> SubscriptionUser:
         async with self.lock:
             async with self.db.execute(
-                "SELECT events FROM user_subscriptions WHERE user_id = ?",
+                "SELECT user_id, events FROM user_subscriptions WHERE user_id = ?",
                 (str(user.id),)
             ) as cursor:
                 row = await cursor.fetchone()
-                return row[0].split(',') if row else []
-            
-    async def _user_add_with_event(self, user: discord.User, event: JamTrackEvent) -> None:
+                if row:
+                    user_id, events_str = row
+                    events = events_str.split(',')
+                    return SubscriptionUser(int(user_id), events)
+                return None
+
+    async def _user_edit_events(self, user: discord.User, events: list[str]) -> None:
         async with self.lock:
-            await self.db.execute(
-                "INSERT OR IGNORE INTO user_subscriptions (user_id, events) VALUES (?, ?)",
-                (str(user.id), event.value)
-            )
-            await self.db.commit()
+            async with self.db.execute(
+            "SELECT user_id FROM user_subscriptions WHERE user_id = ?",
+            (str(user.id),)
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    if len(events) > 0:
+                        await self.db.execute(
+                            "UPDATE user_subscriptions SET events = ? WHERE user_id = ?",
+                            (",".join(events), str(user.id))
+                        )
+                    else:
+                        await self.db.execute(
+                            "DELETE FROM user_subscriptions WHERE user_id = ?",
+                            (str(user.id),)
+                        )
+                else:
+                    await self.db.execute(
+                        "INSERT INTO user_subscriptions (user_id, events) VALUES (?, ?)",
+                        (str(user.id), ",".join(events))
+                    )
+                await self.db.commit()
 
     async def _channels(self) -> list[SubscriptionChannel]:
         async with self.lock:
@@ -275,6 +187,7 @@ class Config:
                     roles = [int(role_id) for role_id in roles_str.split(',') if len(role_id) > 0] if roles_str else []
                     channels.append(SubscriptionChannel(int(channel_id), events, roles))
                 return channels 
+            
             
     async def _users(self) -> list[SubscriptionUser]:
         async with self.lock:

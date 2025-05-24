@@ -232,44 +232,6 @@ class TracklistHandler:
         view = constants.PaginatorView(embeds, interaction.user.id)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
-    async def handle_regex_interaction(self, interaction: discord.Interaction, regex:str, matched:str):
-        if not regex:
-            embed = discord.Embed(colour=0x8927A1, title="Regex help")
-            embed.add_field(name="`regex` parameter", value="This is a common Regular expression. To match any song with \"Metallica\" on the matched queries `%an - %tt`, Provide `\\bMetallica\\b` in this parameter.", inline=False)
-            embed.add_field(name="`query` parameter", value="This is the pattern, or query that the `regex` will be applied in.\nYou can provide any value, but we provide multiple *placeholders* for you.\nThese are as follows:\n\n- `tt` - Track Title\n- `mm` - Music Scale\n- `ry` - Release Year\n- `mt` - BPM\n- `mu` - Chart URL\n- `dn` - Duration\n- `isrc` - ISRC Code\n- `an` - Artist Name\n- `ar` - Rating\n- `au` - Album Art\n- `ti` - Song Item ID\n- `qi` - Streaming Metadata\n- `ld` - Lipsync Data URL\n- `jc` - Creative Join Code\n- `sn` - Shortname\n- `mk` - Music Key\n- `siv` - Vocals Instrument\n- `sib` - Bass Instrument\n- `sig` - Lead Instrument\n- `sid` - Drums Instrument\n\nBy default, `%an - %tt` is used. This means that your regex expression will be matched on \"Epic Games - Butter Barn Hoedown\", \"Epic Games - OG (Future Remix)\", etc.\nThese must be prefixed with `%`.", inline=False)
-            embed.set_author(name="Festival Tracker")
-
-            await interaction.response.send_message(embed=embed)
-            return
-
-        await interaction.response.defer()
-
-        tracks = constants.get_jam_tracks()
-        if not tracks:
-            await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
-            return
-
-        track_list = constants.sort_track_list(tracks)
-        # Escape the regex string to treat it as a literal string
-        regex_pattern = re.compile(regex)
-
-        # Create an empty list to store matching songs
-        matching_songs = []
-
-        # Iterate over the song list and apply the regex pattern
-        for track in track_list:
-            track_data = track['track']
-            queried = matched.replace('%an', str(track_data.get('an'))).replace('%tt', str(track_data.get('tt'))).replace('%mm', str(track_data.get('mm'))).replace('%ry', str(track_data.get('ry'))).replace('%mt', str(track_data.get('mt'))).replace('%siv', str(track_data.get('siv'))).replace('%mu', str(track_data.get('mu'))).replace('%dn', str(track_data.get('dn'))).replace('%isrc', str(track_data.get('isrc'))).replace('%sib', str(track_data.get('sib'))).replace('%sig', str(track_data.get('sig'))).replace('%sid', str(track_data.get('sid'))).replace('%ar', str(track_data.get('ar'))).replace('%au', str(track_data.get('au'))).replace('%ti', str(track_data.get('ti'))).replace('%qi', str(track_data.get('qi'))).replace('%ld', str(track_data.get('ld'))).replace('%jc', str(track_data.get('jc'))).replace('%sn', str(track_data.get('sn'))).replace('%mk', str(track_data.get('mk')))
-            if re.search(regex_pattern, queried):
-                matching_songs.append(track)
-
-        if len(matching_songs) > 0:
-            embeds = constants.create_track_embeds(matching_songs, f"Matched tracklist result\nRegex: `{regex}`\nQuery: `{matched}`\nTotal: {len(matching_songs)}")    
-            view = constants.PaginatorView(embeds, interaction.user.id)
-            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-        else:
-            await interaction.edit_original_response(embed=constants.common_error_embed('There were no results.'))
-
 class GamblingHandler:
     def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()

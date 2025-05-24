@@ -94,7 +94,7 @@ class PathCommandHandler():
         chosen_diff = constants.Difficulties[str(difficulty).replace('Difficulties.', '')].value
 
         if not chosen_instrument.path_enabled:
-            await interaction.edit_original_response(embed=constants.common_error_embed(f"Path generation is not enabled for {chosen_instrument.english}. Please use a different instrument."))
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"Paths are not supported for {chosen_instrument.english}. Please use a different instrument."))
             return
 
         tracklist = self.jam_track_handler.get_jam_tracks()
@@ -116,16 +116,14 @@ class PathCommandHandler():
         # Use the first matched track
         song_data = matched_tracks[0]
 
-        song_url = song_data['track'].get('mu')
+        chart_url = song_data['track'].get('mu')
         album_art_url = song_data['track'].get('au')
         track_title = song_data['track'].get('tt')
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
         display_instrument = chosen_instrument.english
 
-        dat_file = f"{session_hash}_{short_name}.dat"
-        local_midi_file = self.midi_tool.download_and_archive_midi_file(song_url, short_name)  # Download the .dat file
-        midi_file = self.midi_tool.decrypt_dat_file(local_midi_file, session_hash)
+        midi_file = self.midi_tool.save_chart(chart_url)
 
         modified_midi_file = None
         if chosen_instrument.replace != None:
@@ -170,7 +168,7 @@ class PathCommandHandler():
             embed.add_field(name="Overlaps", value=overlaps)
             embed.add_field(name="No OD Score", value=no_sp_score)
             embed.add_field(name="Total Score", value=total_score)
-            embed.set_footer(text="Tip: Use /suggestion to suggest new features!")
+            embed.set_footer(text="Festival Tracker")
 
             embed.set_image(url=f"attachment://{output_image}")
             embed.set_thumbnail(url=album_art_url)
