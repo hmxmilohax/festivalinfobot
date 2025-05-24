@@ -722,3 +722,55 @@ class TestCog(commands.Cog):
 
         view = AllTimeLeaderboardView(matched_track['track']['su'], 'season007', chosen_instrument, interaction.user.id, oauth, matched_track)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
+
+    @test_group.command(name="ini", description="Convert a track to ini")
+    async def ini(self, interaction: discord.Interaction, song: str):
+        tracklist = constants.get_jam_tracks()
+        if not tracklist:
+            await interaction.response.send_message(content=f"Could not get tracks.", ephemeral=True)
+            return
+        # Perform fuzzy search
+        matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
+        if not matched_tracks:
+            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            return
+        await interaction.response.defer()
+        matched_track = matched_tracks[0]
+
+        ini = '[song]\n'
+        ini += f'name = {matched_track["track"]["tt"]}\n'
+        ini += f'artist = {matched_track["track"]["an"]}\n'
+        ini += f'album = Placeholder\n'
+        ini += f'genre = Placeholder\n'
+        ini += f'year = {matched_track["track"]["ry"]}\n'
+        ini += f'song_length = {matched_track["track"]["dn"]}000\n'
+        ini += f'charter = Harmonix\n'
+        ini += f'diff_band = 0\n'
+        ini += f'diff_guitar = 0\n'
+        ini += f'diff_rhythm = 0\n'
+        ini += f'diff_bass = 0\n'
+        ini += f'diff_drums = 0\n'
+        ini += f'diff_keys = 0\n'
+        ini += f'diff_guitarghl = 0\n'
+        ini += f'diff_rhythmghl = 0\n'
+        ini += f'diff_bassghl = 0\n'
+        ini += f'preview_start_time = 10000\n'
+        ini += f'icon = 0\n'
+        ini += f'playlist_track = \n'
+        ini += f'delay = \n'
+        ini += f'loading_phrase = \n'
+
+        await interaction.edit_original_response(attachments=[discord.File(io.StringIO(ini), 'song.ini')])
+
+    @test_group.command(name="logdump", description="Get the last 100 lines of the log file")
+    async def logdump(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+
+        with open('logs/festivalinfobot.log', 'r') as f:
+            lines = f.readlines()[-100:]
+
+        await interaction.edit_original_response(attachments=[discord.File(io.StringIO(''.join(lines)), 'log.txt')])
