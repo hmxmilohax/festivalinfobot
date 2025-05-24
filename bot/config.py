@@ -129,6 +129,14 @@ class Config:
                     roles = [int(role_id) for role_id in roles_str.split(',') if len(role_id) > 0] if roles_str else []
                     channels.append(SubscriptionChannel(int(channel_id), events, roles)) 
                 return channels            
+            
+    async def _guild_remove(self, guild: discord.Guild) -> None:
+        async with self.lock:
+            await self.db.execute(
+                "DELETE FROM channel_subscriptions WHERE guild_id = ?",
+                (str(guild.id),)
+            )
+            await self.db.commit()
 
     async def _user_exists(self, user: discord.User) -> bool:
         async with self.lock:
