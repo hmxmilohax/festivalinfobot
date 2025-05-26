@@ -23,61 +23,59 @@ from bot.tools.previewpersist import PreviewButton
 from bot.tracks import JamTrackHandler
 
 import sparks_tracks
+import re
 
 def save_known_songs(songs):
-    # Fetch jam tracks using the API call
     logging.debug(f'[GET] {constants.CONTENT_API}')
     response = requests.get(constants.CONTENT_API)
     response.raise_for_status()
 
     data = response.json()
-    timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H.%M.%S')
-    unique_id = hashlib.md5(timestamp.encode()).hexdigest()[:6]
+    data_hash = hashlib.md5(json.dumps(data).encode()).hexdigest()
+    json_files = [f for f in os.listdir(constants.LOCAL_JSON_FOLDER) if f.endswith('.json')]
+    latest_file = None
+    latest_date = None
 
-    file_prefix = "spark-tracks"
-    file_name = f"{file_prefix}_{timestamp}Z_{unique_id}.json"
-    
-    folder_path = constants.LOCAL_JSON_FOLDER
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-    
-    json_files = sorted(
-        [f for f in os.listdir(folder_path) if f.startswith("spark-tracks") and f.endswith(".json")],
-        key=lambda x: os.path.getmtime(os.path.join(folder_path, x)),
-        reverse=True
-    )
+    for fname in json_files:
+        match = re.search(r'spark-tracks_(\d{4}-\d{2}-\d{2}T\d{2}\.\d{2}\.\d{2})', fname)
+        if match:
+            file_date = match.group(1)
+            if latest_date is None or file_date > latest_date:
+                latest_date = file_date
+                latest_file = fname
 
-    recent_files_content = [constants.load_json_from_file(os.path.join(folder_path, f)) for f in json_files[:3]]
+    latest_data_hash = None
+    if latest_file:
+        latest_data = json.dumps(json.loads(open(
+            os.path.join(constants.LOCAL_JSON_FOLDER, latest_file), 'r').read()
+        ))
+        latest_data_hash = hashlib.md5(latest_data.encode()).hexdigest()
+    else:
+        logging.error("Cannot continue!!!")
+        return
+    
+    if data_hash == latest_data_hash:
+        logging.info("No changes detected")
+        return
+    else:
+        date = datetime.now().strftime("%Y-%m-%dT%H.%M.%S")
+        new_file_name = f'spark-tracks_{date}.json'
+        new_file_path = os.path.join(constants.LOCAL_JSON_FOLDER, new_file_name)
+        with open(new_file_path, 'w') as f:
+            logging.info(f"Saving {new_file_name}")
+            f.write(json.dumps(data, indent=4))
 
     current_songs_data = [song['track']['sn'] for song in songs]
     current_tracks_data = songs
 
-    current_songs_json = json.dumps(current_songs_data, sort_keys=True)
-
     known_tracks_file_path = constants.SONGS_FILE
     known_songs_file_path = constants.SHORTNAME_FILE
-    
-    if not os.path.exists(known_tracks_file_path):
-        with open(known_tracks_file_path, 'w') as known_tracks_file:
-            json.dump([], known_tracks_file, indent=4)
-    if not os.path.exists(known_songs_file_path):
-        with open(known_songs_file_path, 'w') as known_songs_file:
-            json.dump([], known_songs_file, indent=4)
 
     with open(known_tracks_file_path, 'w') as known_tracks_file:
         json.dump(current_tracks_data, known_tracks_file, indent=4)
 
     with open(known_songs_file_path, 'w') as known_songs_file:
         json.dump(current_songs_data, known_songs_file, indent=4)
-
-    for content in recent_files_content:
-        if json.dumps(content, sort_keys=True) == json.dumps(data, sort_keys=True):
-            return
-
-    file_path = os.path.join(folder_path, file_name)
-    with open(file_path, 'w') as file:
-        json.dump(data, file, indent=4)
-    logging.info(f"New file saved as {file_name}")
 
 def load_known_songs(shortnames:bool = False):
     path = constants.SONGS_FILE if not shortnames else constants.SHORTNAME_FILE
@@ -211,12 +209,10 @@ class HistoryHandler():
 
     def fetch_local_history(self):
         json_files = []
-        try:
-            for file_name in os.listdir(constants.LOCAL_JSON_FOLDER):
-                if file_name.endswith('.json'):
-                    json_files.append(file_name)
-        except Exception as e:
-            logging.error(f"Error reading local JSON files", exc_info=e)
+        for file_name in os.listdir(constants.LOCAL_JSON_FOLDER):
+            if file_name.endswith('.json'):
+                json_files.append(file_name)
+                
         return sorted(json_files)
 
     async def handle_metahistory_interaction(self, interaction: discord.Interaction, song:str):
@@ -487,7 +483,7 @@ class LoopCheckHandler():
         start = datetime.now()
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels a total of {(len(new_songs) + len(modified_songs) + len(removed_songs)) * len(combined_channels)} messages")
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels")
 
         session_hashes_all = [session_hash]
 
@@ -530,12 +526,12 @@ class LoopCheckHandler():
                 channel = None
 
             if not channel:
-                logging.error(f"{channel_to_send.type.capitalize()} with ID {channel_to_send.id} not found.")
+                logging.error(f"{channel_to_send.type.capitalize()} ID {channel_to_send.id} not found.")
                 continue
 
             if isinstance(channel, discord.abc.GuildChannel):
                 if channel.permissions_for(channel.guild.me).send_messages == False:
-                    logging.error(f"We do not have permission to send messages to {channel.id}, skipping.")
+                    logging.error(f"No permissions for Ch. {channel.id}, skip")
                     continue
 
             content = ""
@@ -545,60 +541,72 @@ class LoopCheckHandler():
                     role_pings.append(f"<@&{role}>")
                 content = " ".join(role_pings)
 
+            logging.info(f'Current channel: {channel.id}')
+
             if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
-                logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
-
                     view = discord.ui.View(timeout=None)
                     view.add_item(PreviewButton(new_song['track']['sn']))
 
                     try:
-                        message = await channel.send(content=content, embed=embed, view=view)
-
-                    except discord.Forbidden as e:
-                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
-                        break
+                        await channel.send(content=content, embed=embed, view=view)
+                    except discord.HTTPException as e:
+                        if e.code in [50007, 50013]:
+                            logging.error(f"Ch. {channel.id} is not sendable to")
+                            break
+                        elif isinstance(e, discord.Forbidden):
+                            logging.error(f"Ch. {channel.id} was denied [{e.code}]")
+                        elif isinstance(e, discord.NotFound):
+                            logging.error(f"Ch. {channel.id} not found [{e.code}]")
+                        else:
+                            logging.error(f"Ch. {channel.id} error [{e.code}]", exc_info=e)
                         
                     except Exception as e:
-                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
+                        logging.error(f"Error in Ch. {channel.id}", exc_info=e)
 
             if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
-                logging.info(f"Removed songs sending to channel {channel.id}")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
+                    
                     try:
-                        message = await channel.send(content=content, embed=embed)
-
-                    except discord.Forbidden as e:
-                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
-                        break
-
+                        await channel.send(content=content, embed=embed)
+                    except discord.HTTPException as e:
+                        if e.code in [50007, 50013]:
+                            logging.error(f"Ch. {channel.id} is not sendable to")
+                            break
+                        elif isinstance(e, discord.Forbidden):
+                            logging.error(f"Ch. {channel.id} was denied [{e.code}]")
+                        elif isinstance(e, discord.NotFound):
+                            logging.error(f"Ch. {channel.id} not found [{e.code}]")
+                        else:
+                            logging.error(f"Ch. {channel.id} error [{e.code}]", exc_info=e)
+                        
                     except Exception as e:
-                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
+                        logging.error(f"Error in Ch. {channel.id}", exc_info=e)
 
-            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
-                logging.info(f"Modified songs sending to channel {channel.id}")
-                
+            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:                
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:
-
-                    for diff_embed, diff_filename in chart_diffs_embeds:
-                        try:
-                            msg = await channel.send(embed=diff_embed, file=discord.File(diff_filename))
-                        except Exception as e:
-                            logging.error(f'Cannot send modified chart embed to {channel.id}', exc_info=e)
-
                     try:
-                        message = await channel.send(content=content, embed=song_metadata_diff_embed)
+                        for diff_embed, diff_filename in chart_diffs_embeds:
+                            await channel.send(embed=diff_embed, file=discord.File(diff_filename))
 
-                    except discord.Forbidden as e:
-                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
-                        break
-
+                        await channel.send(content=content, embed=song_metadata_diff_embed)
+                    except discord.HTTPException as e:
+                        if e.code in [50007, 50013]:
+                            logging.error(f"Ch. {channel.id} is not sendable to")
+                            break
+                        elif isinstance(e, discord.Forbidden):
+                            logging.error(f"Ch. {channel.id} was denied [{e.code}]")
+                        elif isinstance(e, discord.NotFound):
+                            logging.error(f"Ch. {channel.id} not found [{e.code}]")
+                        else:
+                            logging.error(f"Ch. {channel.id} error [{e.code}]", exc_info=e)
+                        
                     except Exception as e:
-                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
+                        logging.error(f"Error in Ch. {channel.id}", exc_info=e)
 
-        logging.info(f"Done checking for new songs: New: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
+        logging.info(f"--- COMPLETED --- \nNew: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
             await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending completed for {len(combined_channels)} channels! Took {(datetime.now() - start).seconds}s")
