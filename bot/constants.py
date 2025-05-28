@@ -113,7 +113,7 @@ DIFFICULTY_COMPARISONS = {
     'gr': 'Lead',
     'ds': 'Drums',
     'ba': 'Bass',
-    'bd': 'Pro Vocals (Placeholder)'
+    'bd': 'Pro Vocals'
 }
 
 EXTRA_COMPARISONS = {
