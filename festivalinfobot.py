@@ -317,7 +317,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             if not (ctx.author.id in constants.BOT_OWNERS):
                 return
 
-            await ctx.send(ctx.message.content)
+            await ctx.send(ctx.message.content.replace('ft!asme ', ''))
             await ctx.message.delete()
 
         @self.command()
