@@ -18,8 +18,8 @@ REPO_NAME = "data"
 FILE_PATH = "festival/spark-tracks.json"
 API_URL = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}"
 COMMITS_URL = f"{API_URL}/commits"
-DOWNLOAD_DIR = "./json/github"
-ARCHIVE_DIR = "./json"
+DOWNLOAD_DIR = "json/github"
+ARCHIVE_DIR = "json"
 
 GITHUB_TOKEN = constants.GITHUB_PAT
 
@@ -35,21 +35,17 @@ def get_last_page(header) -> int:
                 return int(query_params['page'][0])
 
 def get_latest_iso():
-    hashes_idx = os.path.join(ARCHIVE_DIR, 'hashes.dat')
-    if os.path.exists(hashes_idx):
-        with open(hashes_idx, 'r') as f:
-            latest_date = None
-            for line in f.read().split('\n'):
-                parts = line.split(':')
-                fname = parts[1]
-                match = re.search(r'spark-tracks_(\d{4}-\d{2}-\d{2}T\d{2}\.\d{2}\.\d{2})', fname)
-                if match:
-                    date_str = match.group(1)
-                    dt = datetime.strptime(date_str, "%Y-%m-%dT%H.%M.%S")
-                    if latest_date is None or dt > latest_date:
-                        latest_date = dt
-            if latest_date:
-                return latest_date.isoformat()
+    latest_date = None
+    for file in os.listdir(DOWNLOAD_DIR):
+        if file.endswith('.json'):
+            parts = file.split('_')
+            date = parts[1]
+            dt = datetime.strptime(date, "%Y-%m-%dT%H.%M.%S")
+            if latest_date is None or dt > latest_date:
+                latest_date = dt
+
+    if latest_date:
+        return latest_date.strftime("%Y-%m-%dT%H:%M:%S")
             
     return None
 
@@ -59,7 +55,7 @@ def get_commit_history():
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
 
     since = get_latest_iso()
-    since = None
+    # since = None
 
     params = {"path": FILE_PATH, "per_page": 100, 'since': since}
     all_commits = []
@@ -70,20 +66,20 @@ def get_commit_history():
     while last_page is None or page <= last_page:
         params["page"] = page
         url = f'{COMMITS_URL}?' + '&'.join([f'{k}={v}' for k, v in params.items() if v is not None])
-        print(f'[GET] {url}')
+        logging.info(f'[GET] {url}')
         response = requests.get(url, headers=headers)
         # print(response.headers)
         response.raise_for_status()
         commits = response.json()
+        all_commits.extend(commits)
 
         if last_page is None:
             if 'Link' in response.headers:
                 last_page = get_last_page(response.headers['Link'])
             else:
-                logging.error('No Link header')
+                # logging.debug('[warn] No Link header in response')
                 break
 
-        all_commits.extend(commits)
         page += 1
 
     return all_commits
@@ -131,6 +127,7 @@ def already_downloaded(commit_sha, commit_timestamp):
 
 def main():
     commit_history = get_commit_history()
+    # print(commit_history)
 
     fhashes = {}
 
@@ -146,24 +143,27 @@ def main():
     for file in os.listdir(ARCHIVE_DIR):
         if file.endswith('.json'):
             if file not in fhashes.values():
+                print(file)
                 # the file isnt hashed so we hash it
                 with open(os.path.join(ARCHIVE_DIR, file), 'r') as f:
                     json_content = json.dumps(json.loads(f.read()))
                     _hash = hashlib.sha256(json_content.encode('utf-8')).hexdigest()
                     fhashes[_hash] = file
-                    print(f'{file} hashed [{_hash}]')
+                    logging.info(f'{file} hashed [{_hash}]')
     
-    if not os.path.exists(hashes_idx):
-        hashes_str = '\n'.join(f"{fhash}:{fname}" for fhash, fname in fhashes.items())
-        with open(hashes_idx, 'w') as f:
-            f.write(hashes_str)
+    hashes_str = '\n'.join(f"{fhash}:{fname}" for fhash, fname in fhashes.items())
+    with open(hashes_idx, 'w') as f:
+        f.write(hashes_str)
     
     for commit in commit_history:
         commit_sha = commit["sha"]
         commit_timestamp = commit["commit"]["committer"]["date"]
 
         if already_downloaded(commit_sha, commit_timestamp):
+            print(commit_timestamp)
             continue
+
+        # print(f"Processing commit: {commit_sha} at {commit_timestamp}")
 
         fname = download_file_at_commit(commit_sha, commit_timestamp)
         # the file didnt exist before
@@ -176,11 +176,13 @@ def main():
 
         if fhash not in fhashes:
             # this file is new, so we can archive it
-            archive_path = os.path.join(ARCHIVE_DIR, f"spark-tracks_{commit_timestamp}.json")
+            safe_commit_timestamp = commit_timestamp.replace(':', '.').replace('Z', '')
+            archive_path = os.path.join(ARCHIVE_DIR, f"spark-tracks_{safe_commit_timestamp}.json")
+            # print(archive_path)
             with open(archive_path, 'w') as f:
                 f.write(json.dumps(json.loads(fcontent), indent=4))
 
-            # print(f"Archived: {archive_path}")
+            logging.info(f"Archived: {archive_path}")
         else:
             # print(f'file is equal to {fhashes[fhash]}')
             pass

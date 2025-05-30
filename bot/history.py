@@ -31,6 +31,19 @@ def save_known_songs(songs):
     response.raise_for_status()
 
     data = response.json()
+
+    current_songs_data = [song['track']['sn'] for song in songs]
+    current_tracks_data = songs
+
+    known_tracks_file_path = constants.SONGS_FILE
+    known_songs_file_path = constants.SHORTNAME_FILE
+
+    with open(known_tracks_file_path, 'w') as known_tracks_file:
+        json.dump(current_tracks_data, known_tracks_file, indent=4)
+
+    with open(known_songs_file_path, 'w') as known_songs_file:
+        json.dump(current_songs_data, known_songs_file, indent=4)
+
     data_hash = hashlib.md5(json.dumps(data).encode()).hexdigest()
     json_files = [f for f in os.listdir(constants.LOCAL_JSON_FOLDER) if f.endswith('.json')]
     latest_file = None
@@ -51,11 +64,11 @@ def save_known_songs(songs):
         ))
         latest_data_hash = hashlib.md5(latest_data.encode()).hexdigest()
     else:
-        logging.error("Cannot continue!!!")
+        logging.error("Cannot continue, please investigate!!!")
         return
     
     if data_hash == latest_data_hash:
-        logging.info("No changes detected")
+        # logging.info("No changes detected")
         return
     else:
         date = datetime.now().strftime("%Y-%m-%dT%H.%M.%S")
@@ -64,18 +77,6 @@ def save_known_songs(songs):
         with open(new_file_path, 'w') as f:
             logging.info(f"Saving {new_file_name}")
             f.write(json.dumps(data, indent=4))
-
-    current_songs_data = [song['track']['sn'] for song in songs]
-    current_tracks_data = songs
-
-    known_tracks_file_path = constants.SONGS_FILE
-    known_songs_file_path = constants.SHORTNAME_FILE
-
-    with open(known_tracks_file_path, 'w') as known_tracks_file:
-        json.dump(current_tracks_data, known_tracks_file, indent=4)
-
-    with open(known_songs_file_path, 'w') as known_songs_file:
-        json.dump(current_songs_data, known_songs_file, indent=4)
 
 def load_known_songs(shortnames:bool = False):
     path = constants.SONGS_FILE if not shortnames else constants.SHORTNAME_FILE
@@ -541,9 +542,9 @@ class LoopCheckHandler():
                     role_pings.append(f"<@&{role}>")
                 content = " ".join(role_pings)
 
-            logging.info(f'Current channel: {channel.id}')
-
             if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
+                logging.info(f'New songs - at {channel.id}')
+
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
                     view = discord.ui.View(timeout=None)
@@ -566,11 +567,18 @@ class LoopCheckHandler():
                         logging.error(f"Error in Ch. {channel.id}", exc_info=e)
 
             if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
+                logging.info(f'Removed songs - at {channel.id}')
+
+                embed_list = []
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
-                    
+                    if embed:
+                        embed_list.append(embed)
+
+                for chunk in range(0, len(embed_list), 10):
+                    embed_chunk = embed_list[chunk:chunk + 10]
                     try:
-                        await channel.send(content=content, embed=embed)
+                        await channel.send(content=content, embeds=embed_chunk)
                     except discord.HTTPException as e:
                         if e.code in [50007, 50013]:
                             logging.error(f"Ch. {channel.id} is not sendable to")
@@ -585,11 +593,17 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error in Ch. {channel.id}", exc_info=e)
 
-            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:                
+            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
+                logging.info(f'Modified songs - at {channel.id}')
+
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:
                     try:
-                        for diff_embed, diff_filename in chart_diffs_embeds:
-                            await channel.send(embed=diff_embed, file=discord.File(diff_filename))
+                        for chunk in range(0, len(chart_diffs_embeds), 10):
+                            chart_diffs_embeds_chunk = chart_diffs_embeds[chunk:chunk + 10]
+                            embed_list = [diff_embed for diff_embed, diff_filename in chart_diffs_embeds_chunk]
+                            file_list = [discord.File(diff_filename) for _, diff_filename in chart_diffs_embeds_chunk]
+                            if len(embed_list) > 0:
+                                await channel.send(embeds=embed_list, files=file_list)
 
                         await channel.send(content=content, embed=song_metadata_diff_embed)
                     except discord.HTTPException as e:
@@ -606,7 +620,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error in Ch. {channel.id}", exc_info=e)
 
-        logging.info(f"--- COMPLETED --- \nNew: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
+        logging.info(f"--- COMPLETED --- /// N({len(new_songs)}) M({len(modified_songs)}) R({len(removed_songs)})")
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
             await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending completed for {len(combined_channels)} channels! Took {(datetime.now() - start).seconds}s")
