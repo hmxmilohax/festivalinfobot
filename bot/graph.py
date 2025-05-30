@@ -322,7 +322,7 @@ class GraphingFuncs():
 
                     notes[lane] += 1
 
-        print(notes)
+        # print(notes)
 
         plt.bar(labels, notes, color=colours)
 
