@@ -780,7 +780,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
 
-        logging.info("Cleared analytics list.")
+        # logging.info("Cleared analytics list.")
 
 
 bot = FestivalInfoBot()
