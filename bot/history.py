@@ -444,12 +444,12 @@ class LoopCheckHandler():
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
 
-        logging.info("Checking for new songs...")
+        # logging.info("Checking for new songs...")
 
         try:
             archiving.main()
         except Exception as e:
-            logging.error(f"Failed to use the spark_tracks.py module", exc_info=e)
+            logging.error(exc_info=e)
 
         known_tracks = load_known_songs()
         known_shortnames = load_known_songs(shortnames=True)
