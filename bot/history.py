@@ -22,7 +22,7 @@ from bot.tools import history as history_tools
 from bot.tools.previewpersist import PreviewButton
 from bot.tracks import JamTrackHandler
 
-import sparks_tracks
+import bot.archiving as archiving
 import re
 
 def save_known_songs(songs):
@@ -435,8 +435,6 @@ class LoopCheckHandler():
 
         await self.bot.change_presence(activity=activity, status=discord.Status.online)
 
-        logging.info("Presence updated successfully.")
-
     async def handle_task(self):
         tracks = self.jam_track_handler.get_jam_tracks()
 
@@ -449,7 +447,7 @@ class LoopCheckHandler():
         logging.info("Checking for new songs...")
 
         try:
-            sparks_tracks.main()
+            archiving.main()
         except Exception as e:
             logging.error(f"Failed to use the spark_tracks.py module", exc_info=e)
 

@@ -160,7 +160,7 @@ def main():
         commit_timestamp = commit["commit"]["committer"]["date"]
 
         if already_downloaded(commit_sha, commit_timestamp):
-            print(commit_timestamp)
+            # print(commit_timestamp)
             continue
 
         # print(f"Processing commit: {commit_sha} at {commit_timestamp}")
