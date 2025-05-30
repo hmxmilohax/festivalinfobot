@@ -313,14 +313,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.send("Licensing is hard")
 
         @self.command()
-        async def asme(ctx: commands.Context):
-            if not (ctx.author.id in constants.BOT_OWNERS):
-                return
-
-            await ctx.send(ctx.message.content.replace('ft!asme ', ''))
-            await ctx.message.delete()
-
-        @self.command()
         async def about(ctx: commands.Context):
             await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
