@@ -11,6 +11,8 @@ import mido
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from mido.midifiles.tracks import _to_abstime
+import re
 
 class GraphCommandsHandler():
     def __init__(self) -> None:
@@ -247,6 +249,11 @@ class GraphingFuncs():
         notes = [0, 0, 0, 0, 0]
         start = diff.pitch_ranges[0]
         end = diff.pitch_ranges[1]
+        tom_markers = [110, 111, 112] # tom markers for plastic drums
+        tom_lanes = [2, 3, 4] # tom lanes for plastic drums
+        tom_active = [False, False, False]
+        is_plastic_drums = False
+        disco_flip_on = False
 
         if inst.midi == 'PRO VOCALS':
             labels = list([str(i-35) for i in range(36, 85)])
@@ -255,15 +262,68 @@ class GraphingFuncs():
             start = 36
             end = 84
             plt.xticks(rotation=90, fontsize=6)
+        elif inst.midi == 'PLASTIC DRUMS':
+            labels = ['Kick', 'Red', 'Yellow', 'Blue', 'Green', 'Tom Y', 'Tom B', 'Tom G']
+            colours = ['orange', 'red', 'yellow', 'blue', 'green', 'yellow', 'blue', 'green']
+            notes = [0, 0, 0, 0, 0, 0, 0, 0]
+            is_plastic_drums = True
 
         mid = mido.MidiFile(midi_path)
+        sorted_ntons = []
         for track in mid.tracks:
             if track.name == inst.midi:
-                for msg in track:
-                    if msg.type == 'note_on':
-                        if msg.note >= start and msg.note <= end:
-                            lane = msg.note - start
-                            notes[lane] += 1
+                track_messages = _to_abstime(track)
+                for msg in track_messages:
+                    if msg.type == 'note_on' or msg.type == 'note_off' or msg.type == 'text':
+                        sorted_ntons.append(msg)
+
+        def safe_note(msg):
+            return getattr(msg, 'note', float('inf')) if hasattr(msg, 'note') and msg.note is not None else float('inf')
+        sorted_ntons.sort(key=safe_note)
+        sorted_ntons.sort(key=lambda x: x.time)
+
+        for msg in sorted_ntons:
+            if is_plastic_drums:
+                if msg.type == 'note_on' or msg.type == 'note_off':
+                    if msg.note in tom_markers:
+                        idx = tom_markers.index(msg.note)
+                        # print(idx, msg.note, msg.type)
+                        if msg.type == 'note_on':
+                            tom_active[idx] = True
+                        elif msg.type == 'note_off':
+                            tom_active[idx] = False
+                elif msg.type == 'text':
+                    # [mix <diff> drums<config><flag>]
+                    match = re.match(r"\[mix\s+\d+\s+drums\d*(\w*)\]", msg.text)
+                    if match:
+                        flag = match.group(1)
+                        if flag in ['d', 'dnoflip']:
+                            disco_flip_on = True
+                        else:
+                            disco_flip_on = False
+
+            # print(tom_active)
+
+            if msg.type == 'note_on':
+                if msg.note >= start and msg.note <= end:
+                    lane = msg.note - start
+
+                    if is_plastic_drums:
+                        idx = lane - tom_lanes[0]
+                        if idx > -1 and idx < len(tom_lanes):
+                            if tom_active[idx]:
+                                lane += 3
+                                
+                    if disco_flip_on:
+                        if lane == 2:
+                            lane = 1
+                        elif lane == 1:
+                            lane = 2
+
+                    notes[lane] += 1
+
+        print(notes)
+
         plt.bar(labels, notes, color=colours)
 
         for i, value in enumerate(notes):
