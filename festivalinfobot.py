@@ -289,6 +289,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
 
+        @self.command(name="kill")
+        async def kill_command(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            await ctx.message.add_reaction("💀")
+
+            # absolutely kills the bot
+            sys.exit(0)
+
         @self.command()
         async def gitpull(ctx: commands.Context):
             if not (ctx.author.id in constants.BOT_OWNERS):
