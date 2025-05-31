@@ -20,22 +20,20 @@ from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
 from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
-from bot.groups.graphs import GraphCog
-from bot.groups.history import HistoryCog
-from bot.groups.lb import LeaderboardCog
 from bot.tools.log import setup as setup_log
 from bot.groups.admin import TestCog
-from bot.groups.randomcog import RandomCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
+from bot.groups.randomcog import RandomCog
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
+from bot.mix import MixHandler
 from bot.groups.oauthmanager import OAuthManager
 
 import traceback
@@ -186,6 +184,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             chunk_guilds_at_startup=False
         )
 
+        self.lb_handler = LeaderboardCommandHandler(self)
         self.search_handler = SearchCommandHandler(self)
         self.daily_handler = DailyCommandHandler(self)
         self.shop_handler = ShopCommandHandler(self)
@@ -196,6 +195,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.graph_handler = GraphCommandsHandler()
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
+        self.mix_handler = MixHandler(self)
 
         self.setup_commands()
 
@@ -307,6 +307,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.reply(f"Congrats, {ctx.author.mention}! You won **0 V-Bucks**! Preview your code below!", view=view)
 
         @self.command()
+        async def jswiki(ctx: commands.Context):
+            await ctx.reply("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
+
+        @self.command()
         async def licensing(ctx: commands.Context):
             await ctx.send("Licensing is hard")
 
@@ -346,6 +350,17 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(artist = "A search query to use in the song name.")
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
+
+        @filter_group.command(name="mix", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
+        @app_commands.describe(key = "The key of the Jam Track you're currently mixing with.")
+        @app_commands.describe(mode = "The mode of the Jam Track you're currently mixing with.")
+        async def tracklist_command(interaction: discord.Interaction, key:constants.KeyTypes, mode:constants.ModeTypes):
+            await self.mix_handler.handle_keymode_match(interaction=interaction, key=key, mode=mode)
+
+        @filter_group.command(name="mixwithsong", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
+        @app_commands.describe(song = "The Jam Track you'd like to mix with.")
+        async def tracklist_command(interaction: discord.Interaction, song:str):
+            await self.mix_handler.handle_keymode_match_from_song(interaction=interaction, song=song)
 
         self.tree.add_command(tracklist_group)
 
@@ -397,6 +412,28 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             await interaction.response.send_message(file=discord.File(io.StringIO(json.dumps(track, indent=4)), f'{track["track"]["sn"]}_metadata.json'))
 
+        lb_group = app_commands.Group(name="leaderboard", description="Leaderboard commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
+
+        @lb_group.command(name="view", description="View the leaderboards of a song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments):
+            await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument)
+
+        @lb_group.command(name="band", description="View the band leaderboards of a song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(type = "The band type to view the leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.BandTypes):
+            await self.lb_handler.handle_band_interaction(interaction, song=song, band_type=type)
+
+        @lb_group.command(name="all_time", description="View the All-Time leaderboards of a song.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(type = "The leaderboard type to view the all-time leaderboard of.")
+        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.AllTimeLBTypes):
+            await self.lb_handler.handle_alltime_interaction(interaction, song=song, type=type)
+
+        self.tree.add_command(lb_group)
+
         @self.tree.command(name="path", description="Generates an Overdrive path for a song using CHOpt.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -428,6 +465,24 @@ class FestivalInfoBot(commands.AutoShardedBot):
                     no_time_signatures
                 ]
             )
+
+        history_group = app_commands.Group(name="history", description="History commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
+
+        @history_group.command(name="chart", description="View the chart history of a Jam Track.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        async def history_command(interaction: discord.Interaction, song:str):
+            if not self.CHART_COMPARING_ALLOWED or not self.DECRYPTION_ALLOWED:
+                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
+                return
+    
+            await self.history_handler.handle_interaction(interaction=interaction, song=song)
+
+        @history_group.command(name="meta", description="View the metadata history of a Jam Track.")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        async def metahistory_command(interaction: discord.Interaction, song:str):
+            await self.history_handler.handle_metahistory_interaction(interaction=interaction, song=song)
+
+        self.tree.add_command(history_command)
 
         @self.tree.command(name="suggestion", description="Suggest a feature for Festival Tracker")
         @app_commands.allowed_installs(guilds=True, users=True)
@@ -649,12 +704,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         self.tree.add_command(graph_group)
 
-        @self.tree.command(name="jswiki", description="View the Jam Track wiki.")
-        @app_commands.allowed_installs(guilds=True, users=True)
-        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def jswiki_command(interaction: discord.Interaction):
-            await interaction.response.send_message("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
-
     async def setup_cogs(self):
         test_cog = TestCog(self)
         await self.add_cog(test_cog)
@@ -667,15 +716,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         festrpc = FestRPCCog(self)
         await self.add_cog(festrpc)
-
-        graph_cog = GraphCog(self)
-        await self.add_cog(graph_cog)
-
-        lb_cog = LeaderboardCog(self)
-        await self.add_cog(lb_cog)
-
-        history_cog = HistoryCog(self)
-        await self.add_cog(history_cog)
 
     def find_command_by_string(self, command: str):
         words = command.split()
