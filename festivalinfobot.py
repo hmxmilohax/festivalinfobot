@@ -197,7 +197,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
-        self.mix_handler = MixHandler(self)
+        self.mix_handler = MixHandler()
 
         self.setup_commands()
 
