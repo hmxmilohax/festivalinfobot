@@ -36,6 +36,7 @@ from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
+from bot.mix import MixHandler
 from bot.groups.oauthmanager import OAuthManager
 
 import traceback
@@ -196,6 +197,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
+        self.mix_handler = MixHandler()
 
         self.setup_commands()
 
@@ -356,6 +358,17 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(artist = "A search query to use in the song name.")
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
+
+        @filter_group.command(name="mix", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
+        @app_commands.describe(key = "The key of the Jam Track you're currently mixing with.")
+        @app_commands.describe(mode = "The mode of the Jam Track you're currently mixing with.")
+        async def tracklist_command(interaction: discord.Interaction, key:constants.KeyTypes, mode:constants.ModeTypes):
+            await self.mix_handler.handle_keymode_match(interaction=interaction, key=key, mode=mode)
+
+        @filter_group.command(name="mixwithsong", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
+        @app_commands.describe(song = "The Jam Track you'd like to mix with.")
+        async def tracklist_command(interaction: discord.Interaction, song:str):
+            await self.mix_handler.handle_keymode_match_from_song(interaction=interaction, song=song)
 
         self.tree.add_command(tracklist_group)
 
