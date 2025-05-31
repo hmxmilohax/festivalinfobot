@@ -20,13 +20,16 @@ from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
 from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
+from bot.groups.graphs import GraphCog
+from bot.groups.history import HistoryCog
+from bot.groups.lb import LeaderboardCog
 from bot.tools.log import setup as setup_log
 from bot.groups.admin import TestCog
+from bot.groups.randomcog import RandomCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
-from bot.groups.randomcog import RandomCog
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
@@ -92,10 +95,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
         )
         
         for index, guild in enumerate(sorted_guilds, start=1):
-            join_date = (
-                guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
-                if guild.me.joined_at else "Unknown"
-            )
+            join_date = "Unknown"
+            if guild.me:
+                if guild.me.joined_at:
+                    join_date = guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
+
             logging.info(
                 ' '.join([str(index).ljust(5),
                     guild.name.ljust(30), 
@@ -184,7 +188,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
             chunk_guilds_at_startup=False
         )
 
-        self.lb_handler = LeaderboardCommandHandler(self)
         self.search_handler = SearchCommandHandler(self)
         self.daily_handler = DailyCommandHandler(self)
         self.shop_handler = ShopCommandHandler(self)
@@ -192,7 +195,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.path_handler = PathCommandHandler()
         self.history_handler = HistoryHandler()
         self.check_handler = LoopCheckHandler(self)
-        self.graph_handler = GraphCommandsHandler()
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
         self.mix_handler = MixHandler(self)
@@ -289,6 +291,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
 
+        @self.command(name="kill")
+        async def kill_command(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            await ctx.message.add_reaction("💀")
+
+            # absolutely kills the bot
+            sys.exit(0)
+
         @self.command()
         async def gitpull(ctx: commands.Context):
             if not (ctx.author.id in constants.BOT_OWNERS):
@@ -305,10 +317,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
             view = discord.ui.View(timeout=None)
             view.add_item(PreviewButton("nevergonnagiveyouup"))
             await ctx.reply(f"Congrats, {ctx.author.mention}! You won **0 V-Bucks**! Preview your code below!", view=view)
-
-        @self.command()
-        async def jswiki(ctx: commands.Context):
-            await ctx.reply("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
 
         @self.command()
         async def licensing(ctx: commands.Context):
@@ -412,28 +420,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             await interaction.response.send_message(file=discord.File(io.StringIO(json.dumps(track, indent=4)), f'{track["track"]["sn"]}_metadata.json'))
 
-        lb_group = app_commands.Group(name="leaderboard", description="Leaderboard commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
-
-        @lb_group.command(name="view", description="View the leaderboards of a song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the leaderboard of.")
-        async def leaderboard_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments):
-            await self.lb_handler.handle_interaction(interaction, song=song, instrument=instrument)
-
-        @lb_group.command(name="band", description="View the band leaderboards of a song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(type = "The band type to view the leaderboard of.")
-        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.BandTypes):
-            await self.lb_handler.handle_band_interaction(interaction, song=song, band_type=type)
-
-        @lb_group.command(name="all_time", description="View the All-Time leaderboards of a song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(type = "The leaderboard type to view the all-time leaderboard of.")
-        async def leaderboard_command(interaction: discord.Interaction, song:str, type:constants.AllTimeLBTypes):
-            await self.lb_handler.handle_alltime_interaction(interaction, song=song, type=type)
-
-        self.tree.add_command(lb_group)
-
         @self.tree.command(name="path", description="Generates an Overdrive path for a song using CHOpt.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -465,24 +451,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
                     no_time_signatures
                 ]
             )
-
-        history_group = app_commands.Group(name="history", description="History commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
-
-        @history_group.command(name="chart", description="View the chart history of a Jam Track.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        async def history_command(interaction: discord.Interaction, song:str):
-            if not self.CHART_COMPARING_ALLOWED or not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-    
-            await self.history_handler.handle_interaction(interaction=interaction, song=song)
-
-        @history_group.command(name="meta", description="View the metadata history of a Jam Track.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        async def metahistory_command(interaction: discord.Interaction, song:str):
-            await self.history_handler.handle_metahistory_interaction(interaction=interaction, song=song)
-
-        self.tree.add_command(history_command)
 
         @self.tree.command(name="suggestion", description="Suggest a feature for Festival Tracker")
         @app_commands.allowed_installs(guilds=True, users=True)
@@ -660,49 +628,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 await interaction.response.send_message(embed=view.get_embed(), view=view)
                 view.message = await interaction.original_response()
 
-        graph_group = app_commands.Group(name="graph", description="Graph Command Group.", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
-
-        graph_notes_group = app_commands.Group(name="counts", description="Graph the note and lift counts for a specific song.", parent=graph_group)
-        @graph_notes_group.command(name="all", description="Graph the note counts for a specific song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            await self.graph_handler.handle_pdi_interaction(interaction=interaction, song=song)
-
-        @graph_notes_group.command(name="lifts", description="Graph the lift counts for a specific song.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        async def graph_note_counts_command(interaction: discord.Interaction, song:str):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            
-            await self.graph_handler.handle_lift_interaction(interaction=interaction, song=song)
-
-        @graph_group.command(name="nps", description="Graph the NPS (Notes per second) for a specific song, instrument, and difficulty.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the NPS of.")
-        @app_commands.describe(difficulty = "The difficulty to view the NPS for.")
-        async def graph_nps_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            
-            await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
-
-        @graph_group.command(name="lanes", description="Graph the number of notes for each lane in a specific song, instrument, and difficulty.")
-        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(instrument = "The instrument to view the #notes of.")
-        @app_commands.describe(difficulty = "The difficulty to view the #notes for.")
-        async def graph_lanes_command(interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-            if not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-            
-            await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
-
-        self.tree.add_command(graph_group)
+        @self.tree.command(name="jswiki", description="View the Jam Track wiki.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def jswiki_command(interaction: discord.Interaction):
+            await interaction.response.send_message("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
 
     async def setup_cogs(self):
         test_cog = TestCog(self)
@@ -716,6 +646,15 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         festrpc = FestRPCCog(self)
         await self.add_cog(festrpc)
+
+        graph_cog = GraphCog(self)
+        await self.add_cog(graph_cog)
+
+        lb_cog = LeaderboardCog(self)
+        await self.add_cog(lb_cog)
+
+        history_cog = HistoryCog(self)
+        await self.add_cog(history_cog)
 
     def find_command_by_string(self, command: str):
         words = command.split()
