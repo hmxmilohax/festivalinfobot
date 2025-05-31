@@ -171,14 +171,14 @@ class SearchEmbedHandler:
         embed.add_field(name="Has Pro Vocals", value='Yes' if has_pro_vocals else 'No', inline=True)
 
         difficulties = (
-            f"Lead:      {constants.generate_difficulty_bar(guitar_diff)}\n"
-            f"Bass:      {constants.generate_difficulty_bar(bass_diff)}\n"
-            f"Drums:     {constants.generate_difficulty_bar(drums_diff)}\n"
-            f"Vocals:    {constants.generate_difficulty_bar(vocals_diff)}\n"
-            f"Pro Lead:  {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
-            f"Pro Bass:  {constants.generate_difficulty_bar(pro_bass_diff)}\n"
-            f"Pro Drums: {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Vox/Band:  {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
+            f"Bass:       {constants.generate_difficulty_bar(bass_diff)}\n"
+            f"Drums:      {constants.generate_difficulty_bar(drums_diff)}\n"
+            f"Vocals:     {constants.generate_difficulty_bar(vocals_diff)}\n"
+            f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
+            f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
+            f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
+            f"Pro Vocals: {constants.generate_difficulty_bar(band_diff)}\n"
         )
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
