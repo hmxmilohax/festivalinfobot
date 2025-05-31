@@ -8,10 +8,10 @@ class MixHandler():
         self.jam_track_handler = JamTrackHandler()
         pass
 
-    async def handle_embed(self, interaction: discord.Interaction, matched_tracks:list):
+    async def handle_embed(self, interaction: discord.Interaction, matched_tracks:list, key:str, mode:str):
         matched_tracks_sliced = matched_tracks[:25] # Max 25 elements in embed
         embed = discord.Embed(
-                title="Matching Songs",
+                title=f"Matching Songs for {key} {mode}",
                 color=0x8927A1
             )
 
@@ -32,7 +32,7 @@ class MixHandler():
             return
         matched_tracks = self.jam_track_handler.get_matching_key_mode_jam_tracks(track_list, chosen_key.code, chosen_mode.code)
 
-        await self.handle_embed(interaction=interaction, matched_tracks=matched_tracks)
+        await self.handle_embed(interaction=interaction, matched_tracks=matched_tracks, key=chosen_key.code, code=chosen_mode.code)
 
     async def handle_keymode_match_from_song(self, interaction: discord.Interaction, song:str):
         track_list = self.jam_track_handler.get_jam_tracks()
@@ -53,4 +53,4 @@ class MixHandler():
 
         matched_tracks = self.jam_track_handler.get_matching_key_mode_jam_tracks(track_list, chosen_key.code, chosen_mode.code)
 
-        await self.handle_embed(interaction=interaction, matched_tracks=matched_tracks)
+        await self.handle_embed(interaction=interaction, matched_tracks=matched_tracks, key=chosen_key.code, code=chosen_mode.code)
