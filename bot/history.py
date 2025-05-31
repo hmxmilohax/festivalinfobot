@@ -454,7 +454,7 @@ class LoopCheckHandler():
         try:
             sparks_tracks.main()
         except Exception as e:
-            logging.error(f"Failed to use the spark_tracks.py module", exc_info=e)
+            logging.error("", exc_info=e)
 
         known_tracks = load_known_songs()
         known_shortnames = load_known_songs(shortnames=True)
