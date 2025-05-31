@@ -61,7 +61,7 @@ class StatusHandler():
             'Authorization': self.oauth.session_token
         })
 
-        print(epiclabsresponse.text)
+        # print(epiclabsresponse.text)
 
         epiclabsresponse.raise_for_status()
         response.raise_for_status()
