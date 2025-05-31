@@ -449,7 +449,7 @@ class LoopCheckHandler():
         try:
             archiving.main()
         except Exception as e:
-            logging.error(exc_info=e)
+            logging.error("", exc_info=e)
 
         known_tracks = load_known_songs()
         known_shortnames = load_known_songs(shortnames=True)
