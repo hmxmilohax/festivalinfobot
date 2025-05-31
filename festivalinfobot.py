@@ -94,10 +94,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
         )
         
         for index, guild in enumerate(sorted_guilds, start=1):
-            join_date = (
-                guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
-                if guild.me.joined_at else "Unknown"
-            )
+            join_date = "Unknown"
+            if guild.me:
+                if guild.me.joined_at:
+                    join_date = guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
+
             logging.info(
                 ' '.join([str(index).ljust(5),
                     guild.name.ljust(30), 
