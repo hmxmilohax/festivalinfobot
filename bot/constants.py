@@ -404,6 +404,22 @@ class AllTimeLBType:
     def __str__(self) -> str:
         return f"AllTimeLBType({self.english=}, {self.code=})".replace('self.', '')
 
+class KeyType:
+    def __init__(self, english:str = "A", code: str = 'A') -> None:
+        self.english = english
+        self.code = code
+
+    def __str__(self) -> str:
+        return f"KeyType({self.english=}, {self.code=})".replace('self.', '')
+        
+class ModeType:
+    def __init__(self, english:str = "Major", code: str = 'Major') -> None:
+        self.english = english
+        self.code = code
+
+    def __str__(self) -> str:
+        return f"ModeType({self.english=}, {self.code=})".replace('self.', '')
+
 class Instruments(enum.Enum):
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS")
@@ -449,6 +465,44 @@ class AllTimeLBTypes(enum.Enum):
     BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
     BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
     BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)
+    
+class KeyTypes(enum.Enum):
+    A =         KeyType(english="A", code="A")
+    BbASharp =  KeyType(english="A# / B♭", code="Bb")
+    B =         KeyType(english="B", code="B")
+    C =         KeyType(english="C", code="C")
+    DbCSharp =  KeyType(english="C# / D♭", code="Db")
+    D =         KeyType(english="D", code="D")
+    EbDSharp =  KeyType(english="D# / E♭", code="Eb")
+    E =         KeyType(english="E", code="E")
+    F =         KeyType(english="F", code="F")
+    GbFSharp =  KeyType(english="F# / G♭", code="Gb")
+    G =         KeyType(english="G", code="G")
+    AbGSharp =  KeyType(english="G# / A♭", code="Ab")
+
+    # The @classmethod decorator just works!
+    @classmethod
+    def getall(self) -> list[KeyType]:
+        return [self.A.value,
+            self.BbASharp.value,
+            self.B.value,
+            self.C.value,
+            self.DbCSharp.value,
+            self.D.value,
+            self.EbDSharp.value,
+            self.E.value,
+            self.F.value,
+            self.GbFSharp.value,
+            self.G.value,
+            self.AbGSharp.value]
+    
+class ModeTypes(enum.Enum):
+    Major = ModeType(english="Major", code="Major")
+    Minor = ModeType(english="Minor", code="Minor")
+
+    @classmethod
+    def getall(self) -> list[ModeType]:
+        return [self.Major.value, self.Minor.value]
 
 def get_jam_tracks():
     content_url = CONTENT_API

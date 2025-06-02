@@ -148,7 +148,13 @@ class JamTrackHandler:
 
     def get_jam_tracks(self):
         return constants.get_jam_tracks()
-        
+
+    def get_matching_key_mode_jam_tracks(self, tracks:list, key:str, mode:str):
+        exact_matches = []
+
+        exact_matches.extend([track for track in tracks if track['track']['mk'] == key and track['track']['mm'] == mode])
+        return exact_matches
+
 class SearchCommandHandler:
     def __init__(self, bot: commands.Bot) -> None:
         self.jam_track_handler = JamTrackHandler()

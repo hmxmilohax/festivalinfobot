@@ -36,6 +36,7 @@ from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
+from bot.mix import MixHandler
 from bot.groups.oauthmanager import OAuthManager
 
 import traceback
@@ -196,6 +197,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
+        self.mix_handler = MixHandler()
 
         self.setup_commands()
 
@@ -348,6 +350,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         filter_group = app_commands.Group(name="filter", description="Tracklist commands", parent=tracklist_group)
 
+        mix_group = app_commands.Group(name="mix", description="Mix commands", parent=tracklist_group)
+
         @tracklist_group.command(name="all", description="Browse the full list of available Jam Tracks.")
         async def tracklist_command(interaction: discord.Interaction):
             await self.tracklist_handler.handle_interaction(interaction=interaction)
@@ -356,6 +360,26 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(artist = "A search query to use in the song name.")
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
+
+        @mix_group.command(name="key", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
+        @app_commands.describe(key = "The key of the Jam Track you're currently mixing with.")
+        @app_commands.describe(mode = "The mode of the Jam Track you're currently mixing with.")
+        @app_commands.choices(
+            key=[
+                app_commands.Choice(name=kt.value.english, value=kt.value.code) for kt in constants.KeyTypes.__members__.values()
+            ]
+        )
+        async def tracklist_command(interaction: discord.Interaction, key: app_commands.Choice[str], mode:constants.ModeTypes):
+            rkey: constants.KeyTypes = None
+            values = constants.KeyTypes.__members__.values()
+            rkey = discord.utils.find(lambda v: v.value.code == key.value, values)
+
+            await self.mix_handler.handle_keymode_match(interaction=interaction, key=rkey, mode=mode)
+
+        @mix_group.command(name="song", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
+        @app_commands.describe(song = "The Jam Track you'd like to mix with.")
+        async def tracklist_command(interaction: discord.Interaction, song:str):
+            await self.mix_handler.handle_keymode_match_from_song(interaction=interaction, song=song)
 
         self.tree.add_command(tracklist_group)
 
