@@ -362,8 +362,17 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @filter_group.command(name="mix", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
         @app_commands.describe(key = "The key of the Jam Track you're currently mixing with.")
         @app_commands.describe(mode = "The mode of the Jam Track you're currently mixing with.")
-        async def tracklist_command(interaction: discord.Interaction, key:constants.KeyTypes, mode:constants.ModeTypes):
-            await self.mix_handler.handle_keymode_match(interaction=interaction, key=key, mode=mode)
+        @app_commands.choices(
+            key=[
+                app_commands.Choice(name=kt.value.english, value=kt.value.code) for kt in constants.KeyTypes.__members__.values()
+            ]
+        )
+        async def tracklist_command(interaction: discord.Interaction, key: app_commands.Choice[str], mode:constants.ModeTypes):
+            rkey: constants.KeyTypes = None
+            values = constants.KeyTypes.__members__.values()
+            rkey = discord.utils.find(lambda v: v.value.code == key.value, values)
+
+            await self.mix_handler.handle_keymode_match(interaction=interaction, key=rkey, mode=mode)
 
         @filter_group.command(name="mixwithsong", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
         @app_commands.describe(song = "The Jam Track you'd like to mix with.")
