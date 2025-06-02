@@ -79,7 +79,7 @@ class MixHandler():
         
         track = matched_tracks[0] # By default, select the first track searched for
 
-        chosen_key = constants.KeyTypes[track["track"]["mk"]].value
+        chosen_key = discord.utils.find(lambda k: k.value.code == track["track"]["mk"], constants.KeyTypes.__members__.values())
         chosen_mode = constants.ModeTypes[track["track"]["mm"]].value
 
         matched_tracks = self.jam_track_handler.get_matching_key_mode_jam_tracks(track_list, chosen_key.code, chosen_mode.code)
