@@ -41,7 +41,7 @@ class JamTrackHandler:
             'cowabunga': ['streetsignite'],
             'kog': ['streetsignite'],
             'one': ['one'],
-            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza'],
+            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza', 'livinlavidaloca'],
             '🥦': ['broccoli'],
             '🐦': ['freebird']
         }
