@@ -350,6 +350,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         filter_group = app_commands.Group(name="filter", description="Tracklist commands", parent=tracklist_group)
 
+        mix_group = app_commands.Group(name="mix", description="Mix commands", parent=tracklist_group)
+
         @tracklist_group.command(name="all", description="Browse the full list of available Jam Tracks.")
         async def tracklist_command(interaction: discord.Interaction):
             await self.tracklist_handler.handle_interaction(interaction=interaction)
@@ -359,7 +361,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
 
-        @filter_group.command(name="mix", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
+        @mix_group.command(name="key", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
         @app_commands.describe(key = "The key of the Jam Track you're currently mixing with.")
         @app_commands.describe(mode = "The mode of the Jam Track you're currently mixing with.")
         @app_commands.choices(
@@ -374,7 +376,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             await self.mix_handler.handle_keymode_match(interaction=interaction, key=rkey, mode=mode)
 
-        @filter_group.command(name="mixwithsong", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
+        @mix_group.command(name="song", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
         @app_commands.describe(song = "The Jam Track you'd like to mix with.")
         async def tracklist_command(interaction: discord.Interaction, song:str):
             await self.mix_handler.handle_keymode_match_from_song(interaction=interaction, song=song)
