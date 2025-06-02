@@ -467,47 +467,34 @@ class AllTimeLBTypes(enum.Enum):
     BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)
     
 class KeyTypes(enum.Enum):
-    A = KeyType(english="A", code="A")
-    ASharp = KeyType(english="A#", code="Bb")
-    Bb = KeyType(english="B♭", code="Bb")
-    B = KeyType(english="B", code="B")
-    C = KeyType(english="C", code="C")
-    CSharp = KeyType(english="C#", code="Db")
-    Db = KeyType(english="D♭", code="Db")
-    D = KeyType(english="D", code="D")
-    DSharp = KeyType(english="D#", code="Eb")
-    Eb = KeyType(english="E♭", code="Eb")
-    E = KeyType(english="E", code="E")
-    ESharp = KeyType(english="E#", code="Fb")
-    Fb = KeyType(english="F♭", code="Fb")
-    F = KeyType(english="F", code="F")
-    FSharp = KeyType(english="F#", code="Gb")
-    Gb = KeyType(english="G♭", code="Gb")
-    G = KeyType(english="G", code="G")
-    GSharp = KeyType(english="G#", code="Ab")
-    Ab = KeyType(english="A♭", code="Ab")
+    A =         KeyType(english="A", code="A")
+    BbASharp =  KeyType(english="A# / B♭", code="Bb")
+    B =         KeyType(english="B", code="B")
+    C =         KeyType(english="C", code="C")
+    DbCSharp =  KeyType(english="C# / D♭", code="Db")
+    D =         KeyType(english="D", code="D")
+    EbDSharp =  KeyType(english="D# / E♭", code="Eb")
+    E =         KeyType(english="E", code="E")
+    F =         KeyType(english="F", code="F")
+    GbFSharp =  KeyType(english="F# / G♭", code="Gb")
+    G =         KeyType(english="G", code="G")
+    AbGSharp =  KeyType(english="G# / A♭", code="Ab")
 
     # The @classmethod decorator just works!
     @classmethod
     def getall(self) -> list[KeyType]:
-        return [self.A.value, 
-        self.ASharp.value, 
-        self.Bb.value, 
-        self.C.value, 
-        self.CSharp.value, 
-        self.Db.value, 
-        self.D.value, 
-        self.DSharp.value, 
-        self.Eb.value, 
-        self.E.value, 
-        self.ESharp.value, 
-        self.Fb.value, 
-        self.F.value, 
-        self.FSharp.value, 
-        self.Gb.value, 
-        self.G.value, 
-        self.GSharp.value, 
-        self.Ab.value]
+        return [self.A.value,
+            self.BbASharp.value,
+            self.B.value,
+            self.C.value,
+            self.DbCSharp.value,
+            self.D.value,
+            self.EbDSharp.value,
+            self.E.value,
+            self.F.value,
+            self.GbFSharp.value,
+            self.G.value,
+            self.AbGSharp.value]
     
 class ModeTypes(enum.Enum):
     Major = ModeType(english="Major", code="Major")
