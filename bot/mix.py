@@ -9,7 +9,7 @@ class MixHandler():
         pass
     
 
-    async def handle_embed(self, interaction: discord.Interaction, matched_tracks:list, key:str, mode:str, songName: str = '', was_song_search: bool = False):
+    async def handle_embed(self, interaction: discord.Interaction, matched_tracks:list, key:str, mode:str, songName: str = '', was_song_search: bool = False, songArtist: str = ''):
         if not matched_tracks or len(matched_tracks) == 0:
             if not was_song_search or not songName:
                 embed_description =f"No matching Jam Tracks found for {key} {mode}."
@@ -30,7 +30,7 @@ class MixHandler():
         if not was_song_search or not songName:
             embed_title =f"Matching Songs for {key} {mode}"
         else:
-            embed_title = f"Songs Matching {songName}"
+            embed_title = f"Songs Matching {songName} - {songArtist}"
             matched_tracks = list(filter(lambda track: track["track"]["tt"] != songName, matched_tracks))
 
         for i in range(0, len(matched_tracks), self.elements_per_page):
@@ -84,4 +84,4 @@ class MixHandler():
 
         matched_tracks = self.jam_track_handler.get_matching_key_mode_jam_tracks(track_list, chosen_key.code, chosen_mode.code)
 
-        await self.handle_embed(interaction=interaction, matched_tracks=matched_tracks, key=chosen_key.english, mode=chosen_mode.english, songName=track["track"]["tt"], was_song_search=True)
+        await self.handle_embed(interaction=interaction, matched_tracks=matched_tracks, key=chosen_key.english, mode=chosen_mode.english, songName=track["track"]["tt"], was_song_search=True, songArtist=track["track"]["an"])
