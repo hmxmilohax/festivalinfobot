@@ -27,3 +27,5 @@ logs
 .stfolder/
 ffmpeg.exe
 ffprobe.exe
+# virtual enviroment
+ft_venv/
