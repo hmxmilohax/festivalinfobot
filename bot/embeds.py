@@ -280,7 +280,7 @@ class SearchEmbedHandler:
 
             embed.add_field(
                 name="Last Modified Date changed", 
-                value=f"{old_date} -> {new_date}", 
+                value=f"{old_date} > {new_date}", 
                 inline=False
             )
 
