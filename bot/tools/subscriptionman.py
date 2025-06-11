@@ -24,7 +24,7 @@ class SubscriptionManager():
         await view.reply_to_initial(message)
 
 class SubscriptionsView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, timeout=30):
+    def __init__(self, bot: commands.Bot, timeout=180):
         super().__init__(timeout=timeout)
 
         self.message: discord.Message = None
