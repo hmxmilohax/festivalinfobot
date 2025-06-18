@@ -6,8 +6,6 @@ import aiosqlite
 import discord
 import asyncio
 
-from bot import constants
-
 # TERROR
 
 class JamTrackEvent(enum.Enum):

@@ -43,7 +43,8 @@ class JamTrackHandler:
             'one': ['one'],
             'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza', 'livinlavidaloca'],
             '🥦': ['broccoli'],
-            '🐦': ['freebird']
+            '🐦': ['freebird'],
+            'slts': ['smellsliketeenspirit']
         }
 
         if search_term in custom_results.keys():
@@ -167,13 +168,13 @@ class SearchCommandHandler:
         view: ResultsJamTracks
 
         if len(matched_tracks) > 25:
-            await interaction.edit_original_response(content="", embed=constants.common_error_embed("There are too many results. Please try another query, or use </tracklist filter artist:1287199873116143628>."))
+            await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"There are too many results. ({len(matched_tracks)}/25) Please try another query, or use </tracklist filter artist:1287199873116143628>."))
             return None
 
         async def selected(new_interaction: discord.Interaction):
             if new_interaction:
                 if new_interaction.user.id != interaction.user.id:
-                    await interaction.edit_original_response(content="", embed=constants.common_error_embed("This is not your session. Please start your own session."))
+                    await new_interaction.response.send_message("", embed=constants.common_error_embed("This is not your session. Please start your own session."), ephmeral=True)
                     return
 
                 await new_interaction.response.defer()
@@ -304,4 +305,4 @@ class ResultsJamTracksDropdown(discord.ui.Select):
         self.tracks = tracks
 
         options = [discord.SelectOption(label=track['track']['tt'], value=track['track']['sn'], description=track['track']['an']) for track in tracks]
-        super().__init__(placeholder="Select from results...", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=f"Select from results... ({len(tracks)} total)", min_values=1, max_values=1, options=options)

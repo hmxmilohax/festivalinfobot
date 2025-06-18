@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 import hashlib
 import json
@@ -49,6 +49,21 @@ EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
 
 SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
 
+SEASONS = {
+    1: 'evergreen',
+    2: 'season002',
+    3: 'season003',
+    4: 'season004',
+    5: 'season005',
+    6: 'season006',
+    7: 'season007',
+    8: 'season008',
+    9: 'season009'
+}
+SEASON_NUMBER = 9
+
+def get_season_lb_str(season: int = SEASON_NUMBER) -> str:
+    return SEASONS[season]
 
 # Files used to track songs
 SONGS_FILE = 'known_tracks.json'  # File to save known songs
@@ -623,3 +638,6 @@ def common_error_embed(text) -> discord.Embed:
 
 def common_success_embed(text) -> discord.Embed:
     return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")
+
+def tz():
+    return f'[`{datetime.now(timezone.utc).isoformat()}`]'

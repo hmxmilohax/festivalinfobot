@@ -84,9 +84,10 @@ class SearchEmbedHandler:
         embed.add_field(name="\n", value="", inline=False)
         embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
 
-        key = track.get('mk', 'Unknown') 
+        _key = track.get('mk', 'Unknown') 
         mode = track.get('mm', 'Unknown')
 
+        key = discord.utils.find(lambda v: v.value.code == _key, constants.KeyTypes.__members__.values()).value.english
         key = f"{key} {mode}"
 
         embed.add_field(name="Key", value=key, inline=True)
@@ -280,7 +281,7 @@ class SearchEmbedHandler:
 
             embed.add_field(
                 name="Last Modified Date changed", 
-                value=f"{old_date} -> {new_date}", 
+                value=f"{old_date} > {new_date}", 
                 inline=False
             )
 
