@@ -54,31 +54,31 @@ class StatusHandler():
             'Authorization': self.oauth.session_token
         })
 
-        epiclabs = f'https://fn-service-discovery-live-public.ogs.live.on.epicgames.com/api/v1/creator/page/63ba52bf92554227820f4dd0a8cc6845?playerId={self.oauth.account_id}&limit=100'
-        logging.debug(f'[GET] {epiclabs}')
+        # epiclabs = f'https://fn-service-discovery-live-public.ogs.live.on.epicgames.com/api/v1/creator/page/63ba52bf92554227820f4dd0a8cc6845?playerId={self.oauth.account_id}&limit=100'
+        # logging.debug(f'[GET] {epiclabs}')
 
-        epiclabsresponse = requests.get(epiclabs, headers={
-            'Authorization': self.oauth.session_token
-        })
+        # epiclabsresponse = requests.get(epiclabs, headers={
+        #     'Authorization': self.oauth.session_token
+        # })
 
         # print(epiclabsresponse.text)
 
-        epiclabsresponse.raise_for_status()
+        # epiclabsresponse.raise_for_status()
         response.raise_for_status()
 
         data = response.json()
-        datalabs = epiclabsresponse.json()
-        # jam_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_fmclubisland', data['links'])
+        # datalabs = epiclabsresponse.json()
+        jam_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_fmclubisland', data['links'])
         battle_stage = discord.utils.find(lambda p: p['linkCode'] == 'set_battlestage_playlists', data['links'])
         main_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_pilgrimquickplay', data['links'])
-        dance_with_sabrina = discord.utils.find(lambda p: p['linkCode'] == '4030-2345-0180', datalabs['links'])
+        # dance_with_sabrina = discord.utils.find(lambda p: p['linkCode'] == '4030-2345-0180', datalabs['links'])
 
-        total_ccu = battle_stage['globalCCU'] + main_stage['globalCCU'] + dance_with_sabrina['globalCCU']
+        total_ccu = battle_stage['globalCCU'] + main_stage['globalCCU'] + jam_stage['globalCCU']
 
         embed = discord.Embed(title="Fortnite Festival Active Players", color=0x8927A1)
         embed.add_field(name="Total", value=total_ccu, inline=False)
         # embed.add_field(name="Jam Stage", value=jam_stage['globalCCU'])
         embed.add_field(name="Battle Stage", value=battle_stage['globalCCU'])
         embed.add_field(name="Main Stage", value=main_stage['globalCCU'])
-        embed.add_field(name="Festival Jam Stage: Dance With Sabrina", value=dance_with_sabrina['globalCCU'])
+        embed.add_field(name="Jam Stage", value=jam_stage['globalCCU'])
         await interaction.edit_original_response(embed=embed)
