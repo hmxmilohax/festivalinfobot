@@ -57,9 +57,10 @@ SEASONS = {
     5: 'season005',
     6: 'season006',
     7: 'season007',
-    8: 'season008'
+    8: 'season008',
+    9: 'season009'
 }
-SEASON_NUMBER = 8
+SEASON_NUMBER = 9
 
 def get_season_lb_str(season: int = SEASON_NUMBER) -> str:
     return SEASONS[season]
