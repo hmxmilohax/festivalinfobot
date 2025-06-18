@@ -207,16 +207,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.run(DISCORD_TOKEN, log_handler=None)
 
     async def on_guild_join(self, guild: discord.Guild):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_guild_remove(self, guild: discord.Guild):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
         place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
         if interaction.guild:
             place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {place}")
+        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}")
 
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)

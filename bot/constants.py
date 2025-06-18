@@ -1,5 +1,5 @@
 from configparser import ConfigParser
-from datetime import datetime
+from datetime import datetime, timezone
 import enum
 import hashlib
 import json
@@ -628,3 +628,6 @@ def common_error_embed(text) -> discord.Embed:
 
 def common_success_embed(text) -> discord.Embed:
     return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")
+
+def tz():
+    return f'[`{datetime.now(timezone.utc).isoformat()}`]'
