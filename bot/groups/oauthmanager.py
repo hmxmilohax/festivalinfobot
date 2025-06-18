@@ -108,6 +108,9 @@ class OAuthManager:
 
     @property
     def session_token(self) -> str:
+        if self._access_token == None:
+            raise Exception("Festival Tracker is not ready yet! Please try again in a few moments.")
+
         payload = json.loads(base64.urlsafe_b64decode(self._access_token.split('.')[1]))
         ts_exp = payload['exp']
         # ts_exp = 0

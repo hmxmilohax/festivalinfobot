@@ -8,6 +8,7 @@ import os
 
 import discord
 import requests
+import secrets
 
 # Folder where local JSON files are stored
 LOCAL_JSON_FOLDER = "json/"
@@ -61,6 +62,11 @@ SEASONS = {
     9: 'season009'
 }
 SEASON_NUMBER = 9
+
+keyart_config = ConfigParser()
+keyart_config.read('bot/data/KeyArt/KeyArtOptions.ini')
+KEYART_FNAME: str = f"{keyart_config.get('keyart', 'fname')}.{keyart_config.get('keyart', 'ext')}"
+KEYART_PATH: str = f"bot/data/KeyArt/{KEYART_FNAME}"
 
 def get_season_lb_str(season: int = SEASON_NUMBER) -> str:
     return SEASONS[season]
@@ -641,3 +647,6 @@ def common_success_embed(text) -> discord.Embed:
 
 def tz():
     return f'[`{datetime.now(timezone.utc).isoformat()}`]'
+
+def rand_hex(from_str: str) -> str:
+    return secrets.token_hex(len(from_str) // 2)
