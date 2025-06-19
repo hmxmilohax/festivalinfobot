@@ -323,6 +323,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.send("Licensing is hard")
 
         @self.command()
+        async def weak(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/weak.png', filename="weak.png"))
+
+        @self.command()
+        async def ontonothing(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/ontonothing.jpg', filename="ontonothing.jpg"))
+
+        @self.command()
         async def about(ctx: commands.Context):
             await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
