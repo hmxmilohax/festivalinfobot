@@ -26,8 +26,7 @@ PREVIEW_FOLDER = "cache/previews/"
 if not os.path.exists(PREVIEW_FOLDER):
     os.makedirs(PREVIEW_FOLDER)
 
-# TODO: rename this folder to 'temp'
-TEMP_FOLDER = "out/"
+TEMP_FOLDER = "temp/"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
 
