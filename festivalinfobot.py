@@ -109,8 +109,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
             )
 
         logging.debug("Syncing slash command tree...")
-        await self.tree.sync()
-        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        # await self.tree.sync()
+        # await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
     
         if not self.activity_task.is_running():
             self.activity_task.start()
@@ -751,7 +751,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         await self.get_channel(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
 
-        logging.info("Cleared analytics list.")
+        # logging.info("Cleared analytics list.")
 
 
 bot = FestivalInfoBot()

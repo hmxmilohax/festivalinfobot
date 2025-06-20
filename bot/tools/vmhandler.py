@@ -22,6 +22,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
+from datetime import datetime, timezone
 from hashlib import md5
 import json
 import math
@@ -42,6 +43,7 @@ from pydub import AudioSegment
 from pydub import utils as pdutils
 import numpy as np
 import base64
+import bot.constants as constants
 
 from bot import constants
 
@@ -257,6 +259,8 @@ class PreviewAudioMgr:
         })
 
         logging.info(f'[{self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
+
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'[`{datetime.now(timezone.utc).isoformat()}`] Preview audio sent for {self.track["track"]["tt"]} ({self.interaction.user.id})')
 
         if not resp.ok:
             logging.error(resp.text)
