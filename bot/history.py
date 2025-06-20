@@ -441,15 +441,17 @@ class LoopCheckHandler():
         logging.info("Presence updated successfully.")
 
     async def handle_task(self):
+        logging.info("Checking for new songs...")
         tracks = self.jam_track_handler.get_jam_tracks()
 
         if not tracks:
             logging.error('Could not fetch tracks.')
             return
+        
+        for track in tracks:
+            self.midi_tools.save_chart(track['track']['mu'], decrypt=True, log=False)
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
-
-        logging.info("Checking for new songs...")
 
         try:
             sparks_tracks.main()
@@ -487,7 +489,7 @@ class LoopCheckHandler():
         start = datetime.now()
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels a total of {(len(new_songs) + len(modified_songs) + len(removed_songs)) * len(combined_channels)} messages")
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels")
 
         session_hashes_all = [session_hash]
 
