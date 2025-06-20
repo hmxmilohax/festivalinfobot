@@ -8,6 +8,7 @@ import os
 
 import discord
 import requests
+import secrets
 
 # Folder where local JSON files are stored
 LOCAL_JSON_FOLDER = "json/"
@@ -62,6 +63,11 @@ SEASONS = {
 }
 SEASON_NUMBER = 9
 
+keyart_config = ConfigParser()
+keyart_config.read('bot/data/KeyArt/KeyArtOptions.ini')
+KEYART_FNAME: str = f"{keyart_config.get('keyart', 'fname')}.{keyart_config.get('keyart', 'ext')}"
+KEYART_PATH: str = f"bot/data/KeyArt/{KEYART_FNAME}"
+
 def get_season_lb_str(season: int = SEASON_NUMBER) -> str:
     return SEASONS[season]
 
@@ -85,6 +91,16 @@ UP_EMOJI = '<:up:1349038214203179088>'
 DOWN_EMOJI = '<:down:1349038099447021680>'
 SEARCH_EMOJI = '<:search:1349038056006746162>'
 INFORMATION_EMOJI = '<:information:1349037772765139065>'
+
+LEAD_EMOJI = '<:guitar:1349038583125639261>'
+BASS_EMOJI = '<:bass:1349038611944837140>'
+DRUMS_EMOJI = '<:drums:1349038567502123128>'
+VOCALS_EMOJI = '<:vocals:1349038596841279539>'
+PRO_LEAD_EMOJI = '<:proguitar:1349038539517591606>'
+PRO_BASS_EMOJI = '<:probass:1349038554797310096>'
+PRO_DRUMS_EMOJI = '<:drums:1349038567502123128>'
+PRO_VOCALS_EMOJI = '<:vocals:1349038596841279539>'
+PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 
 EVENT_NAMES = {
     'added': "Track Added",
@@ -631,3 +647,6 @@ def common_success_embed(text) -> discord.Embed:
 
 def tz():
     return f'[`{datetime.now(timezone.utc).isoformat()}`]'
+
+def rand_hex(from_str: str) -> str:
+    return secrets.token_hex(len(from_str) // 2)

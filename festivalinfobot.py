@@ -240,10 +240,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await self.get_channel(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
 
             err_text: str = str(error)
-            err_text.replace(constants.SPARKS_MIDI_KEY, 'nothing to see here')
-            err_text.replace(constants.EPIC_ACCOUNT_ID, 'nothing to see here')
+            err_text = err_text.replace(constants.SPARKS_MIDI_KEY, constants.rand_hex(constants.SPARKS_MIDI_KEY))
+            err_text = err_text.replace(constants.EPIC_ACCOUNT_ID, constants.rand_hex(constants.EPIC_ACCOUNT_ID))
 
-            embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="Don't worry. This error has been reported.")
+            embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="This error has been reported.")
             embed.add_field(name="", value=f"```{str(err_text)}```")
             embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
 
