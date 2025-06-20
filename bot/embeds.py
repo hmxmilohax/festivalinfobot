@@ -107,13 +107,13 @@ class SearchEmbedHandler:
         embed.add_field(name="Item ID", value=track.get('ti').replace('SparksSong:', ''), inline=True)
         
         # Add Song Rating
-        rating = track.get('ar', 'N/A')
+        rating = track.get('ar')
         if rating == 'T':
             rating_description = 'Teen'
         elif rating == 'E':
             rating_description = 'Everyone'
         else:
-            rating_description = rating
+            rating_description = f'N/A [{rating}]'
 
         embed.add_field(name="Rating", value=rating_description, inline=True)
         
@@ -184,7 +184,11 @@ class SearchEmbedHandler:
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
 
-        embed.set_footer(text=f"Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
+        rating_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/ESRB_2013_Rating_Pending.svg/800px-ESRB_2013_Rating_Pending.svg.png"
+        if rating:
+            rating_url = f"https://www.globalratings.com/images/ESRB_{rating}_68.png"
+
+        embed.set_footer(text=f"Festival Tracker", icon_url=rating_url)
         
         embed.set_thumbnail(url=track['au'])
         

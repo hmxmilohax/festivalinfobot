@@ -323,17 +323,17 @@ class ProVocalsHandler:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
             return
 
-        all_midi = [f'dat_{track['track']['sn']}_{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
+        all_midi = [f'{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
         missing_midi = []
 
         songs_with_pro_vocals = 0
         songs_without_pro_vocals = 0
 
         for midi in all_midi:
-            if not os.path.exists(constants.LOCAL_MIDI_FOLDER + midi):
+            if not os.path.exists(constants.MIDI_FOLDER + midi):
                 missing_midi.append(midi)
             else:
-                mid = open(constants.LOCAL_MIDI_FOLDER + midi, 'rb')
+                mid = open(constants.MIDI_FOLDER + midi, 'rb')
                 pro_vocals_track = b'PRO VOCALS' in mid.read()
                 mid.close()
                 if pro_vocals_track:

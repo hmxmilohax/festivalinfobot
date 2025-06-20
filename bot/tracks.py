@@ -199,7 +199,7 @@ class SearchCommandHandler:
         return await selected(None)
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
-        with open('bot/imacat.json', 'r') as imacat_file:
+        with open('bot/imacat/imacat.json', 'r') as imacat_file:
             imacat_data = json.load(imacat_file)
         embed = self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
@@ -212,7 +212,7 @@ class SearchCommandHandler:
             preview_audio_mgr = PreviewAudioMgr(self.bot, imacat_data, interaction)
             await preview_audio_mgr.reply_to_interaction_message()
 
-        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview", thinking=True, emoji="🔊")])
         view.message = message
         await message.edit(embed=embed, view=view)
 

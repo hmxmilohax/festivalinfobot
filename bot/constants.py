@@ -14,17 +14,21 @@ LOCAL_JSON_FOLDER = "json/"
 if not os.path.exists(LOCAL_JSON_FOLDER):
     os.makedirs(LOCAL_JSON_FOLDER)
 
-LOCAL_MIDI_FOLDER = "midi_files/"
-if not os.path.exists(LOCAL_MIDI_FOLDER):
-    os.makedirs(LOCAL_MIDI_FOLDER)
+CACHE_FOLDER = "cache/"
+if not os.path.exists(CACHE_FOLDER):
+    os.makedirs(CACHE_FOLDER)
 
-TEMP_FOLDER = "out/"
+MIDI_FOLDER = "cache/midi/"
+if not os.path.exists(MIDI_FOLDER):
+    os.makedirs(MIDI_FOLDER)
+
+PREVIEW_FOLDER = "cache/previews/"
+if not os.path.exists(PREVIEW_FOLDER):
+    os.makedirs(PREVIEW_FOLDER)
+
+TEMP_FOLDER = "temp/"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
-
-BACKUP_FOLDER = 'backups/'
-if not os.path.exists(BACKUP_FOLDER):
-    os.makedirs(BACKUP_FOLDER)
 
 config = ConfigParser()
 config.read('config.ini')
