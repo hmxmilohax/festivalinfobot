@@ -109,6 +109,7 @@ class OAuthManager:
     @property
     def session_token(self) -> str:
         payload = json.loads(base64.urlsafe_b64decode(self._access_token.split('.')[1]))
+        # TS PMO
         ts_exp = payload['exp']
         # ts_exp = 0
         date_exp = datetime.datetime.fromtimestamp(ts_exp, tz=datetime.timezone.utc)
