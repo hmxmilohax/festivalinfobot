@@ -24,7 +24,7 @@ class SubscriptionManager():
         await view.reply_to_initial(message)
 
 class SubscriptionsView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, timeout=30):
+    def __init__(self, bot: commands.Bot, timeout=180):
         super().__init__(timeout=timeout)
 
         self.message: discord.Message = None
@@ -61,7 +61,12 @@ class SubscriptionTypesDropdown(discord.ui.Select):
                 await interaction.response.send_message(embed=constants.common_error_embed("You are not in a server!"), ephemeral=True)
                 return
             
-            if not message.guild.get_member(interaction.user.id).guild_permissions.administrator:
+            member = await message.guild.fetch_member(interaction.user.id)
+            if not member:
+                await interaction.response.send_message(embed=constants.common_error_embed("We are unable to check your permissions in this server. Due to this, you are currently unable to manage Server Subscriptions."), ephemeral=True)
+                return
+
+            if not member.guild_permissions.administrator:
                 await interaction.response.send_message(embed=constants.common_error_embed("You do not have permission to manage subscriptions in this server! You need Administrator permissions."), ephemeral=True)
                 return
 
@@ -111,6 +116,9 @@ class ServerSubscriptionsView(discord.ui.View):
 
         async def on_unsubscribe_btn(interaction: discord.Interaction):
             await interaction.response.defer()
+
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Guild {interaction.guild.id} unsubscribed')
+
             await self.bot.config._guild_remove(interaction.guild)
             new_view = ServerSubscriptionsView(self.bot)
             await new_view.reply_to_initial(self.message)
@@ -176,8 +184,10 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
 
         text = '[placeholder]'
         if not self.sub_user:
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} subscribed')
             text = 'You have been subscribed; changes saved successfully'
         elif len(event_types) == 0:
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} unsubscribed')
             text = 'You have been unsubscribed; changes saved successfully'
         else:
             text = 'Changes saved successfully'
@@ -358,6 +368,8 @@ class SubscriptionSetupConfirmationView(discord.ui.View):
         await view.reply_to_initial(self.message)
 
     async def reply_to_initial(self, message: discord.Message):
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} subscribed')
+
         await self.bot.config._channel_add(self.channel, self.event_types, self.role_ids)
         embed = discord.Embed(title=f"Server Subscriptions", description=f"{self.channel.mention} has been subscribed successfully.", color=0x8927A1)
         await message.edit(embed=embed, view=self)
@@ -379,6 +391,8 @@ class GuildManageChannelView(discord.ui.View):
 
     @discord.ui.button(label="Unsubscribe", style=discord.ButtonStyle.danger)
     async def on_unsubscribe_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} unsubscribed')
+
         await self.bot.config._channel_remove(self.channel)
         view = ServerSubscriptionsView(self.bot)
         await interaction.response.defer()

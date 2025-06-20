@@ -287,10 +287,10 @@ class HistoryHandler():
                     elif pk == 'in':
                             # Report changes in difficulty fields
                             for value, name in constants.DIFFICULTY_COMPARISONS.items():
-                                if previous_property.get(value, 0) != pv.get(value, 0):
+                                if previous_property.get(value, -1) != pv.get(value, -1):
                                     embed.add_field(
                                         name=f"{name} difficulty changed", 
-                                        value=f"```Old: \"{constants.generate_difficulty_bar(previous_property.get(value, 0))}\"\nNew: \"{constants.generate_difficulty_bar(pv.get(value, 0))}\"```", 
+                                        value=f"```Old: \"{constants.generate_difficulty_bar(previous_property.get(value, -1))}\"\nNew: \"{constants.generate_difficulty_bar(pv.get(value, -1))}\"```", 
                                         inline=False
                                     )
 

@@ -45,6 +45,8 @@ import numpy as np
 import base64
 import bot.constants as constants
 
+from bot import constants
+
 class PreviewAudioMgr:
     def __init__(self, bot: discord.Client, track: any, interaction: discord.Interaction):
         self.bot = bot
@@ -254,3 +256,5 @@ class PreviewAudioMgr:
 
         if not resp.ok:
             logging.error(resp.text)
+
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f"{constants.tz()} Voice Message for {self.track['track']['sn']} sent to {self.interaction.user.id}")

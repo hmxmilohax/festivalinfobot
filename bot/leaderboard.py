@@ -779,7 +779,7 @@ class LeaderboardCommandHandler:
         # Use the first matched track
         matched_track = matched_tracks[0]
 
-        view = LeaderboardPaginatorView(matched_track['track']['su'], 'season008', chosen_instrument, interaction.user.id, self.bot.oauth_manager, matched_track)
+        view = LeaderboardPaginatorView(matched_track['track']['su'], constants.get_season_lb_str(), chosen_instrument, interaction.user.id, self.bot.oauth_manager, matched_track)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
     async def handle_band_interaction(self, interaction: discord.Interaction, song:str, band_type:constants.BandTypes):
@@ -802,7 +802,7 @@ class LeaderboardCommandHandler:
 
         matched_track = matched_tracks[0]
 
-        view = BandLeaderboardView(matched_track['track']['su'], 'season008', chosen_band_type, interaction.user.id, oauth, matched_track)
+        view = BandLeaderboardView(matched_track['track']['su'], constants.get_season_lb_str(), chosen_band_type, interaction.user.id, oauth, matched_track)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
     async def handle_alltime_interaction(self, interaction: discord.Interaction, song: str, type: constants.AllTimeLBTypes):
@@ -822,5 +822,5 @@ class LeaderboardCommandHandler:
         await interaction.response.defer() # Makes the bot say Thinking...
         matched_track = matched_tracks[0]
 
-        view = AllTimeLeaderboardView(matched_track['track']['su'], 'season008', chosen_instrument, interaction.user.id, oauth, matched_track)
+        view = AllTimeLeaderboardView(matched_track['track']['su'], constants.get_season_lb_str(), chosen_instrument, interaction.user.id, oauth, matched_track)
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)

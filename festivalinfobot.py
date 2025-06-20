@@ -35,6 +35,8 @@ from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
+from bot.graph import GraphCommandsHandler
+from bot.mix import MixHandler
 from bot.groups.oauthmanager import OAuthManager
 
 import traceback
@@ -93,10 +95,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
         )
         
         for index, guild in enumerate(sorted_guilds, start=1):
-            join_date = (
-                guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
-                if guild.me.joined_at else "Unknown"
-            )
+            join_date = "Unknown"
+            if guild.me:
+                if guild.me.joined_at:
+                    join_date = guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
+
             logging.info(
                 ' '.join([str(index).ljust(5),
                     guild.name.ljust(30), 
@@ -194,6 +197,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
+        self.mix_handler = MixHandler()
 
         self.setup_commands()
 
@@ -203,16 +207,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.run(DISCORD_TOKEN, log_handler=None)
 
     async def on_guild_join(self, guild: discord.Guild):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_guild_remove(self, guild: discord.Guild):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
         place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
         if interaction.guild:
             place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
-        await self.get_channel(constants.LOG_CHANNEL).send(f"[`{datetime.now(timezone.utc).isoformat()}`] `/{command.qualified_name}` invoked in {place}")
+        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}")
 
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)
@@ -287,6 +291,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
 
+        @self.command(name="kill")
+        async def kill_command(ctx: commands.Context):
+            if not (ctx.author.id in constants.BOT_OWNERS):
+                return
+            
+            await ctx.message.add_reaction("💀")
+
+            # absolutely kills the bot
+            sys.exit(0)
+
         @self.command()
         async def gitpull(ctx: commands.Context):
             if not (ctx.author.id in constants.BOT_OWNERS):
@@ -307,6 +321,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @self.command()
         async def licensing(ctx: commands.Context):
             await ctx.send("Licensing is hard")
+
+        @self.command()
+        async def weak(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/weak.png', filename="weak.png"))
+
+        @self.command()
+        async def ontonothing(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/ontonothing.jpg', filename="ontonothing.jpg"))
 
         @self.command()
         async def about(ctx: commands.Context):
@@ -336,6 +358,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         filter_group = app_commands.Group(name="filter", description="Tracklist commands", parent=tracklist_group)
 
+        mix_group = app_commands.Group(name="mix", description="Mix commands", parent=tracklist_group)
+
         @tracklist_group.command(name="all", description="Browse the full list of available Jam Tracks.")
         async def tracklist_command(interaction: discord.Interaction):
             await self.tracklist_handler.handle_interaction(interaction=interaction)
@@ -344,6 +368,26 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(artist = "A search query to use in the song name.")
         async def tracklist_command(interaction: discord.Interaction, artist:str):
             await self.tracklist_handler.handle_artist_interaction(interaction=interaction, artist=artist)
+
+        @mix_group.command(name="key", description="Browse the list of Jam Tracks that match a key and mode to create a seamless mix.")
+        @app_commands.describe(key = "The key of the Jam Track you're currently mixing with.")
+        @app_commands.describe(mode = "The mode of the Jam Track you're currently mixing with.")
+        @app_commands.choices(
+            key=[
+                app_commands.Choice(name=kt.value.english, value=kt.value.code) for kt in constants.KeyTypes.__members__.values()
+            ]
+        )
+        async def tracklist_command(interaction: discord.Interaction, key: app_commands.Choice[str], mode:constants.ModeTypes):
+            rkey: constants.KeyTypes = None
+            values = constants.KeyTypes.__members__.values()
+            rkey = discord.utils.find(lambda v: v.value.code == key.value, values)
+
+            await self.mix_handler.handle_keymode_match(interaction=interaction, key=rkey, mode=mode)
+
+        @mix_group.command(name="song", description="Browse the list of Jam Tracks that match a key/mode of a specific song to create a seamless mix.")
+        @app_commands.describe(song = "The Jam Track you'd like to mix with.")
+        async def tracklist_command(interaction: discord.Interaction, song:str):
+            await self.mix_handler.handle_keymode_match_from_song(interaction=interaction, song=song)
 
         self.tree.add_command(tracklist_group)
 
