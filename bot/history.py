@@ -436,16 +436,20 @@ class LoopCheckHandler():
         await self.bot.change_presence(activity=activity, status=discord.Status.online)
 
     async def handle_task(self):
+        logging.info("Checking for new songs...")
         tracks = self.jam_track_handler.get_jam_tracks()
 
         if not tracks:
             logging.error('Could not fetch tracks.')
             return
+        
+        for track in tracks:
+            self.midi_tools.save_chart(track['track']['mu'], decrypt=True, log=False)
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
 
         # logging.info("Checking for new songs...")
-
+        
         try:
             archiving.main()
         except Exception as e:

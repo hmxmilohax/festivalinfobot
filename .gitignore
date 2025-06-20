@@ -13,6 +13,8 @@ fnf-midcrypt.py
 out
 json
 midi_files
+cache
+temp
 # pycache & vscode
 **/__pycache__
 **/.vscode

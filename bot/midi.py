@@ -21,18 +21,25 @@ class MidiArchiveTools:
         decrypted_data = cipher.decrypt(dat_bytes)
         return decrypted_data
 
-    def save_chart(self, chart_url:str, decrypt:bool = True) -> str:
+    def save_chart(self, chart_url:str, decrypt:bool = True, log: bool = True) -> str:
         fname = chart_url.split('/')[-1].split('.')[0]
         midiname = f"{fname}.mid"
         encname = f"{fname}.dat"
-        local_path = os.path.join(constants.LOCAL_MIDI_FOLDER, midiname)
-        local_enc_path = os.path.join(constants.LOCAL_MIDI_FOLDER, encname)
+        local_path = os.path.join(constants.MIDI_FOLDER, midiname)
+        local_enc_path = os.path.join(constants.MIDI_FOLDER, encname)
 
         if os.path.exists(local_path):
-            logging.info(f"File {chart_url} already exists, using local copy.")
+            
+            if log:
+                logging.info(f"File {chart_url} already exists, using local copy.")
+
             return local_path
+        
         elif os.path.exists(local_enc_path):
-            logging.info(f"File [encrypted] {chart_url} already exists, using local copy.")
+
+            if log:
+                logging.info(f"File [encrypted] {chart_url} already exists, using local copy.")
+
             open(local_path, 'wb').write(self.decrypt_bytes(open(local_enc_path, 'rb').read()))
             return local_path
         else:

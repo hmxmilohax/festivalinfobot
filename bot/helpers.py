@@ -330,10 +330,10 @@ class ProVocalsHandler:
         songs_without_pro_vocals = 0
 
         for midi in all_midi:
-            if not os.path.exists(constants.LOCAL_MIDI_FOLDER + midi):
+            if not os.path.exists(constants.MIDI_FOLDER + midi):
                 missing_midi.append(midi)
             else:
-                mid = open(constants.LOCAL_MIDI_FOLDER + midi, 'rb')
+                mid = open(constants.MIDI_FOLDER + midi, 'rb')
                 pro_vocals_track = b'PRO VOCALS' in mid.read()
                 mid.close()
                 if pro_vocals_track:
