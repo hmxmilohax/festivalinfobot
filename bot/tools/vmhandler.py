@@ -57,7 +57,7 @@ class PreviewAudioMgr:
         quicksilver_data = json.loads(qi)
         self.pid = quicksilver_data['pid']
 
-        output_path = f'out/AUD_STREAMID_{self.pid}/preview.ogg'
+        output_path = f'{constants.PREVIEW_FOLDER}{self.pid}/preview.ogg'
         if not os.path.exists(output_path):
             mpd = self.acquire_mpegdash_playlist(quicksilver_data)
             master_audio_path = self.download_mpd_playlist(mpd)
@@ -110,7 +110,7 @@ class PreviewAudioMgr:
         segment_template = representation['SegmentTemplate']['@media']
         segment_start = int(representation['SegmentTemplate']['@startNumber'])
 
-        output = f'out/{self.hash}_'
+        output = f'out/streaming_{self.hash}_'
         init_file = init_template.replace('$RepresentationID$', str(repr_id))
         init_path = output + init_file
         init_url = base_url + init_file
@@ -152,7 +152,7 @@ class PreviewAudioMgr:
         return master_file
     
     def convert_to_ogg(self, master_audio_path):
-        output_path = f'out/AUD_STREAMID_{self.pid}'
+        output_path = f'{constants.PREVIEW_FOLDER}{self.pid}'
         os.makedirs(output_path)
         output_path += '/preview.ogg'
 
@@ -170,13 +170,17 @@ class PreviewAudioMgr:
         subprocess.run(ffmpeg_command)
         return output_path
 
-    def get_waveform_bytearray(self) -> bytearray:
+    def get_waveform_bytearray(self) -> np.uint8:
         AudioSegment.converter = self._get_ffmpeg_path()
 
         def override_prober() -> str:
             return self._get_ffprobe_path()
         
         pdutils.get_prober_name = override_prober
+
+        if os.path.exists(self.output_path.replace('preview.ogg', 'waveform.dat')):
+            with open(self.output_path.replace('preview.ogg', 'waveform.dat'), 'rb') as f:
+                return np.frombuffer(f.read(), dtype=np.uint8)
 
         audio = AudioSegment.from_file(self.output_path, format="ogg")
         audio.converter = self._get_ffmpeg_path()
@@ -194,6 +198,10 @@ class PreviewAudioMgr:
 
         # Scale to 0-255
         byte_array = np.uint8((downsampled + 1.0) * 127.5)
+
+        # Cache the waveform bytearray
+        with open(self.output_path.replace('preview.ogg', 'waveform.dat'), 'wb') as f:
+            f.write(byte_array.tobytes())
 
         return byte_array
 

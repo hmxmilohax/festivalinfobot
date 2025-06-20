@@ -22,6 +22,11 @@ MIDI_FOLDER = "cache/midi/"
 if not os.path.exists(MIDI_FOLDER):
     os.makedirs(MIDI_FOLDER)
 
+PREVIEW_FOLDER = "cache/previews/"
+if not os.path.exists(PREVIEW_FOLDER):
+    os.makedirs(PREVIEW_FOLDER)
+
+# TODO: rename this folder to 'temp'
 TEMP_FOLDER = "out/"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
