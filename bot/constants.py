@@ -31,10 +31,6 @@ TEMP_FOLDER = "out/"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
 
-BACKUP_FOLDER = 'backups/'
-if not os.path.exists(BACKUP_FOLDER):
-    os.makedirs(BACKUP_FOLDER)
-
 config = ConfigParser()
 config.read('config.ini')
 BOT_OWNERS: list[int] = [int(uid) for uid in config.get('bot', 'bot_owners', fallback="").split(', ')]
