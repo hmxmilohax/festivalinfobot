@@ -331,6 +331,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.send(file=discord.File('bot/data/EasterEgg/ontonothing.jpg', filename="ontonothing.jpg"))
 
         @self.command()
+        async def miku(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/miku.png', filename="miku.png"))
+
+        @self.command()
         async def about(ctx: commands.Context):
             await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
