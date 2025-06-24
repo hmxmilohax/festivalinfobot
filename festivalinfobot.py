@@ -40,6 +40,7 @@ from bot.mix import MixHandler
 from bot.groups.oauthmanager import OAuthManager
 
 import traceback
+import hashlib
 
 class FestivalInfoBot(commands.AutoShardedBot):
     async def setup_hook(self):
@@ -108,9 +109,34 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 ])
             )
 
-        logging.debug("Syncing slash command tree...")
-        await self.tree.sync()
-        await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+        if not os.path.exists(f'{constants.CACHE_FOLDER}CommandTree.dat'):
+            open(f'{constants.CACHE_FOLDER}CommandTree.dat', 'wb').write(b'')
+
+        if not os.path.exists(f'{constants.CACHE_FOLDER}CommandTreeTestGuild.dat'):
+            open(f'{constants.CACHE_FOLDER}CommandTreeTestGuild.dat', 'wb').write(b'')
+
+        command_tree_hash = open(f'{constants.CACHE_FOLDER}CommandTree.dat', 'rb').read().hex()
+        tree_commands_payload = [cmd.to_dict(tree=self.tree) for cmd in self.tree._get_all_commands()]
+        tree_commands_hash = hashlib.sha256(json.dumps(tree_commands_payload, indent=0).encode('utf-8')).hexdigest()
+
+        logging.debug(f'{command_tree_hash} | {tree_commands_hash}')
+
+        if command_tree_hash != tree_commands_hash:
+            logging.debug("Syncing slash command tree...")
+            await self.tree.sync()
+
+        command_tree_hash = open(f'{constants.CACHE_FOLDER}CommandTreeTestGuild.dat', 'rb').read().hex()
+        tree_commands_payload = [cmd.to_dict(tree=self.tree) for cmd in self.tree._get_all_commands(guild=discord.Object(constants.TEST_GUILD))]
+        tree_commands_hash_test = hashlib.sha256(json.dumps(tree_commands_payload, indent=0).encode('utf-8')).hexdigest()
+
+        logging.debug(f'{command_tree_hash} | {tree_commands_hash_test}')
+
+        if command_tree_hash != tree_commands_hash_test:
+            logging.debug("Syncing slash command tree... [test guild]")
+            await self.tree.sync(guild=discord.Object(constants.TEST_GUILD)) # this wasted 15 minutes of brain processing
+
+        open(f'{constants.CACHE_FOLDER}CommandTree.dat', 'wb').write(bytes.fromhex(tree_commands_hash))
+        open(f'{constants.CACHE_FOLDER}CommandTreeTestGuild.dat', 'wb').write(bytes.fromhex(tree_commands_hash_test))
     
         if not self.activity_task.is_running():
             self.activity_task.start()
@@ -120,33 +146,43 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         await self.oauth_manager.create_session()
 
-        logging.debug("on_ready finished!")
-
         uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
-        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
 
         restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
         if restart_arg:
             ids = restart_arg.split(':')
             msg_id = ids[1]
             chn_id = ids[2]
-            await self.get_channel(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
+            await self.get_partial_messageable(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
 
         self._connection.parsers['GUILD_MEMBERS_CHUNK'] = self.custom_parse_guild_members_chunk
         logging.debug("Guilds chunking...")
+
+        total_guilds_chunked = 0
         guild_chunk_start_time = datetime.now()
+        self.is_done_chunking = False
 
         for guild in self.guilds:
             if not guild.chunked:
                 await guild.chunk()
+                total_guilds_chunked += 1
 
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
-        logging.info(f"Guilds chunked in {guild_chunk_end_time.seconds}s")
-        await self.get_channel(constants.LOG_CHANNEL).send(content=f"Chunked guilds in in {guild_chunk_end_time.seconds}s")
+        logging.info(f"{total_guilds_chunked} guilds chunked in {guild_chunk_end_time.seconds}s")
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"{constants.tz()} Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
         self.is_done_chunking = True
 
         if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
             self.check_new_songs_task.start()
+
+        logging.debug("on_ready finished!")
+
+    async def on_shard_connect(self, shard_id: int):
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} connected")
+
+    async def on_shard_disconnect(self, shard_id: int):
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} disconnected")        
     
     def __init__(self):
         # Load configuration from config.ini
@@ -158,6 +194,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.config : Config = Config()
         self.suggestions_enabled = True
         self.is_done_chunking = False
+        self.last_analytic: Optional[datetime] = None
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -181,7 +218,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
         prefix = 'ft'
         if self.DEVELOPER: prefix = 'ftdev'
 
+        starting = discord.Game(name="booting up...")
+
         super().__init__(
+            activity=starting,
             command_prefix=commands.when_mentioned_or(f'{prefix}!'),
             help_command=None,
             intents=intents,
@@ -207,16 +247,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.run(DISCORD_TOKEN, log_handler=None)
 
     async def on_guild_join(self, guild: discord.Guild):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_guild_remove(self, guild: discord.Guild):
-        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
         place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
         if interaction.guild:
             place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
-        await self.get_channel(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}")
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}")
 
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)
@@ -236,8 +276,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 exc_text += f'\n- Command: /{command.qualified_name}'
             onetry = ''.join(traceback.format_exception(error))
 
-            await self.get_channel(constants.ERR_CHANNEL).send(content=exc_text)
-            await self.get_channel(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
+            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content=exc_text)
+            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
 
             err_text: str = str(error)
             err_text.replace(constants.SPARKS_MIDI_KEY, 'nothing to see here')
@@ -287,6 +327,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
             print('\n' * 10)
 
             args = ctx.message.content.split(' ')[1:]
+
+            # await self.ws.close() # doesnt work
+            # await self.http.clear()
 
             subprocess.Popen([python_executable, script_path, f'-restart-msg:{ctx.message.id}:{ctx.channel.id}'] + args)
             sys.exit(0)
@@ -702,7 +745,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
         return found
     
     async def analytics_task(self):
-        text = "In this analytics cycle:\n"
+        fmt_last = discord.utils.format_dt(self.last_analytic if self.last_analytic else datetime.now(), 'F')
+        fmt_now = discord.utils.format_dt(datetime.now(), 'F')
+        text = f"From {fmt_last} to {fmt_now}:\n"
         all_analytics = self.analytics.copy() # i hope this works
         self.analytics = []
         command_counts = dict()
@@ -716,42 +761,41 @@ class FestivalInfoBot(commands.AutoShardedBot):
         for cmd, ammo in command_counts.items():
             text += f'`/{cmd}`: {ammo}\n'
 
-        await self.get_channel(constants.ANALYTICS_CHANNEL).send(text)
+        await self.get_partial_messageable(constants.ANALYTICS_CHANNEL).send(text)
 
         dm_commands = 0
 
-        guild_rank = "Guilds ranked by commands:\n"
-        guilds = []
+        # guild_rank = "Guilds ranked by commands:\n"
+        # guilds = []
         for analytic in all_analytics:
             if analytic.is_dm:
                 dm_commands += 1
-                continue
+        #         continue
 
-            if not any(g[0] == analytic.guild_id for g in guilds):
-                guilds.append((analytic.guild_id, len(
-                    list(
-                        filter(
-                            lambda a: a.guild_id == analytic.guild_id, all_analytics
-                            )
-                        )
-                    )
-                ))
+        #     if not any(g[0] == analytic.guild_id for g in guilds):
+        #         guilds.append((analytic.guild_id, len(
+        #             list(
+        #                 filter(
+        #                     lambda a: a.guild_id == analytic.guild_id, all_analytics
+        #                     )
+        #                 )
+        #             )
+        #         ))
 
-        # filter(lambda )
+        # # filter(lambda )
 
-        guilds.sort(key=lambda g: g[1], reverse=True)
-        for i, guild in enumerate(guilds[:10]):
-            guild_obj = self.get_guild(guild[0])
-            if not guild_obj: 
-                continue
+        # guilds.sort(key=lambda g: g[1], reverse=True)
+        # for i, guild in enumerate(guilds[:10]):
+        #     guild_obj = self.get_guild(guild[0])
+        #     if not guild_obj: 
+        #         continue
 
-            guild_rank += f"{i+1}. {guild_obj.name} (`{guild[0]}`): {guild[1]} commands\n"
+        #     guild_rank += f"{i+1}. {guild_obj.name} (`{guild[0]}`): {guild[1]} commands\n"
 
-        await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
+        # await self.get_channel(constants.ANALYTICS_CHANNEL).send(guild_rank)
 
-        await self.get_channel(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
-
-        logging.info("Cleared analytics list.")
+        await self.get_partial_messageable(constants.ANALYTICS_CHANNEL).send(f"DM Commands: {dm_commands}")
+        self.last_analytic = datetime.now()
 
 
 bot = FestivalInfoBot()

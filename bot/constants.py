@@ -634,4 +634,4 @@ def common_success_embed(text) -> discord.Embed:
     return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")
 
 def tz():
-    return f'[`{datetime.now(timezone.utc).isoformat()}`]'
+    return f'[`{datetime.now(timezone.utc).isoformat().replace('T', ' ').replace('Z', '').replace('+00:00', '')[:-3]}`]'
