@@ -110,7 +110,7 @@ class PreviewAudioMgr:
         segment_template = representation['SegmentTemplate']['@media']
         segment_start = int(representation['SegmentTemplate']['@startNumber'])
 
-        output = f'out/streaming_{self.hash}_'
+        output = f'temp/streaming_{self.hash}_'
         init_file = init_template.replace('$RepresentationID$', str(repr_id))
         init_path = output + init_file
         init_url = base_url + init_file
