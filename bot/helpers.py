@@ -323,7 +323,7 @@ class ProVocalsHandler:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
             return
 
-        all_midi = [f'dat_{track['track']['sn']}_{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
+        all_midi = [f'{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
         missing_midi = []
 
         songs_with_pro_vocals = 0
