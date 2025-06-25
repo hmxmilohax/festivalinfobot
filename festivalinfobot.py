@@ -53,12 +53,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         # it is possible to await this function here
         await self.setup_cogs()
 
-        logging.debug(f"Registering new songs loop every {self.CHECK_FOR_SONGS_INTERVAL}min")
-        @tasks.loop(minutes=self.CHECK_FOR_SONGS_INTERVAL)
-        async def check_for_new_songs():
+        logging.debug(f"Registering utility loop every {self.UTILITY_TASK_INTERVAL}min")
+        @tasks.loop(minutes=self.UTILITY_TASK_INTERVAL)
+        async def utility_task():
             await self.check_handler.handle_task()
 
-        self.check_new_songs_task = check_for_new_songs
+        self.utility_loop_task = utility_task
 
         logging.debug(f"Registering activity loop every 2m30s")
         @tasks.loop(minutes=2.5)
@@ -173,8 +173,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"{constants.tz()} Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
         self.is_done_chunking = True
 
-        if self.CHECK_FOR_NEW_SONGS and not self.check_new_songs_task.is_running():
-            self.check_new_songs_task.start()
+        if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
+            self.utility_loop_task.start()
 
         logging.debug("on_ready finished!")
 
@@ -200,7 +200,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         DISCORD_TOKEN = config.get('discord', 'token')
 
         # Bot configuration properties
-        self.CHECK_FOR_SONGS_INTERVAL = config.getint('bot', 'check_new_songs_interval', fallback=7)
+        self.UTILITY_TASK_INTERVAL = config.getint('bot', 'utility_task_interval', fallback=7)
         self.CHECK_FOR_NEW_SONGS = config.getboolean('bot', 'check_for_new_songs', fallback=True)
         self.DECRYPTION_ALLOWED = config.getboolean('bot', 'decryption', fallback=True)
         self.PATHING_ALLOWED = config.getboolean('bot', 'pathing', fallback=True)

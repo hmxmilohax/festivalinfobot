@@ -15,7 +15,7 @@ import requests
 
 from bot import constants
 from bot import config
-from bot.config import JamTrackEvent, SubscriptionChannel, SubscriptionObject, SubscriptionUser
+from bot.config import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tools import history as history_tools
@@ -483,7 +483,6 @@ class LoopCheckHandler():
                     modified_songs.append((known_track, current_track))
 
         bot_config: config.Config = self.bot.config
-
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
 
         start = datetime.now()
@@ -547,7 +546,7 @@ class LoopCheckHandler():
                     role_pings.append(f"<@&{role}>")
                 content = " ".join(role_pings)
 
-            if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
+            if new_songs and JamTrackEvents.Added.value in channel_to_send.events:
                 logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
@@ -565,7 +564,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
+            if removed_songs and JamTrackEvents.Removed.value in channel_to_send.events:
                 logging.info(f"Removed songs sending to channel {channel.id}")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
@@ -579,7 +578,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
+            if modified_songs and JamTrackEvents.Modified.value in channel_to_send.events:
                 logging.info(f"Modified songs sending to channel {channel.id}")
                 
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:

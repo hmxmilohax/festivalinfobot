@@ -42,6 +42,8 @@ class DailyCommandHandler:
             response = requests.get(constants.DAILY_API, headers=headers)
             data = response.json()
 
+            open('response.json', 'w').write(response.text)
+
             channels = data.get('channels', {})
             client_events_data = channels.get('client-events', {})
             states = client_events_data.get('states', [])
