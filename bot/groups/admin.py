@@ -77,53 +77,6 @@ class TestCog(commands.Cog):
 
         await interaction.followup.send(content="Test messages have been sent.\nSource attached below.", files=result_files)
 
-    delete_group = app_commands.Group(name="delete", description="Delete commands", parent=test_group, guild_ids=[constants.TEST_GUILD])
-    
-    @delete_group.command(name="channel_where", description="Delete a channel where guild_id = ? or channel_id = ?")
-    async def channel_where(self, interaction: discord.Interaction, guild_id: str = None, channel_id: str = None):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        if (not guild_id) and (not channel_id):
-            await interaction.response.send_message(content="Please specify at least one query parameter")
-
-        await interaction.response.defer()
-
-        bot_config: config.Config = self.bot.config
-
-        if guild_id and channel_id:
-            count = await bot_config._count_channels_with_query(f'WHERE guild_id = {guild_id} AND channel_id = {channel_id}')
-            chs = await bot_config._sel_channels_with_query(f'WHERE guild_id = {guild_id} AND channel_id = {channel_id}')
-        elif guild_id:
-            count = await bot_config._count_channels_with_query(f'WHERE guild_id = {guild_id}')
-            chs = await bot_config._sel_channels_with_query(f'WHERE guild_id = {guild_id}')
-        elif channel_id:
-            count = await bot_config._count_channels_with_query(f'WHERE channel_id = {channel_id}')
-            chs = await bot_config._sel_channels_with_query(f'WHERE channel_id = {channel_id}')
-
-        if count != 0:
-            embeds = []
-            for i in range(0, len(chs), 10):
-                print(i)
-                embed = discord.Embed(title="Deletion Results", color=0x8927A1)
-                chunk = chs[i:i + 10]
-                embed.add_field(name="Deleted", value=f"{count} channel(s)", inline=False)
-                embed.add_field(name="List", value="```" + "\n".join([f"ID {ch.id} Events {ch.events} Roles {ch.roles}" for ch in chunk]) + "```", inline=False)
-                embeds.append(embed)
-
-            view = constants.PaginatorView(embeds, interaction.user.id)
-            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-
-            if guild_id and channel_id:
-                await bot_config._del_channels_with_query(f'WHERE guild_id = {guild_id} AND channel_id = {channel_id}')
-            elif guild_id:
-                await bot_config._del_channels_with_query(f'WHERE guild_id = {guild_id}')
-            elif channel_id:
-                await bot_config._del_channels_with_query(f'WHERE channel_id = {channel_id}')
-        else:
-            await interaction.edit_original_response(content="No channels to delete")
-
     @test_group.command(name="all_subscriptions", description="View all subscriptions")
     async def all_subscriptions(self, interaction: discord.Interaction):
         if not (interaction.user.id in constants.BOT_OWNERS):
@@ -156,35 +109,6 @@ class TestCog(commands.Cog):
             view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
         else:
             await interaction.edit_original_response(content="No subscriptions to show")
-
-    @delete_group.command(name="user_where", description="Delete a channel where user_id = ?")
-    async def user_where(self, interaction: discord.Interaction, user_id: str):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        await interaction.response.defer()
-
-        bot_config: config.Config = self.bot.config
-
-        count = await bot_config._count_users_with_query(f'WHERE user_id = {user_id}')
-        chs = await bot_config._sel_users_with_query(f'WHERE user_id = {user_id}')
-
-        if count != 0:
-            embeds = []
-            for i in range(0, len(chs), 10):
-                embed = discord.Embed(title="Deletion Results", color=0x8927A1)
-                chunk = chs[i:i + 10]
-                embed.add_field(name="Deleted", value=f"{count} user(s)", inline=False)
-                embed.add_field(name="List", value="```" + "\n".join([f"ID {ch.id} Events {ch.events}" for ch in chunk]) + "```", inline=False)
-                embeds.append(embed)
-
-            view = constants.PaginatorView(embeds, interaction.user.id)
-            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-
-            await bot_config._del_users_with_query(f'WHERE user_id = {user_id}')
-        else:
-            await interaction.edit_original_response(content="No users to delete")
 
     @test_group.command(name="validate_users", description="Validate all users")
     async def validate_users(self, interaction: discord.Interaction):

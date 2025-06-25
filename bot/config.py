@@ -8,13 +8,19 @@ import asyncio
 
 # TERROR
 
-class JamTrackEvent(enum.Enum):
-    Modified = 'modified'
-    Added = 'added'
-    Removed = 'removed'
+class JamTrackEvent():
+    def __init__(self, _id: str, english: str, desc: str) -> None:
+        self.english = english
+        self.id = _id
+        self.desc = desc
+
+class JamTrackEvents(enum.Enum):
+    Added = JamTrackEvent('added', 'Jam Track Added', desc='A Jam Track has been added to the API.')
+    Modified = JamTrackEvent('modified', 'Jam Track Modified', desc='A Jam Track has been modified.')
+    Removed = JamTrackEvent('removed', 'Jam Track Removed', desc='A Jam Track has been removed from the API.')
 
     def get_all_events():
-        return ['added', 'modified', 'removed']
+        return list(JamTrackEvents.__members__.values())
 
 class SubscriptionObject():
     id: int
@@ -61,6 +67,14 @@ class Config:
                 CREATE TABLE IF NOT EXISTS user_subscriptions (
                     user_id TEXT PRIMARY KEY,
                     events TEXT 
+                );
+            ''')
+            await self.db.execute('''
+                CREATE TABLE IF NOT EXISTS wishlists (
+                    user_id TEXT,
+                    shortname TEXT,
+                    created_at TEXT,
+                    PRIMARY KEY (user_id, shortname)
                 );
             ''')
             await self.db.commit()
@@ -210,54 +224,53 @@ class Config:
             channels.append(u)
 
         return channels
-    
-    async def _count_channels_with_query(self, query: str) -> int:
-        async with self.lock:
-            thing = f"SELECT COUNT(*) FROM channel_subscriptions {query}"
-            async with self.db.execute(
-                thing
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0]
             
     async def _del_channels_with_query(self, query: str) -> int:
         async with self.lock:
             await self.db.execute(f"DELETE FROM channel_subscriptions {query}")
             await self.db.commit()
             
-    async def _sel_channels_with_query(self, query: str) -> List[SubscriptionChannel]:
-        async with self.lock:
-            async with self.db.execute(f"SELECT channel_id, events, roles FROM channel_subscriptions {query}") as cursor:
-                rows = await cursor.fetchall()
-                channels = []
-                for row in rows:
-                    channel_id, events_str, roles_str = row
-                    events = events_str.split(',') 
-                    roles = [int(role_id) for role_id in roles_str.split(',') if len(role_id) > 0] if roles_str else []
-                    channels.append(SubscriptionChannel(int(channel_id), events, roles)) 
-                return channels
-    
-    async def _count_users_with_query(self, query: str) -> int:
-        async with self.lock:
-            thing = f"SELECT COUNT(*) FROM user_subscriptions {query}"
-            async with self.db.execute(
-                thing
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0]
-            
     async def _del_users_with_query(self, query: str) -> int:
         async with self.lock:
             await self.db.execute(f"DELETE FROM user_subscriptions {query}")
             await self.db.commit()
 
-    async def _sel_users_with_query(self, query: str) -> list[SubscriptionUser]:
+    async def _add_to_wishlist(self, user: discord.User, shortname: str) -> None:
         async with self.lock:
-            channels = []
-            async with self.db.execute(f"SELECT user_id, events FROM user_subscriptions {query}") as cursor:
+            await self.db.execute(
+                "INSERT OR REPLACE INTO wishlists (user_id, shortname, created_at) VALUES (?, ?, ?)",
+                (str(user.id), shortname, datetime.now().isoformat())
+            )
+            await self.db.commit()
+
+    async def _remove_from_wishlist(self, user: discord.User, shortname: str) -> None:
+        async with self.lock:
+            await self.db.execute(
+                "DELETE FROM wishlists WHERE user_id = ? AND shortname = ?",
+                (str(user.id), shortname)
+            )
+            await self.db.commit()
+
+    async def _already_in_wishlist(self, user: discord.User, shortname: str) -> bool:
+        async with self.lock:
+            async with self.db.execute(
+                "SELECT 1 FROM wishlists WHERE user_id = ? AND shortname = ?",
+                (str(user.id), shortname)
+            ) as cursor:
+                row = await cursor.fetchone()
+                return row is not None
+            
+    async def _get_wishlist(self, user: discord.User) -> List[str]:
+        async with self.lock:
+            async with self.db.execute(
+                "SELECT shortname FROM wishlists WHERE user_id = ?",
+                (str(user.id),)
+            ) as cursor:
                 rows = await cursor.fetchall()
-                for row in rows:
-                    user_id, events_str = row
-                    events = events_str.split(',')
-                    channels.append(SubscriptionUser(int(user_id), events))
-                return channels
+                return [row[0] for row in rows] if rows else []
+            
+    async def _get_all_wishlists(self) -> List[tuple[int, str]]:
+        async with self.lock:
+            async with self.db.execute("SELECT user_id, shortname FROM wishlists") as cursor:
+                rows = await cursor.fetchall()
+                return [(int(row[0]), row[1]) for row in rows] if rows else []

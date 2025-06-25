@@ -15,7 +15,7 @@ import requests
 
 from bot import constants
 from bot import config
-from bot.config import JamTrackEvent, SubscriptionChannel, SubscriptionObject, SubscriptionUser
+from bot.config import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tools import history as history_tools
@@ -441,15 +441,17 @@ class LoopCheckHandler():
         logging.info("Presence updated successfully.")
 
     async def handle_task(self):
+        logging.info("Checking for new songs...")
         tracks = self.jam_track_handler.get_jam_tracks()
 
         if not tracks:
             logging.error('Could not fetch tracks.')
             return
+        
+        for track in tracks:
+            self.midi_tools.save_chart(track['track']['mu'], decrypt=True, log=False)
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
-
-        logging.info("Checking for new songs...")
 
         try:
             sparks_tracks.main()
@@ -481,13 +483,12 @@ class LoopCheckHandler():
                     modified_songs.append((known_track, current_track))
 
         bot_config: config.Config = self.bot.config
-
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
 
         start = datetime.now()
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels a total of {(len(new_songs) + len(modified_songs) + len(removed_songs)) * len(combined_channels)} messages")
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels")
 
         session_hashes_all = [session_hash]
 
@@ -545,7 +546,7 @@ class LoopCheckHandler():
                     role_pings.append(f"<@&{role}>")
                 content = " ".join(role_pings)
 
-            if new_songs and JamTrackEvent.Added.value in channel_to_send.events:
+            if new_songs and JamTrackEvents.Added.value in channel_to_send.events:
                 logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
@@ -563,7 +564,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if removed_songs and JamTrackEvent.Removed.value in channel_to_send.events:
+            if removed_songs and JamTrackEvents.Removed.value in channel_to_send.events:
                 logging.info(f"Removed songs sending to channel {channel.id}")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
@@ -577,7 +578,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if modified_songs and JamTrackEvent.Modified.value in channel_to_send.events:
+            if modified_songs and JamTrackEvents.Modified.value in channel_to_send.events:
                 logging.info(f"Modified songs sending to channel {channel.id}")
                 
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:
