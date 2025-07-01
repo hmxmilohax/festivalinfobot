@@ -338,6 +338,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def about(ctx: commands.Context):
             await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
+        @self.command()
+        async def feet(ctx: commands.Context):
+            await ctx.message.add_reaction("👣")
+
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
