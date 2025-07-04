@@ -42,6 +42,8 @@ from bot.groups.oauthmanager import OAuthManager
 import traceback
 import hashlib
 
+from bot.wishlist import WishlistManager
+
 class FestivalInfoBot(commands.AutoShardedBot):
     async def setup_hook(self):
         logging.info("Creating SQLite connection...")
@@ -238,6 +240,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
         self.mix_handler = MixHandler()
+        self.wishlist_handler = WishlistManager(self)
 
         self.setup_commands()
 

@@ -36,6 +36,7 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 - `matplotlib`
 - `pandas`
 - `numpy`
+- `cloudscraper`
 
 ### Installation
 

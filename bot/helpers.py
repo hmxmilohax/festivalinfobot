@@ -80,7 +80,7 @@ class DailyCommandHandler:
             return daily_tracks
         except Exception as e:
             logging.error(exc_info=e)
-            return {}
+            return []
         
     async def handle_interaction(self, interaction: discord.Interaction):
         tracks = constants.get_jam_tracks() # Fix circular import...

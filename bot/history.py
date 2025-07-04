@@ -23,6 +23,7 @@ from bot.tools.previewpersist import PreviewButton
 from bot.tracks import JamTrackHandler
 
 import sparks_tracks
+# import cloudscraper # FUCK YOU CLOUDFLARE (jk i love you)
 
 def save_known_songs(songs):
     # Fetch jam tracks using the API call
@@ -450,6 +451,19 @@ class LoopCheckHandler():
         
         for track in tracks:
             self.midi_tools.save_chart(track['track']['mu'], decrypt=True, log=False)
+
+        # web_catalog_url = 'https://www.fortnite.com/item-shop/jam-tracks?lang=en-US&_data=routes%2Fitem-shop.jam-tracks._index'
+
+        # logging.debug(f'[GET] {web_catalog_url}')
+        # reqs = cloudscraper.create_scraper()
+        # req = reqs.get(web_catalog_url)
+
+        # if req.ok:
+        #     web_catalog_response_path = f'{constants.CACHE_FOLDER}WebCatalog.json'
+        #     with open(web_catalog_response_path, 'w', encoding='utf-8') as f:
+        #         f.write(req.text)
+        # else:
+        #     logging.error(f"Failed to fetch web catalog: {req.status_code} - {req.reason} {req.text}")
 
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
 

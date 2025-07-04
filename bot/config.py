@@ -43,6 +43,14 @@ class SubscriptionUser(SubscriptionObject):
         self.events = events
         self.type = 'user'
 
+class WishlistEntry():
+    def __init__(self, user: discord.User, shortname: str, created_at: datetime, lock_rotation_active: bool = False, lock_shop_active: bool = False) -> None:
+        self.user = user
+        self.shortname = shortname
+        self.created_at = created_at
+        self.lock_rotation_active = lock_rotation_active
+        self.lock_shop_active = lock_shop_active
+
 class Config:
     def __init__(self) -> None:
         self.channels: list[SubscriptionChannel] = []
@@ -74,6 +82,8 @@ class Config:
                     user_id TEXT,
                     shortname TEXT,
                     created_at TEXT,
+                    lock_rotation_active INTEGER DEFAULT 0,
+                    lock_shop_active INTEGER DEFAULT 0,
                     PRIMARY KEY (user_id, shortname)
                 );
             ''')
@@ -238,8 +248,8 @@ class Config:
     async def _add_to_wishlist(self, user: discord.User, shortname: str) -> None:
         async with self.lock:
             await self.db.execute(
-                "INSERT OR REPLACE INTO wishlists (user_id, shortname, created_at) VALUES (?, ?, ?)",
-                (str(user.id), shortname, datetime.now().isoformat())
+                "INSERT OR REPLACE INTO wishlists (user_id, shortname, created_at, lock_rotation_active, lock_shop_active) VALUES (?, ?, ?, ?, ?)",
+                (str(user.id), shortname, datetime.now().isoformat(), 0, 0)
             )
             await self.db.commit()
 
@@ -260,17 +270,67 @@ class Config:
                 row = await cursor.fetchone()
                 return row is not None
             
-    async def _get_wishlist(self, user: discord.User) -> List[str]:
+    async def _get_wishlist_of_user(self, user: discord.User) -> List[str]:
         async with self.lock:
             async with self.db.execute(
-                "SELECT shortname FROM wishlists WHERE user_id = ?",
+                "SELECT shortname, created_at, lock_rotation_active, lock_shop_active FROM wishlists WHERE user_id = ?",
                 (str(user.id),)
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [row[0] for row in rows] if rows else []
+                return [
+                    WishlistEntry(
+                        user,
+                        row[0],
+                        datetime.fromisoformat(row[1]),
+                        bool(row[2]),
+                        bool(row[3])
+                    )
+                    for row in rows
+                ] if rows else []
             
     async def _get_all_wishlists(self) -> List[tuple[int, str]]:
         async with self.lock:
-            async with self.db.execute("SELECT user_id, shortname FROM wishlists") as cursor:
+            async with self.db.execute("SELECT user_id, shortname, created_at, lock_rotation_active, lock_shop_active FROM wishlists") as cursor:
                 rows = await cursor.fetchall()
-                return [(int(row[0]), row[1]) for row in rows] if rows else []
+                return [
+                    WishlistEntry(
+                        user=discord.Object(id=int(row[0])),
+                        shortname=row[1],
+                        created_at=datetime.fromisoformat(row[2]),
+                        lock_rotation_active=bool(row[3]),
+                        lock_shop_active=bool(row[4])
+                    )
+                    for row in rows
+                ] if rows else []
+            
+    async def _lock_wishlist_rotation(self, entry: WishlistEntry) -> None:
+        async with self.lock:
+            await self.db.execute(
+                "UPDATE wishlists SET lock_rotation_active = 1 WHERE user_id = ? AND shortname = ?",
+                (str(entry.user.id), entry.shortname)
+            )
+            await self.db.commit()
+
+    async def _unlock_wishlist_rotation(self, entry: WishlistEntry) -> None:
+        async with self.lock:
+            await self.db.execute(
+                "UPDATE wishlists SET lock_rotation_active = 0 WHERE user_id = ? AND shortname = ?",
+                (str(entry.user.id), entry.shortname)
+            )
+            await self.db.commit()
+
+    async def _lock_wishlist_shop(self, entry: WishlistEntry) -> None:
+        async with self.lock:
+            await self.db.execute(
+                "UPDATE wishlists SET lock_shop_active = 1 WHERE user_id = ? AND shortname = ?",
+                (str(entry.user.id), entry.shortname)
+            )
+            await self.db.commit()
+        
+    async def _unlock_wishlist_shop(self, entry: WishlistEntry) -> None:
+        async with self.lock:
+            await self.db.execute(
+                "UPDATE wishlists SET lock_shop_active = 0 WHERE user_id = ? AND shortname = ?",
+                (str(entry.user.id), entry.shortname)
+            )
+            await self.db.commit()
