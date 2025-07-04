@@ -59,7 +59,10 @@ class JamTrackHandler:
             ],
             '🥦': ['broccoli'],
             '🐦': ['freebird'],
-            'slts': ['smellsliketeenspirit']
+            'slts': ['smellsliketeenspirit'],
+            'trans': ['transparentsoul'],
+            'trns': ['transparentsoul'],
+            'transparent': ['transparentsoul']
         }
 
         if search_term in custom_results.keys():

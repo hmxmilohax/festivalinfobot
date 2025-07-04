@@ -20,6 +20,7 @@ from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.midi import MidiArchiveTools
 from bot.tools import history as history_tools
 from bot.tools.previewpersist import PreviewButton
+from bot.tools.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler
 
 import sparks_tracks
@@ -560,13 +561,14 @@ class LoopCheckHandler():
                     role_pings.append(f"<@&{role}>")
                 content = " ".join(role_pings)
 
-            if new_songs and JamTrackEvents.Added.value in channel_to_send.events:
+            if new_songs and JamTrackEvents.Added.value.id in channel_to_send.events:
                 logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
                     embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
 
                     view = discord.ui.View(timeout=None)
                     view.add_item(PreviewButton(new_song['track']['sn']))
+                    view.add_item(WishlistButton(new_song['track']['sn'], 'add', channel.id))
 
                     try:
                         message = await channel.send(content=content, embed=embed, view=view)
@@ -578,7 +580,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if removed_songs and JamTrackEvents.Removed.value in channel_to_send.events:
+            if removed_songs and JamTrackEvents.Removed.value.id in channel_to_send.events:
                 logging.info(f"Removed songs sending to channel {channel.id}")
                 for removed_song in removed_songs:
                     embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
@@ -592,7 +594,7 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if modified_songs and JamTrackEvents.Modified.value in channel_to_send.events:
+            if modified_songs and JamTrackEvents.Modified.value.id in channel_to_send.events:
                 logging.info(f"Modified songs sending to channel {channel.id}")
                 
                 for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:

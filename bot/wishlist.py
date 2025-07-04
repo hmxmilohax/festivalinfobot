@@ -1,3 +1,4 @@
+import logging
 import discord
 from bot import config, constants
 from bot.helpers import DailyCommandHandler, ShopCommandHandler
@@ -33,7 +34,25 @@ class WishlistManager():
                     await self.config._unlock_wishlist_rotation(entry=entry)
 
                     # we notify the user that the track is no longer in rotation
-                    # TODO
+                    embed = discord.Embed(
+                        title="A Jam Track from your wishlist has left rotation!",
+                        color=0x8927A1
+                    )
+                    embed.add_field(
+                        name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is no longer available in rotation!",
+                        inline=False
+                    )
+                    embed.set_thumbnail(url=track['track']['au'])
+                    embed.set_footer(
+                        text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
+                    )
+
+                    user = self.bot.get_user(entry.user.id)
+                    if user:
+                        try:
+                            await user.send(embed=embed)
+                        except Exception as e:
+                            logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
                 # stop here
                 continue
@@ -47,6 +66,26 @@ class WishlistManager():
 
             # we lock the wishlist entry so that we don't notify the user again
             await self.config._lock_wishlist_rotation(entry=entry)
+
+            embed = discord.Embed(
+                title="A Jam Track from your wishlist is in rotation!",
+                color=0x8927A1
+            )
+            embed.add_field(
+                name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is now available in rotation.",
+                inline=False
+            )
+            embed.set_thumbnail(url=track['track']['au'])
+            embed.set_footer(
+                text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
+            )
+
+            user = self.bot.get_user(entry.user.id)
+            if user:
+                try:
+                    await user.send(embed=embed)
+                except Exception as e:
+                    logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
         # handle everything again but this time for shop
         shop_tracks = self.shop_handler.fetch_shop_tracks()
@@ -63,7 +102,25 @@ class WishlistManager():
                     await self.config._unlock_wishlist_shop(entry=entry)
 
                     # we notify the user that the track is no longer in shop
-                    # TODO
+                    embed = discord.Embed(
+                        title="A Jam Track from your wishlist has left the Item Shop!",
+                        color=0x8927A1
+                    )
+                    embed.add_field(
+                        name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is no longer available in the shop!",
+                        inline=False
+                    )
+                    embed.set_thumbnail(url=track['track']['au'])
+                    embed.set_footer(
+                        text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
+                    )
+
+                    user = self.bot.get_user(entry.user.id)
+                    if user:
+                        try:
+                            await user.send(embed=embed)
+                        except Exception as e:
+                            logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
                 # stop here
                 continue
@@ -74,6 +131,29 @@ class WishlistManager():
 
             # we now proceed to notify the user
             print(f"Track {track['track']['sn']} is in shop, notifying user {entry.user.id}")
+            embed = discord.Embed(
+                title="A Jam Track from your wishlist is in the Item Shop!",
+                color=0x8927A1
+            )
+            embed.add_field(
+                name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is now available in the shop.",
+                inline=False
+            )
+            embed.add_field(
+                name="Available until",
+                value=constants.format_date(shop_entry['meta']['outDate'])
+            )
+            embed.set_thumbnail(url=track['track']['au'])
+            embed.set_footer(
+                text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
+            )
+
+            user = self.bot.get_user(entry.user.id)
+            if user:
+                try:
+                    await user.send(embed=embed)
+                except Exception as e:
+                    logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
             # we lock the wishlist entry so that we don't notify the user again
             await self.config._lock_wishlist_shop(entry=entry)

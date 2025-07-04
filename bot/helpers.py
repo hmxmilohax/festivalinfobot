@@ -68,9 +68,9 @@ class DailyCommandHandler:
                 active_since_date = datetime.fromisoformat(active_since.replace('Z', '+00:00')) if active_since else None
                 active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00')) if active_until else None
 
-                if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
+                if (event_type.startswith('PilgrimSong.') or event_type.startswith('Sparks.Spotlight.')) and active_since_date and active_until_date:
                     if active_since_date <= current_time <= active_until_date:
-                        shortname = event_type.replace('PilgrimSong.', '')
+                        shortname = event_type.replace('PilgrimSong.', '').replace('Sparks.Spotlight.', '')
                         related_spotlight = discord.utils.find(lambda event: event['eventType'] == f'Sparks.Spotlight.{shortname}', active_events)
                         daily_tracks.append({
                             'shortname': shortname,

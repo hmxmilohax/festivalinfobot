@@ -33,6 +33,7 @@ from bot.path import PathCommandHandler
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
+from bot.tools.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
 from bot.graph import GraphCommandsHandler
@@ -58,6 +59,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         logging.debug(f"Registering utility loop every {self.UTILITY_TASK_INTERVAL}min")
         @tasks.loop(minutes=self.UTILITY_TASK_INTERVAL)
         async def utility_task():
+            await self.wishlist_handler.handle_wishlists()
             await self.check_handler.handle_task()
 
         self.utility_loop_task = utility_task
@@ -79,6 +81,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.activity_task = activity_task
 
         self.add_dynamic_items(PreviewButton)
+        self.add_dynamic_items(WishlistButton)
 
         logging.debug("setup_hook finished!")
 
@@ -156,7 +159,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             ids = restart_arg.split(':')
             msg_id = ids[1]
             chn_id = ids[2]
-            await self.get_partial_messageable(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
+            try:
+                await self.get_partial_messageable(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
+            except Exception as e:
+                logging.error("Could not send ready message", exc_info=e)                
 
         self._connection.parsers['GUILD_MEMBERS_CHUNK'] = self.custom_parse_guild_members_chunk
         logging.debug("Guilds chunking...")
@@ -387,6 +393,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @self.command()
         async def feet(ctx: commands.Context):
             await ctx.message.add_reaction("👣")
+
+        @self.command()
+        async def wladd(ctx: commands.Context, track: str):
+            await self.config._add_to_wishlist(ctx.author, track)
+
+        @self.command()
+        async def wlrem(ctx: commands.Context, track: str):
+            await self.config._remove_from_wishlist(ctx.author, track)
 
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
