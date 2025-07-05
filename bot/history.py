@@ -484,11 +484,7 @@ class LoopCheckHandler():
 
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
         # EQUALITY
-        if len(combined_channels) > 2:
-            first_two = combined_channels[:2]
-            rest = combined_channels[2:]
-            random.shuffle(rest)
-            combined_channels = first_two + rest
+        random.shuffle(combined_channels)
 
         start = datetime.now()
 
