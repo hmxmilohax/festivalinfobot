@@ -499,6 +499,8 @@ class LoopCheckHandler():
 
         bot_config: config.Config = self.bot.config
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
+        # EQUALITY
+        random.shuffle(combined_channels)
 
         start = datetime.now()
 
