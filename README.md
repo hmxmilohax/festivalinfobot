@@ -7,7 +7,7 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 
 ## Features
 
-- **Song Tracking:** Checking Fortnite's API every 7 minutes and can show you all the details about each track.
+- **Song Tracking:** Checking Fortnite's API every minute and can show you all the details about each track.
 - **Track Tracking:** Showing differences between track metadata edits.
 - **Chart Comparing:** Comparing MIDI charts across two different versions of the same track.
 - **Weekly Rotation:** Displaying a list of the weekly rotation.
@@ -22,12 +22,21 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 ### Requirements
 
 - Python 3.8+
-- `discord.py` library
-- `requests` library
-- `mido` library, for analising MIDI files
-- `matplotlib` library, for displaying graphs
-- `pandas` library, for data analisis
-- `aiosqlite` library, for managing subscriptions efficiently
+- `discord.py`
+
+    Run this command: `pip install -U git+https://github.com/Rapptz/discord.py.git@refs/pull/10166/merge`
+- `requests`
+- `mido`
+- `matplotlib`
+- `pandas`
+- `aiosqlite`
+- `pycryptodome`
+- `pydub`
+- `xmltodict`
+- `matplotlib`
+- `pandas`
+- `numpy`
+- `cloudscraper`
 
 ### Installation
 
@@ -38,34 +47,22 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
     cd festivalinfobot
     ```
 
-2. Install the required Python packages:
-
-    ```bash
-    pip install requests discord.py mido matplotlib pandas aiosqlite
-    ```
+2. Install the required Python packages from the requirements above
 
 3. Duplicate `config_default.ini` to `config.ini` file in the root directory of the project:
-   - Replace `YOUR_DISCORD_BOT_TOKEN` with your actual Discord bot token.
-   - Follow the comments to customize the configuration more
+   - Follow the comments to setup the bot
 
 4. Run the bot:
     ```bash
     python festivalinfobot.py
     ```
 
-    To view `discord.py`'s DEBUG level logs, you may append `-discord-debug` to your arguments.
+    To view `discord.py`'s DEBUG level logs, you can add `-discord-debug` to your arguments.
 
 ## Commands
 
 - Run `/help` to view a list of all available commands.
 - Run `/stats` to view insights of the instance.
-- `/admin` commands may only be run in the following conditions:
-
-    User (who invokes the slash-command) must have been granted Administrator permission in the channel where the interaction (slash-command) is completed.
-
-    When adding a subscription to a channel, the bot may require to possess the following permissions in the destination channel: <br>
-      i. **View Channel** <br>
-      ii. **Send Messages** <br>
 
 ## License
 
@@ -87,8 +84,8 @@ To be able to fetch and generate paths you will need two things:
 
 - [CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the bot folder.
 
-    For newer CHOpt versions, Qt6 dlls may be required to be copied as well. These files are present in the .gitignore.
+    For newer CHOpt versions, Qt6 .dlls may be required to be copied as well. These files are present in the .gitignore.
 
-To be able to produce audio previews, any build of FFmpeg and FFprobe in the root is required.
+To be able to produce audio previews, any build of FFmpeg and FFprobe (executables) in the root is required.
 
 Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key.

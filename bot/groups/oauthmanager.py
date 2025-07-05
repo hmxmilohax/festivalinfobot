@@ -60,14 +60,17 @@ class OAuthManager:
 
             logging.info(f'Logged into EOS as {self.account_id}')
 
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session started for ' + self._session_data['displayName'])
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session started for ' + self._session_data['displayName'])
 
             if not skip_create:
-                self.refresh_task.start()
-                self.verify_session.start()
+                try:
+                    self.refresh_task.start()
+                    self.verify_session.start()
+                except RuntimeError as e:
+                    logging.debug(f'The task was already running... ({e})')
         except Exception as e:
             logging.critical(f'Cannot create token: {e}')
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'Device auth session cannot be started because of {e}')
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be started because of {e}')
 
     @tasks.loop(seconds=6900)
     async def refresh_session(self):
@@ -88,10 +91,10 @@ class OAuthManager:
             self._access_token = self._session_data['access_token']
             self._refresh_token = self._session_data['refresh_token']
 
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session refreshed for ' + self._session_data['displayName'])
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session refreshed for ' + self._session_data['displayName'])
         except Exception as e:
             logging.critical(f'Device auth session cannot be refreshed because of {e}')
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'Device auth session cannot be refreshed because of {e}')
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be refreshed because of {e}')
 
     @tasks.loop(seconds=60)
     async def verify_session(self):
@@ -103,12 +106,16 @@ class OAuthManager:
         response = requests.get(url, headers=headers)
         # response.raise_for_status()
         if not response.ok:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content='Device auth session ended for ' + self._session_data['displayName'])
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session ended for ' + self._session_data['displayName'])
             await self.create_session(skip_create=True)
 
     @property
     def session_token(self) -> str:
+        if self._access_token == None:
+            raise Exception("Festival Tracker is not ready yet! Please try again in a few moments.")
+
         payload = json.loads(base64.urlsafe_b64decode(self._access_token.split('.')[1]))
+        # TS PMO
         ts_exp = payload['exp']
         # ts_exp = 0
         date_exp = datetime.datetime.fromtimestamp(ts_exp, tz=datetime.timezone.utc)
