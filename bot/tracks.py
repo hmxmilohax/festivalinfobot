@@ -7,7 +7,7 @@ import string
 import discord
 from discord.ext import commands
 import requests
-from bot import embeds
+from bot import config, embeds
 import bot.constants as constants
 from bot.constants import Button, ButtonedView
 from bot import helpers
@@ -34,17 +34,35 @@ class JamTrackHandler:
             'mcls': ['magicalcureloveshot'], 
             'mlcs': ['magicalcureloveshot'], 
             'mscl': ['magicalcureloveshot'],
-            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday'],
+            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday', 'nightmareschoice'],
             'peak': ['larrysplace', 'nevergiveup', 'freebird'],
             'comingsoon': ['juicy'],
             'ralph': ['streetsignite'],
             'cowabunga': ['streetsignite'],
             'kog': ['streetsignite'],
             'one': ['one'],
-            'latino': ['migente', 'ellabailasola', 'dakiti', 'titimepregunto', 'mia', 'tusa', 'qlona', 'cairo', 'okidoki', 'provenza', 'livinlavidaloca'],
+            'latino': [
+                'migente', 
+                'ellabailasola', 
+                'dakiti', 
+                'titimepregunto', 
+                'mia', 
+                'tusa', 
+                'qlona', 
+                'cairo', 
+                'okidoki', 
+                'provenza', 
+                'livinlavidaloca', 
+                'whineup',
+                'bondedobrunao',
+                'munra'
+            ],
             '🥦': ['broccoli'],
             '🐦': ['freebird'],
-            'slts': ['smellsliketeenspirit']
+            'slts': ['smellsliketeenspirit'],
+            'trans': ['transparentsoul'],
+            'trns': ['transparentsoul'],
+            'transparent': ['transparentsoul']
         }
 
         if search_term in custom_results.keys():
@@ -258,14 +276,16 @@ class SearchCommandHandler:
             preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
             await preview_audio_mgr.reply_to_interaction_message()
 
-        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview", thinking=True, emoji="🔊")])
+        async def wishlist(interaction: discord.Interaction):
+            bot_config: config.Config = self.bot.config
+            await bot_config._add_to_wishlist(interaction.user, track['track']['sn'])
+            await interaction.edit_original_response(embed=constants.common_success_embed(f"Added **{track['track']['tt']}** - *{track['track']['an']}* to your wishlist!"))
 
-        if shop_tracks:
-            shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track['track']['ti'], shop_tracks)
-            if shop_entry:
-                shop_entry_meta = shop_entry['meta']
-                if shop_entry_meta.get('webURL', None):
-                    view.buttons.append(Button(None, url=f"https://fortnite.com{shop_entry['meta'].get('webURL')}", label="Item Shop"))
+        view: ButtonedView = ButtonedView(interaction.user.id, [
+            Button(something, label="Preview", thinking=True, emoji="🔊"),
+            Button(wishlist, emoji="⭐", label="Wishlist", style=discord.ButtonStyle.secondary, restrict=False, ephmeral=True, thinking=True)
+        ])
+        # view.buttons.append()
 
         view.message = message
         await message.edit(embed=embed, view=view)

@@ -15,17 +15,21 @@ LOCAL_JSON_FOLDER = "json/"
 if not os.path.exists(LOCAL_JSON_FOLDER):
     os.makedirs(LOCAL_JSON_FOLDER)
 
-LOCAL_MIDI_FOLDER = "midi_files/"
-if not os.path.exists(LOCAL_MIDI_FOLDER):
-    os.makedirs(LOCAL_MIDI_FOLDER)
+CACHE_FOLDER = "cache/"
+if not os.path.exists(CACHE_FOLDER):
+    os.makedirs(CACHE_FOLDER)
 
-TEMP_FOLDER = "out/"
+MIDI_FOLDER = "cache/midi/"
+if not os.path.exists(MIDI_FOLDER):
+    os.makedirs(MIDI_FOLDER)
+
+PREVIEW_FOLDER = "cache/previews/"
+if not os.path.exists(PREVIEW_FOLDER):
+    os.makedirs(PREVIEW_FOLDER)
+
+TEMP_FOLDER = "temp/"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
-
-BACKUP_FOLDER = 'backups/'
-if not os.path.exists(BACKUP_FOLDER):
-    os.makedirs(BACKUP_FOLDER)
 
 config = ConfigParser()
 config.read('config.ini')
@@ -306,7 +310,7 @@ class OneButtonSimpleView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Button:
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False, ephmeral: bool = False):
         self.on_press = on_press
         self.label = label
         self.emoji = emoji
@@ -315,9 +319,10 @@ class Button:
         self.style = style
         self.disabled = disabled
         self.thinking = thinking
+        self.ephmeral = ephmeral
 
 class ViewButton(discord.ui.Button):
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False, ephmeral: bool = False):
         self._on_press = on_press
         self._restrict = restrict
         self._url = url
@@ -326,6 +331,7 @@ class ViewButton(discord.ui.Button):
         self._emoji = emoji
         self._disabled = disabled
         self._thinking = thinking
+        self._ephmeral = ephmeral
 
         super().__init__(style=self._style, label=self._label, url=self._url, emoji=self._emoji, disabled=self._disabled)
 
@@ -335,7 +341,7 @@ class ViewButton(discord.ui.Button):
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view.add_buttons()
-        await interaction.response.defer(thinking=self._thinking)
+        await interaction.response.defer(ephemeral=self._ephmeral, thinking=self._thinking)
         if self._on_press:
             await self._on_press(interaction)
 
@@ -360,7 +366,8 @@ class ButtonedView(discord.ui.View):
                 style=button.style,   
                 restrict=button.restrict,
                 disabled=button.disabled,
-                thinking=button.thinking
+                thinking=button.thinking,
+                ephmeral=button.ephmeral
             ))
 
     async def on_timeout(self):

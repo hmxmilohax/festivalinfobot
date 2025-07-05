@@ -239,6 +239,7 @@ class DailyCommandHandler:
             data = response.json()
 
             track_list = constants.get_jam_tracks()
+            open('response.json', 'w').write(response.text)
 
             channels = data.get('channels', {})
             client_events_data = channels.get('client-events', {})
@@ -264,9 +265,9 @@ class DailyCommandHandler:
                 active_since_date = datetime.fromisoformat(active_since.replace('Z', '+00:00')) if active_since else None
                 active_until_date = datetime.fromisoformat(active_until.replace('Z', '+00:00')) if active_until else None
 
-                if event_type.startswith('PilgrimSong.') and active_since_date and active_until_date:
+                if (event_type.startswith('PilgrimSong.') or event_type.startswith('Sparks.Spotlight.')) and active_since_date and active_until_date:
                     if active_since_date <= current_time <= active_until_date:
-                        shortname = event_type.replace('PilgrimSong.', '')
+                        shortname = event_type.replace('PilgrimSong.', '').replace('Sparks.Spotlight.', '')
                         related_spotlight = discord.utils.find(lambda event: event['eventType'] == f'Sparks.Spotlight.{shortname}', active_events)
                         track_data = discord.utils.find(lambda t: t['track']['sn'] == shortname, track_list)
                         daily_tracks.append({
@@ -524,17 +525,17 @@ class ProVocalsHandler:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks'), ephemeral=True)
             return
 
-        all_midi = [f'dat_{track['track']['sn']}_{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
+        all_midi = [f'{track['track']['mu'].split('/')[3].split('.')[0]}.mid' for track in tracks]
         missing_midi = []
 
         songs_with_pro_vocals = 0
         songs_without_pro_vocals = 0
 
         for midi in all_midi:
-            if not os.path.exists(constants.LOCAL_MIDI_FOLDER + midi):
+            if not os.path.exists(constants.MIDI_FOLDER + midi):
                 missing_midi.append(midi)
             else:
-                mid = open(constants.LOCAL_MIDI_FOLDER + midi, 'rb')
+                mid = open(constants.MIDI_FOLDER + midi, 'rb')
                 pro_vocals_track = b'PRO VOCALS' in mid.read()
                 mid.close()
                 if pro_vocals_track:
