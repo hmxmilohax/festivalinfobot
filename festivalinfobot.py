@@ -715,11 +715,17 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 await interaction.response.send_message(embed=view.get_embed(), view=view)
                 view.message = await interaction.original_response()
 
-        @self.tree.command(name="jswiki", description="View the Jam Track wiki.")
+        @self.tree.command(name="jswiki", description="View the Jam Track wiki by SpeedrunnerInTraining.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def jswiki_command(interaction: discord.Interaction):
             await interaction.response.send_message("https://hmxmashupgames.miraheze.org/wiki/List_of_songs_in_Fortnite_Festival")
+
+        @self.tree.command(name="spreadsheet", description="View the Jam Track spreadsheet by akira_v9 / BeastFNCreative.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def jswiki_command(interaction: discord.Interaction):
+            await interaction.response.send_message("https://docs.google.com/spreadsheets/d/1gHg1F9GkUsjN3xe7WFnW5r4-28fIOgzMXTQwSGlkD0Y/edit")
 
     async def setup_cogs(self):
         test_cog = TestCog(self)
