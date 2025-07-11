@@ -270,10 +270,11 @@ class DailyCommandHandler:
                         shortname = event_type.replace('PilgrimSong.', '').replace('Sparks.Spotlight.', '')
                         related_spotlight = discord.utils.find(lambda event: event['eventType'] == f'Sparks.Spotlight.{shortname}', active_events)
                         track_data = discord.utils.find(lambda t: t['track']['sn'] == shortname, track_list)
-                        daily_tracks.append({
-                            'metadata': track_data,
-                            'in_spotlight': related_spotlight != None
-                        })
+                        if track_data:
+                            daily_tracks.append({
+                                'metadata': track_data,
+                                'in_spotlight': related_spotlight != None
+                            })
 
             return daily_tracks
         except Exception as e:
@@ -460,7 +461,7 @@ class GamblingHandler:
         if daily:
             def indaily(obj):
                 sn = obj['track']['sn']
-                return discord.utils.find(lambda t: t['shortname'] == sn, weekly_tracks) != None
+                return discord.utils.find(lambda t: t['metadata']['track']['sn'] == sn, weekly_tracks) != None
 
             track_list = list(filter(indaily, track_list))
 
@@ -494,7 +495,7 @@ class GamblingHandler:
         if daily:
             def indaily(obj):
                 sn = obj['track']['sn']
-                return discord.utils.find(lambda t: t['shortname'] == sn, daily_tracks) != None
+                return discord.utils.find(lambda t: t['metadata']['track']['sn'] == sn, daily_tracks) != None
 
             track_list = list(filter(indaily, track_list))
 

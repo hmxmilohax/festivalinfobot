@@ -33,7 +33,6 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 - `pycryptodome`
 - `pydub`
 - `xmltodict`
-- `matplotlib`
 - `pandas`
 - `numpy`
 - `cloudscraper`

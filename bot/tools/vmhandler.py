@@ -256,7 +256,7 @@ class PreviewAudioMgr:
             "Authorization": "Bot " + self.bot.http.token
         })
 
-        logging.info(f'[{self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
+        logging.info(f'[Interaction {self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
 
         if not resp.ok:
             logging.error(resp.text)

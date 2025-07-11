@@ -130,16 +130,15 @@ class SearchEmbedHandler:
         pro_drums_diff = track['in'].get('pd', -1)
         band_diff = track['in'].get('bd', -1) # apparently bd is placeholder for pro vocals
 
-        # average diff
-        avg_diff = numpy.average([
-            vocals_diff, guitar_diff,
-            bass_diff, drums_diff,
-            pro_guitar_diff, pro_bass_diff, 
-            pro_drums_diff
-        ])+1
-
         embed.add_field(name="Island Code", value=track.get('jc', 'N/A'))
-        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 1)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
+
+        midi_tool = MidiArchiveTools()
+        user_id = track.get('ry', 2025)
+        session_hash = constants.generate_session_hash(user_id, track['sn'])
+        midi_file = midi_tool.save_chart(track['mu'])
+        has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
+        embed.add_field(name="Has Pro Vocals", value='Yes' if has_pro_vocals else 'No', inline=True)
+
         embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
 
         # ----------
@@ -162,14 +161,21 @@ class SearchEmbedHandler:
             gameplay_tags = ['N/A']
         embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
 
-        midi_tool = MidiArchiveTools()
-        user_id = track.get('ry', 2025)
-        session_hash = constants.generate_session_hash(user_id, track['sn'])
+                # average diff
+        difficulties_array = [
+            vocals_diff, guitar_diff,
+            bass_diff, drums_diff,
+            pro_guitar_diff, pro_bass_diff, 
+            pro_drums_diff
+        ]
+        if band_diff != -1:
+            difficulties_array.append(band_diff)
 
-        midi_file = midi_tool.save_chart(track['mu'])
-        has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
+        avg_diff = numpy.average(difficulties_array)+1
+        med_diff = numpy.median(difficulties_array)+1
 
-        embed.add_field(name="Has Pro Vocals", value='Yes' if has_pro_vocals else 'No', inline=True)
+        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 2)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
+        embed.add_field(name="Med. Difficulty", value=f'{med_diff}/7 (`{constants.generate_difficulty_bar(int(med_diff - 1))}`)')
 
         difficulties = (
             f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"

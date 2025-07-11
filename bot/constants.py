@@ -633,7 +633,7 @@ def format_date(date_string):
 
 def add_fields(track_data, embed, weekly_tracks, shop_tracks):
     track_devname = track_data['track']['sn']
-    weekly_track = discord.utils.find(lambda offer: offer['shortname'] == track_devname, weekly_tracks)
+    weekly_track = discord.utils.find(lambda offer: offer['metadata']['track']['sn'] == track_devname, weekly_tracks)
     if weekly_track != None:
         embed.add_field(name="Weekly Rotation", value=f"Currently in the free rotation.", inline=False)
 
@@ -653,7 +653,7 @@ def common_success_embed(text) -> discord.Embed:
     return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")
 
 def tz():
-    return f'[`{datetime.now(timezone.utc).isoformat()}`]'
+    return f'[`{datetime.now(timezone.utc).isoformat().replace('T', ' ').replace('Z', '').replace('+00:00', '')[:-3]}`]'
 
 def rand_hex(from_str: str) -> str:
     return secrets.token_hex(len(from_str) // 2)

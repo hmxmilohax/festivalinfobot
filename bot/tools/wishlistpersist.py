@@ -27,7 +27,7 @@ class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishl
         return cls(shortname, action, user_id, version)
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(thinking=True) # , ephemeral=True)
+        await interaction.response.defer(thinking=True, ephemeral=True)
 
         jam_tracks = constants.get_jam_tracks()
         track = discord.utils.find(lambda t: t['track']['sn'] == self.shortname, jam_tracks)

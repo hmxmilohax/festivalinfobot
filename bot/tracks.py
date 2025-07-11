@@ -12,6 +12,7 @@ import bot.constants as constants
 from bot.constants import Button, ButtonedView
 from bot import helpers
 from bot.tools.vmhandler import PreviewAudioMgr
+from bot.tools.wishlistpersist import WishlistButton
 
 class JamTrackHandler:
     def __init__(self) -> None:
@@ -269,22 +270,17 @@ class SearchCommandHandler:
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
         message = await interaction.edit_original_response(embed=embed)
 
+        view: discord.ui.View = discord.ui.View(timeout=None)
+
         async def something(interaction: discord.Interaction):
-            view.buttons[0].disabled = True
-            view.add_buttons()
-            await interaction.message.edit(view=view)
+            await interaction.response.defer(thinking=True, ephemeral=True)
             preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
             await preview_audio_mgr.reply_to_interaction_message()
 
-        async def wishlist(interaction: discord.Interaction):
-            bot_config: config.Config = self.bot.config
-            await bot_config._add_to_wishlist(interaction.user, track['track']['sn'])
-            await interaction.edit_original_response(embed=constants.common_success_embed(f"Added **{track['track']['tt']}** - *{track['track']['an']}* to your wishlist!"))
-
-        view: ButtonedView = ButtonedView(interaction.user.id, [
-            Button(something, label="Preview", thinking=True, emoji="🔊"),
-            Button(wishlist, emoji="⭐", label="Wishlist", style=discord.ButtonStyle.secondary, restrict=False, ephmeral=True, thinking=True)
-        ])
+        preview_button = discord.ui.Button(label="Preview", style=discord.ButtonStyle.primary, emoji="🔊")
+        preview_button.callback = something
+        view.add_item(preview_button)
+        view.add_item(WishlistButton(track['track']['sn'], 'add', interaction.user.id))
         # view.buttons.append()
 
         view.message = message
@@ -300,14 +296,12 @@ class SearchCommandHandler:
                 if not spotify:
                     return
                 
-                view_buttons = [Button(None, url=spotify, label="Listen on Spotify")]
+                view.add_item(discord.ui.Button(label="Spotify", url=spotify))
 
                 song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
                 if song_dot_link:
-                    view_buttons.append(Button(None, url=song_dot_link, label="song.link"))
+                    view.add_item(discord.ui.Button(label="song.link", url=song_dot_link))
 
-                view.buttons.extend(view_buttons)
-                view.add_buttons()
                 await message.edit(embed=embed, view=view)
         except Exception as e:
             logging.error('Error attempting to add Spotify link to message:', exc_info=e)

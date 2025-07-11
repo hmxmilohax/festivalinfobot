@@ -22,7 +22,7 @@ class WishlistManager():
         all_tracks = constants.get_jam_tracks()
 
         for entry in all_wishlists:
-            rotation_entry = discord.utils.find(lambda x: x['shortname'] == entry.shortname, rotation)
+            rotation_entry = discord.utils.find(lambda x: x['metadata']['track']['sn'] == entry.shortname, rotation)
 
             track = discord.utils.find(lambda x: x['track']['sn'] == entry.shortname, all_tracks)
 
