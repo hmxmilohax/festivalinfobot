@@ -28,11 +28,13 @@ import sparks_tracks
 
 def save_known_songs(songs):
     # Fetch jam tracks using the API call
-    logging.debug(f'[GET] {constants.CONTENT_API}')
-    response = requests.get(constants.CONTENT_API)
-    response.raise_for_status()
+    # logging.debug(f'[GET] {constants.CONTENT_API}')
+    # response = requests.get(constants.CONTENT_API)
+    # response.raise_for_status()
 
-    data = response.json()
+    # data = response.json()
+    data = constants.JAM_TRACK_CACHE
+
     timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H.%M.%S')
     unique_id = hashlib.md5(timestamp.encode()).hexdigest()[:6]
 
@@ -164,9 +166,11 @@ class HistoryHandler():
         
         return grouped_changes
 
-    async def process_chart_url_change(self, old_url:str, new_url:str, track_name:str, song_title:str, artist_name:str, album_art_url:str, last_modified_old, last_modified_new, session_hash:str):
+    async def process_chart_url_change(self, old_url:str, new_url:str, track_name:str, last_modified_old, last_modified_new, session_hash:str):
         """
-        this function now returns only a List[Tuple(Embed, File)]
+        # dict: song information
+        # list(str): files
+        this function now returns only a Tuple[Dict, List(str)]
         """
         old_midi_file = self.midi_handler.save_chart(old_url)
         new_midi_file = self.midi_handler.save_chart(new_url)
@@ -182,7 +186,7 @@ class HistoryHandler():
             result = subprocess.run(comparison_command, capture_output=True, text=True)
             # Check the output for errors, just in case
             if result.returncode != 0:
-                return []
+                return None
 
             # Check for the completion flag in the output
             if "MIDI comparison completed successfully" in result.stdout:
@@ -193,23 +197,21 @@ class HistoryHandler():
                 last_modified_new_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')), style='D')
 
                 if comparison_images:
-                    tuple_of_embeds_and_files = []
+                    list_of_images = []
 
                     # do not use edit_original_response here
                     for image in comparison_images:
                         image_path = os.path.abspath(os.path.join(constants.TEMP_FOLDER, image))
-                        # file = discord.File(image_path, filename=image)
-                        embed = discord.Embed(
-                            title=f"",
-                            description=f"**{song_title}** - *{artist_name}*\nDetected changes between:\n{last_modified_old_str} and {last_modified_new_str}",
-                            color=0x8927A1
-                        )
-                        embed.set_image(url=f"attachment://{image}")
-                        embed.set_thumbnail(url=album_art_url)
-                        tuple_of_embeds_and_files.append((embed, image_path))
+                        list_of_images.append(image_path)
                         
-                    return tuple_of_embeds_and_files
-        return []
+                    print(list_of_images)
+
+                    return ({
+                        'last_modified_old': last_modified_old_str,
+                        'last_modified_new': last_modified_new_str,
+                        'shortname': track_name
+                    }, list_of_images)
+        return None
 
     def fetch_local_history(self):
         json_files = []
@@ -332,7 +334,7 @@ class HistoryHandler():
                 #  self.process_chart_url_change coroutine.
                 async def run_in_thread():
                     return await self.process_chart_url_change(
-                        old_midi_file, new_midi_file, shortname, actual_title, actual_artist, album_art_url, old_midi[0], new_midi[0], session_hash
+                        old_midi_file, new_midi_file, shortname, old_midi[0], new_midi[0], session_hash
                     )
 
                 task = loop.run_in_executor(
@@ -381,7 +383,7 @@ class HistoryHandler():
         await interaction.edit_original_response(embed=constants.common_success_embed(f"Processing the diff for **{actual_title}** - *{actual_artist}*, please wait...\n-# This operation can take more than a minute."))
 
         if len(midi_file_changes) <= 1:
-            await interaction.edit_original_response(embed=constants.common_error_embed("No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists."))
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists."))
             return
         
         array_of_tuples_of_embeds_and_files = [] # [(embed, file), (embed, file)]
@@ -426,7 +428,7 @@ class LoopCheckHandler():
         self.jam_track_handler = JamTrackHandler()
 
     async def handle_activity_task(self):
-        tracks = self.jam_track_handler.get_jam_tracks()
+        tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
         num_tracks = len(tracks)
         random_jam_track = random.choice(tracks)
 
@@ -444,7 +446,7 @@ class LoopCheckHandler():
 
     async def handle_task(self):
         logging.info("Checking for new songs...")
-        tracks = self.jam_track_handler.get_jam_tracks()
+        tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
 
         if not tracks:
             logging.error('Could not fetch tracks.')
@@ -509,7 +511,7 @@ class LoopCheckHandler():
 
         session_hashes_all = [session_hash]
 
-        modified_songs_data = [] # [(modified metadata embed, [(embed, file), (embed, file)])]
+        modified_songs_data = [] # [(modified metadata CV2 container, ( dict, list(file) ))]
         for old_song, new_song in modified_songs:
             # session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
             session_hash = constants.generate_session_hash(self.bot.start_time, datetime.now().timestamp())
@@ -525,7 +527,7 @@ class LoopCheckHandler():
             local_midi_file_old = self.midi_tools.save_chart(old_url)
             local_midi_file_new = self.midi_tools.save_chart(new_url)
 
-            embed_list_diff = []
+            file_diffs = None
 
             if (old_url != new_url) and self.bot.DECRYPTION_ALLOWED and self.bot.CHART_COMPARING_ALLOWED:
                 logging.info(f"Chart URL changed:")
@@ -533,11 +535,20 @@ class LoopCheckHandler():
                 logging.info(f"New: {local_midi_file_new}")
 
                 logging.debug(f"Running process_chart_url_change for {local_midi_file_old} and {local_midi_file_new}")
-                embed_list_diff = await self.history_handler.process_chart_url_change(old_url=local_midi_file_old, new_url=local_midi_file_new, track_name=short_name, song_title=track_name, artist_name=artist_name, album_art_url=album_art_url, last_modified_old=last_modified_old, last_modified_new=last_modified_new, session_hash=session_hash) # this makes me dizzy lol
+                file_diffs = await self.history_handler.process_chart_url_change(
+                    old_url=local_midi_file_old, 
+                    new_url=local_midi_file_new, 
+                    track_name=short_name, 
+                    last_modified_old=last_modified_old, 
+                    last_modified_new=last_modified_new, 
+                    session_hash=session_hash
+                ) # this makes me dizzy lol
 
-            embed = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
+                print(file_diffs)
 
-            modified_songs_data.append((embed, embed_list_diff))
+            container = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
+
+            modified_songs_data.append((container, file_diffs))
 
         for channel_to_send in combined_channels:
             if channel_to_send.type == 'channel':
@@ -582,12 +593,36 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if removed_songs and JamTrackEvents.Removed.value.id in channel_to_send.events:
-                logging.info(f"Removed songs sending to channel {channel.id}")
-                for removed_song in removed_songs:
-                    embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
+            if modified_songs and JamTrackEvents.Modified.value.id in channel_to_send.events:
+                logging.info(f"Modified songs sending to channel {channel.id}")
+                
+                for song_metadata_diff_container, chart_diffs_data in modified_songs_data:
+                    view: discord.ui.LayoutView = discord.ui.LayoutView()
+                    view.add_item(song_metadata_diff_container)
+                    files: list[str] = []
+
+                    print(chart_diffs_data)
+
+                    if chart_diffs_data:
+                        song_data = chart_diffs_data[0]
+                        files = chart_diffs_data[1]
+
+                        track_data = discord.utils.find(lambda x: x['track']['sn'] == song_data['shortname'], tracks)
+                        view.add_item(
+                            discord.ui.Container(
+                                discord.ui.Section(
+                                    discord.ui.TextDisplay(f'**{track_data["track"]["tt"]}** - *{track_data["track"]["an"]}*\nDetected changes between:\n{song_data['last_modified_old']} and {song_data['last_modified_new']}',),
+                                    accessory=discord.ui.Thumbnail(track_data['track']['au'])
+                                ),
+                                discord.ui.MediaGallery(
+                                    *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in files]
+                                ),
+                                accent_colour=0x8927A1
+                            )
+                        )
+
                     try:
-                        message = await channel.send(content=content, embed=embed)
+                        message = await channel.send(content=content, view=view, files=[discord.File(fpath) for fpath in files] if files else None)
 
                     except discord.Forbidden as e:
                         logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
@@ -596,19 +631,12 @@ class LoopCheckHandler():
                     except Exception as e:
                         logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
 
-            if modified_songs and JamTrackEvents.Modified.value.id in channel_to_send.events:
-                logging.info(f"Modified songs sending to channel {channel.id}")
-                
-                for song_metadata_diff_embed, chart_diffs_embeds in modified_songs_data:
-
-                    for diff_embed, diff_filename in chart_diffs_embeds:
-                        try:
-                            msg = await channel.send(embed=diff_embed, file=discord.File(diff_filename))
-                        except Exception as e:
-                            logging.error(f'Cannot send modified chart embed to {channel.id}', exc_info=e)
-
+            if removed_songs and JamTrackEvents.Removed.value.id in channel_to_send.events:
+                logging.info(f"Removed songs sending to channel {channel.id}")
+                for removed_song in removed_songs:
+                    embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
                     try:
-                        message = await channel.send(content=content, embed=song_metadata_diff_embed)
+                        message = await channel.send(content=content, embed=embed)
 
                     except discord.Forbidden as e:
                         logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)

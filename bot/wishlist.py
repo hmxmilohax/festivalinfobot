@@ -18,8 +18,9 @@ class WishlistManager():
 
     async def handle_wishlists(self):
         all_wishlists: list[config.WishlistEntry] = await self.config._get_all_wishlists()
+        logging.info('Processing wishlists...')
+        all_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         rotation = self.daily_handler.fetch_daily_shortnames()
-        all_tracks = constants.get_jam_tracks()
 
         for entry in all_wishlists:
             rotation_entry = discord.utils.find(lambda x: x['metadata']['track']['sn'] == entry.shortname, rotation)

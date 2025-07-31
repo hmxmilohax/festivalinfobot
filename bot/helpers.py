@@ -238,7 +238,7 @@ class DailyCommandHandler:
             response = requests.get(constants.DAILY_API, headers=headers)
             data = response.json()
 
-            track_list = constants.get_jam_tracks()
+            track_list = constants.get_jam_tracks(use_cache=True)
             open('response.json', 'w').write(response.text)
 
             channels = data.get('channels', {})

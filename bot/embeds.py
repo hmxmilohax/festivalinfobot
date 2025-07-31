@@ -71,18 +71,28 @@ class SearchEmbedHandler:
     def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False):
         track = track_data['track']
         if is_new:
-            title = f"New Track Added:\n{track['tt']}"
+            title = f"New Track Added:"
         elif is_removed:
-            title = f"Track Removed:\n{track['tt']}"
+            title = f"Track Removed:"
         elif is_random:
-            title = f"Your Random Jam Track:\n{track['tt']}"
+            title = f"Your Random Jam Track:"
         else:
-            title = f"{track['tt']}"
+            title = ""
 
-        embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
-
+        embed = discord.Embed(title=title, description=f"**{track['tt']}** - *{track['an']}*", color=0x8927A1)
         embed.add_field(name="\n", value="", inline=False)
+
+        # ----------
+
         embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
+
+        album = track.get('ab', 'N/A')
+        embed.add_field(name="Album", value=album, inline=True)
+        
+        genre = track.get('ge', ['N/A'])
+        embed.add_field(name="Genre", value=", ".join(genre), inline=True)
+
+        # ----------
 
         _key = track.get('mk', 'Unknown') 
         mode = track.get('mm', 'Unknown')
@@ -90,32 +100,16 @@ class SearchEmbedHandler:
         key = discord.utils.find(lambda v: v.value.code == _key, constants.KeyTypes.__members__.values()).value.english
         key = f"{key} {mode}"
 
+        duration = track.get('dn', 0)
+        embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
         embed.add_field(name="Key", value=key, inline=True)
         embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
 
         # ----------
 
-        embed.add_field(name="Album", value=track.get('ab', 'N/A'), inline=True)
-        embed.add_field(name="Genre", value=", ".join(track.get('ge', ['N/A'])), inline=True)    
-
-        duration = track.get('dn', 0)
-        embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
-
-        # ----------
-
-        embed.add_field(name="Shortname", value=track['sn'], inline=True)
-        embed.add_field(name="Item ID", value=track.get('ti').replace('SparksSong:', ''), inline=True)
-        
-        # Add Song Rating
-        rating = track.get('ar', 'N/A')
-        if rating == 'T':
-            rating_description = 'Teen'
-        elif rating == 'E':
-            rating_description = 'Everyone'
-        else:
-            rating_description = rating
-
-        embed.add_field(name="Rating", value=rating_description, inline=True)
+        embed.add_field(name="Shortname & ID", value=track['sn'] + ' [' + track.get('ti').replace('SparksSong:sid_placeholder_', '') + ']', inline=True)
+        embed.add_field(name="Jam Loop Code", value=track.get('jc', 'N/A'), inline=True)
+        embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
         
         # ----------
         
@@ -130,22 +124,17 @@ class SearchEmbedHandler:
         pro_drums_diff = track['in'].get('pd', -1)
         band_diff = track['in'].get('bd', -1) # apparently bd is placeholder for pro vocals
 
-        embed.add_field(name="Island Code", value=track.get('jc', 'N/A'))
-
         midi_tool = MidiArchiveTools()
         user_id = track.get('ry', 2025)
         session_hash = constants.generate_session_hash(user_id, track['sn'])
         midi_file = midi_tool.save_chart(track['mu'])
         has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
-        embed.add_field(name="Has Pro Vocals", value='Yes' if has_pro_vocals else 'No', inline=True)
-
-        embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
 
         # ----------
 
         last_modified = constants.format_date(track_data['lastModified'])
         embed.add_field(name="Last Modified", value=last_modified, inline=True)
-        embed.add_field(name="Active Date", value=constants.format_date(track_data.get('_activeDate')))
+        embed.add_field(name="Active Date", value=constants.format_date(track_data.get('_activeDate')), inline=True)
         
         new_until = track.get('nu')
         if new_until == None:
@@ -153,15 +142,17 @@ class SearchEmbedHandler:
         else:
             new_until = constants.format_date(new_until)
             
-        embed.add_field(name="New Until", value=new_until)
+        embed.add_field(name="New Until", value=new_until, inline=True)
+
         # ----------
 
         gameplay_tags = track.get('gt')
-        if gameplay_tags == None:
-            gameplay_tags = ['N/A']
-        embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
+        if gameplay_tags != None:
+            embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
 
-                # average diff
+        pro_vocals_supported_indicator = '✓' if has_pro_vocals else '✗'
+
+        # average diff
         difficulties_array = [
             vocals_diff, guitar_diff,
             bass_diff, drums_diff,
@@ -174,8 +165,26 @@ class SearchEmbedHandler:
         avg_diff = numpy.average(difficulties_array)+1
         med_diff = numpy.median(difficulties_array)+1
 
-        embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 2)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
-        embed.add_field(name="Med. Difficulty", value=f'{med_diff}/7 (`{constants.generate_difficulty_bar(int(med_diff - 1))}`)')
+        # embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 2)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
+        # embed.add_field(name="Med. Difficulty", value=f'{med_diff}/7 (`{constants.generate_difficulty_bar(int(med_diff - 1))}`)')
+
+        m = round(med_diff, 1)
+        a = round(avg_diff, 1)
+
+        cur_pad = -1
+        for d in [vocals_diff, guitar_diff,
+            bass_diff, drums_diff]:
+            if d > cur_pad:
+                cur_pad = d
+        
+        N = cur_pad + 1
+
+        cur_pro = -1
+        for d in difficulties_array[4:]:
+            if d > cur_pro:
+                cur_pro = d
+        
+        P = cur_pro + 1
 
         difficulties = (
             f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
@@ -185,12 +194,26 @@ class SearchEmbedHandler:
             f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
             f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
             f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Pro Vocals: {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Pro Vocals: {constants.generate_difficulty_bar(band_diff)} {pro_vocals_supported_indicator}\n"
+            f"    -----------    \n"
+            f"Max Pad:  {N} {constants.generate_difficulty_bar(cur_pad)}\n"
+            f"Max Pro:  {P} {constants.generate_difficulty_bar(cur_pro)}\n"
+            f"Med.:   {m} {constants.generate_difficulty_bar(int(med_diff - 1))}\n"
+            f"Avg.:   {a} {constants.generate_difficulty_bar(int(avg_diff - 1))}"
         )
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
 
-        embed.set_footer(text=f"Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
+        # Add Song Rating
+        rating = track.get('ar', 'N/A')
+        if rating == 'T':
+            rating_description = 'Teen'
+        elif rating == 'E':
+            rating_description = 'Everyone'
+        else:
+            rating_description = rating
+
+        embed.set_footer(text=f"[ESRB] {rating_description} · Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
         
         embed.set_thumbnail(url=track['au'])
         
@@ -238,8 +261,13 @@ class SearchEmbedHandler:
     def generate_modified_track_embed(self, old, new):
         old_track_data = old['track']
         new_track_data = new['track']
-        title = f"Track Modified:\n{new_track_data['tt']}"
-        embed = discord.Embed(title="", description=f"**{title}** - *{new_track_data['an']}*", color=0x8927A1)
+        container = discord.ui.Container(
+            discord.ui.Section(
+                discord.ui.TextDisplay(f"Track Modified:\n**{new_track_data['tt']}** - *{new_track_data['an']}*")
+                , accessory=discord.ui.Thumbnail(new_track_data['au'])
+            ), accent_colour=0x8927A1
+        )
+        container._view = discord.ui.LayoutView() # STUPID HACK TO MAKE IT WORK
 
         simple_comparisons = constants.SIMPLE_COMPARISONS
 
@@ -249,27 +277,32 @@ class SearchEmbedHandler:
 
         for value, name in simple_comparisons.items():
             if old_track_data.get(value, '[N/A]') != new_track_data.get(value, '[N/A]'):
-                embed.add_field(
-                    name=f"{name} changed", 
-                    value=f"```Old: \"{old_track_data.get(value, '[N/A]')}\"\nNew: \"{new_track_data.get(value, '[N/A]')}\"```", 
-                    inline=False
+                container.add_item(
+                    discord.ui.TextDisplay(f"{name} changed"),
+                )
+                container.add_item(
+                    discord.ui.TextDisplay(
+                        f"```Old: \"{old_track_data.get(value, '[N/A]')}\"\nNew: \"{new_track_data.get(value, '[N/A]')}\"```"
+                    )
                 )
 
         for value, name in difficulty_comparisons.items():
             if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
-                embed.add_field(
-                    name=f"{name} difficulty changed", 
-                    value=f"```Old: \"{constants.generate_difficulty_bar(old_track_data['in'].get(value, 0))}\"\nNew: \"{constants.generate_difficulty_bar(new_track_data['in'].get(value, 0))}\"```", 
-                    inline=False
+                container.add_item(
+                    discord.ui.TextDisplay(f"{name} difficulty changed"),
+                )
+                container.add_item(
+                    discord.ui.TextDisplay(f"```Old: \"{constants.generate_difficulty_bar(old_track_data['in'].get(value, 0))}\"\nNew: \"{constants.generate_difficulty_bar(new_track_data['in'].get(value, 0))}\"```")
                 )
 
 
         for key in new_track_data['in'].keys():
             if key not in difficulty_comparisons.keys() and key != '_type':
-                embed.add_field(
-                    name=f"{key} (*Mismatched Difficulty*)", 
-                    value=f"```Found: {constants.generate_difficulty_bar(new_track_data['in'][key])}```", 
-                    inline=False
+                container.add_item(
+                    discord.ui.TextDisplay(f"{key} (*Mismatched Difficulty*)")
+                )
+                container.add_item(
+                    discord.ui.TextDisplay(f"```Found: {constants.generate_difficulty_bar(new_track_data['in'][key])}```")
                 )
 
         if old.get('lastModified') != new.get('lastModified'):
@@ -285,23 +318,30 @@ class SearchEmbedHandler:
                 print(date)
                 new_date = constants.format_date(date)
 
-            embed.add_field(
-                name="Last Modified Date changed", 
-                value=f"{old_date} > {new_date}", 
-                inline=False
+            container.add_item(
+                discord.ui.TextDisplay("Last Modified Date changed")
+            )
+            container.add_item(
+                discord.ui.TextDisplay(f"{old_date} > {new_date}")
             )
 
         qi_comparisons = self.compare_qi_fields(old_track_data.get('qi', ''), new_track_data.get('qi', ''))
         if qi_comparisons:
             for field in qi_comparisons:
-                embed.add_field(name="QI Field Update", value=field, inline=False)
+                container.add_item(
+                    discord.ui.TextDisplay("QI Field Update")
+                )
+                container.add_item(
+                    discord.ui.TextDisplay(field)
+                )
 
         for value, name in extra_comparisons.items():
             if old.get(value) != new.get(value):
-                embed.add_field(
-                    name=f"{name} changed", 
-                    value=f"```Old: \"{old.get(value, '[N/A]')}\"\nNew: \"{new.get(value, '[N/A]')}\"```", 
-                    inline=False
+                container.add_item(
+                    discord.ui.TextDisplay(f"{name} changed")
+                )
+                container.add_item(
+                    discord.ui.TextDisplay(f"```Old: \"{old.get(value, '[N/A]')}\"\nNew: \"{new.get(value, '[N/A]')}\"```")
                 )
 
-        return embed
+        return container

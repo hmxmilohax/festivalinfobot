@@ -10,6 +10,10 @@ import discord
 import requests
 import secrets
 
+RAW_JAM_TRACK_CACHE = None
+JAM_TRACK_CACHE = None
+JAM_TRACK_CACHED_AT: datetime = datetime.now(timezone.utc)
+
 # Folder where local JSON files are stored
 LOCAL_JSON_FOLDER = "json/"
 if not os.path.exists(LOCAL_JSON_FOLDER):
@@ -542,14 +546,32 @@ class ModeTypes(enum.Enum):
     def getall(self) -> list[ModeType]:
         return [self.Major.value, self.Minor.value]
 
-def get_jam_tracks():
+def get_jam_tracks(use_cache: bool = False, max_cache_age: int = 300):
+    max_cache_age = max_cache_age - 2 # the libraries are too accurate man
+
+    global JAM_TRACK_CACHE, JAM_TRACK_CACHED_AT
     content_url = CONTENT_API
 
     logging.debug(f'[GET] {content_url}')
     try:
-        response = requests.get(content_url)
-        response.raise_for_status()
-        data = response.json()
+        cache_age_too_old = False
+        if JAM_TRACK_CACHED_AT is not None:
+            cache_age = (datetime.now(timezone.utc) - JAM_TRACK_CACHED_AT).total_seconds()
+            cache_age_too_old = cache_age > max_cache_age
+
+        if use_cache and JAM_TRACK_CACHE is not None and not cache_age_too_old:
+            data = JAM_TRACK_CACHE
+            logging.debug('[JAM TRACK CACHE] Using cached data')
+        else:
+            response = requests.get(content_url)
+            response.raise_for_status()
+            data = response.json()
+            
+            if use_cache:
+                logging.debug('[JAM TRACK CACHE] Cache will be updated')
+                JAM_TRACK_CACHED_AT = datetime.now(timezone.utc)
+
+        JAM_TRACK_CACHE = data
 
         if isinstance(data, dict):
             available_tracks = []
