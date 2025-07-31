@@ -203,8 +203,6 @@ class HistoryHandler():
                     for image in comparison_images:
                         image_path = os.path.abspath(os.path.join(constants.TEMP_FOLDER, image))
                         list_of_images.append(image_path)
-                        
-                    print(list_of_images)
 
                     return ({
                         'last_modified_old': last_modified_old_str,
@@ -446,7 +444,7 @@ class LoopCheckHandler():
 
     async def handle_task(self):
         logging.info("Checking for new songs...")
-        tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
+        tracks = constants.get_jam_tracks() # no cache here
 
         if not tracks:
             logging.error('Could not fetch tracks.')
@@ -544,8 +542,6 @@ class LoopCheckHandler():
                     session_hash=session_hash
                 ) # this makes me dizzy lol
 
-                print(file_diffs)
-
             container = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
 
             modified_songs_data.append((container, file_diffs))
@@ -600,8 +596,6 @@ class LoopCheckHandler():
                     view: discord.ui.LayoutView = discord.ui.LayoutView()
                     view.add_item(song_metadata_diff_container)
                     files: list[str] = []
-
-                    print(chart_diffs_data)
 
                     if chart_diffs_data:
                         song_data = chart_diffs_data[0]
