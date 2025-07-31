@@ -133,6 +133,10 @@ class PathCommandHandler():
                 return
             midi_file = modified_midi_file
 
+        song_ini_w_path = f'{os.path.dirname(midi_file)}/song.ini'
+        print(song_ini_w_path)
+        open(song_ini_w_path, 'w').write("[song]\nname = " + track_title + "\n" + "artist = " + artist_title + "\n" + "charter = Festival Tracker")
+
         output_image = f"{short_name}_{chosen_instrument.chopt.lower()}_path_{session_hash}.png".replace(' ', '_')
         chopt_output = self.run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument=chosen_instrument, difficulty=chosen_diff.chopt,extra_args=extra_arguments)
 

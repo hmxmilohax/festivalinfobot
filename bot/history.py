@@ -182,7 +182,7 @@ class HistoryHandler():
             shutil.copy(old_midi_file, old_midi_out_path)
             shutil.copy(new_midi_file, new_midi_out_path)
 
-            comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash]
+            comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash, track_name]
             result = subprocess.run(comparison_command, capture_output=True, text=True)
             # Check the output for errors, just in case
             if result.returncode != 0:

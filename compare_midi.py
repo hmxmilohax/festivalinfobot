@@ -460,7 +460,7 @@ def extract_session_id(file_name):
         return match.group(1)  # Return the hash
     return None
 
-def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id):
+def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
     
@@ -510,7 +510,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
 
     ax.set_xlabel('Time')
     ax.set_ylabel('MIDI Note/Text')
-    ax.set_title(f'MIDI Changes for {track_name}')
+    ax.set_title(f'{song_name} | MIDI Changes: {track_name}')
     
     # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
@@ -638,7 +638,7 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         new_mid.save(output_file)
         print(f"Filtered update MIDI saved to '{output_file}'")
 
-def main(midi_file1, midi_file2, session_id, note_range=range(1, 128)):
+def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)):
     base_name1, ext1 = os.path.splitext(midi_file1)
     base_name2, ext2 = os.path.splitext(midi_file2)
     session_id, ext3 = os.path.splitext(session_id)
@@ -697,20 +697,21 @@ def main(midi_file1, midi_file2, session_id, note_range=range(1, 128)):
         
         if differences or text_differences:
             #print(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id)
+            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name)
         else:
             print(f"'{track_name}' unchanged")
     return True
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id>")
+    if len(sys.argv) != 5:
+        print("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id> <song_name>")
     else:
         midi_file1 = sys.argv[1]
         midi_file2 = sys.argv[2]
         session_id = sys.argv[3]
+        song_name = sys.argv[4] if len(sys.argv) > 4 else "Unknown Track"
         
-        result = main(midi_file1, midi_file2, session_id)
+        result = main(midi_file1, midi_file2, session_id, song_name)
         if result:
             print("MIDI comparison completed successfully.")
         else:
