@@ -54,4 +54,4 @@ class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishl
                     await interaction.edit_original_response(embed=constants.common_error_embed(f"**{title}** - *{artist}* is not in your wishlist."))
                 else:
                     await interaction.client.config._remove_from_wishlist(user, self.shortname)
-                    await interaction.edit_original_response(embed=constants.common_error_embed(f"Removed **{title}** - *{artist}* from your wishlist."))
+                    await interaction.edit_original_response(embed=constants.common_success_embed(f"Removed **{title}** - *{artist}* from your wishlist."))

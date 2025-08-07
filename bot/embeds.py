@@ -150,7 +150,6 @@ class SearchEmbedHandler:
         if gameplay_tags != None:
             embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
 
-        pro_vocals_supported_indicator = '✓' if has_pro_vocals else '✗'
 
         # average diff
         difficulties_array = [
@@ -163,28 +162,10 @@ class SearchEmbedHandler:
             difficulties_array.append(band_diff)
 
         avg_diff = numpy.average(difficulties_array)+1
-        med_diff = numpy.median(difficulties_array)+1
 
         # embed.add_field(name="Avg. Difficulty", value=f'{round(avg_diff, 2)}/7 (`{constants.generate_difficulty_bar(int(avg_diff - 1))}`)')
         # embed.add_field(name="Med. Difficulty", value=f'{med_diff}/7 (`{constants.generate_difficulty_bar(int(med_diff - 1))}`)')
-
-        m = round(med_diff, 1)
         a = round(avg_diff, 1)
-
-        cur_pad = -1
-        for d in [vocals_diff, guitar_diff,
-            bass_diff, drums_diff]:
-            if d > cur_pad:
-                cur_pad = d
-        
-        N = cur_pad + 1
-
-        cur_pro = -1
-        for d in difficulties_array[4:]:
-            if d > cur_pro:
-                cur_pro = d
-        
-        P = cur_pro + 1
 
         difficulties = (
             f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
@@ -194,12 +175,8 @@ class SearchEmbedHandler:
             f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
             f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
             f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Pro Vocals: {constants.generate_difficulty_bar(band_diff)} {pro_vocals_supported_indicator}\n"
-            f"    -----------    \n"
-            f"Max Pad:  {N} {constants.generate_difficulty_bar(cur_pad)}\n"
-            f"Max Pro:  {P} {constants.generate_difficulty_bar(cur_pro)}\n"
-            f"Med.:   {m} {constants.generate_difficulty_bar(int(med_diff - 1))}\n"
-            f"Avg.:   {a} {constants.generate_difficulty_bar(int(avg_diff - 1))}"
+            f"Pro Vocals: {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Average {a} {constants.generate_difficulty_bar(int(avg_diff - 1))}"
         )
 
         embed.add_field(name="Difficulties", value=f"```{difficulties}```", inline=False)
@@ -213,7 +190,9 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
 
-        embed.set_footer(text=f"[ESRB] {rating_description} · Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
+        pro_vocals_supported_indicator = ' · Pro Vocals Supported' if has_pro_vocals else ''
+
+        embed.set_footer(text=f"ESRB: {rating_description}{pro_vocals_supported_indicator} · Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
         
         embed.set_thumbnail(url=track['au'])
         

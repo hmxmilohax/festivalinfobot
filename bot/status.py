@@ -37,7 +37,7 @@ class StatusHandler():
         if status_unknown:
             colour = 0xff7a08 # orange (perhaps)
 
-        embed = discord.Embed(title="Fortnite Status", description=data['message'], colour=colour)
+        embed = discord.Embed(title="Festival Status", description=data['message'], colour=colour)
 
         await interaction.edit_original_response(embed=embed)
 
@@ -69,7 +69,7 @@ class StatusHandler():
                 if last_value != 0:
                     fmt_ts = discord.utils.format_dt(datetime.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc), 'R')
 
-                    metric = f'{fmt_ts}**: {vl}** {differ}\n{metric}'
+                    metric = f'{differ} {fmt_ts}**: {vl}**\n{metric}'
 
                 last_value = vl
             elif vl == None:
@@ -81,7 +81,7 @@ class StatusHandler():
         elif last_value < ccu:
             metric_differ_now = more
 
-        metric_start = f'### Now: {ccu} {metric_differ_now}'
+        metric_start = f'### {metric_differ_now} Now: {ccu}'
         return metric_start + f'\n{metric}'
 
     async def handle_gamemode_interaction(self, interaction: discord.Interaction):

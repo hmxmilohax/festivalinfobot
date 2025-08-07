@@ -280,7 +280,12 @@ class SearchCommandHandler:
         preview_button = discord.ui.Button(label="Preview", style=discord.ButtonStyle.primary, emoji="🔊")
         preview_button.callback = something
         view.add_item(preview_button)
-        view.add_item(WishlistButton(track['track']['sn'], 'add', interaction.user.id))
+
+        wishlist_button_action = 'add'
+        if await self.bot.config._already_in_wishlist(interaction.user, track['track']['sn']):
+            wishlist_button_action = 'remove'
+
+        view.add_item(WishlistButton(track['track']['sn'], wishlist_button_action, interaction.user.id))
         # view.buttons.append()
 
         view.message = message

@@ -104,11 +104,10 @@ class WeeklySongsView(discord.ui.LayoutView):
         self.message: discord.Message
 
         self.action_row = ButtonActionRow(user_id=self.user_id, action=self.action)
+        self.action_row.page_label.label = f"{self.page + 1}/{self.total_pages}"
         self.add_item(self.action_row)
 
         self.container.create_page()
-
-        ## TODO UPDATE THE BUTTONS AS SOON AS THEYRE ADDED
 
     async def action(self, button: discord.ui.Button, interaction: discord.Interaction, action_id: int = -1):
         await interaction.response.defer()
