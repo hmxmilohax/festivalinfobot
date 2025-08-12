@@ -368,7 +368,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             view = discord.ui.View(timeout=None)
             view.add_item(PreviewButton("nevergonnagiveyouup"))
-            await ctx.reply(f"Congrats, {ctx.author.mention}! You won **0 V-Bucks**! Preview your code below!", view=view)
+            await ctx.reply(f"Congrats, {ctx.author.mention}! You won **42069 V-Bucks**! Preview your code below!", view=view)
 
         @self.command()
         async def licensing(ctx: commands.Context):
@@ -385,10 +385,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @self.command()
         async def miku(ctx: commands.Context):
             await ctx.send(file=discord.File('bot/data/EasterEgg/miku.png', filename="miku.png"))
-
-        @self.command()
-        async def about(ctx: commands.Context):
-            await ctx.send("Learn more about Festival Tracker\n[Click here](https://github.com/hmxmilohax/festivalinfobot/tree/main?tab=readme-ov-file#festival-tracker)")
 
         @self.command()
         async def feet(ctx: commands.Context):
@@ -465,12 +461,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def shop_command(interaction: discord.Interaction):
             await self.shop_handler.handle_interaction(interaction=interaction)
 
-        @self.tree.command(name="provocals", description="View how many songs support Pro Vocals.")
-        @app_commands.allowed_installs(guilds=True, users=True)
-        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def provocals_count(interaction: discord.Interaction):
-            await self.pro_vocals_handler.handle_interaction(interaction=interaction)
-
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
@@ -481,10 +471,51 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 return
 
             embed = discord.Embed(
-                title="Total Available Songs",
-                description=f"There are currently **{len(track_list)}** songs available in Fortnite Festival.",
+                title="Total Available Jam Tracks",
+                description=f"**{len(track_list)}** Jam Tracks are available in Fortnite Festival.",
                 color=0x8927A1
             )
+
+            epic = [t for t in track_list if t['track']['an'] == 'Epic Games']
+            percentage = round((len(epic) / len(track_list)) * 100, 2)
+
+            embed.add_field(name="Epic Games Tracks", value=f"**{len(epic)}** Jam Tracks are from Epic Games. ({percentage}%)", inline=False)
+
+            provocals_data = self.pro_vocals_handler.get_pro_vocals_counts()
+
+            songs_with, songs_without, missing_midi = provocals_data
+            percentage = round((len(songs_with) / len(track_list)) * 100, 2)
+            percentage_missing = round((len(songs_without) / len(track_list)) * 100, 2)
+            embed.add_field(name="Pro Vocals", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
+
+            legacy_list = [
+                t for t in track_list 
+                if track_list.index(
+                    t
+                ) < track_list.index(
+                    discord.utils.find(
+                        lambda x: x['track']['sn'] == 'abarsong', 
+                        track_list
+                    )
+                )
+            ]
+
+            legacy_with_pro_vocals = []
+            legacy_without_pro_vocals = []
+            for track in songs_with:
+                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
+                    legacy_with_pro_vocals.append(track)
+            
+            for track in songs_without:
+                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
+                    legacy_without_pro_vocals.append(track)
+
+            percentage_legacy = round((len(legacy_with_pro_vocals) / len(legacy_list)) * 100, 2)
+            percentage_missing_legacy = round((len(legacy_without_pro_vocals) / len(legacy_list)) * 100, 2)
+            embed.add_field(name="Pro Vocals (Legacy)", value=f"**{len(legacy_with_pro_vocals)}**/**{len(legacy_list)}** ({percentage_legacy}%)", inline=False)
+
+            if len(missing_midi) > 0:
+                embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
 
             await interaction.response.send_message(embed=embed)
 
