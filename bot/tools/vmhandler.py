@@ -153,7 +153,7 @@ class PreviewAudioMgr:
     
     def convert_to_ogg(self, master_audio_path):
         output_path = f'{constants.PREVIEW_FOLDER}{self.pid}'
-        os.makedirs(output_path)
+        os.makedirs(output_path, exist_ok=True)
         output_path += '/preview.ogg'
 
         ffmpeg_path = self._get_ffmpeg_path()
