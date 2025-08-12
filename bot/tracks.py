@@ -13,6 +13,7 @@ from bot.constants import Button, ButtonedView
 from bot import helpers
 from bot.tools.vmhandler import PreviewAudioMgr
 from bot.tools.wishlistpersist import WishlistButton
+from bot.tools.previewpersist import PreviewButton
 
 class JamTrackHandler:
     def __init__(self) -> None:
@@ -271,15 +272,7 @@ class SearchCommandHandler:
         message = await interaction.edit_original_response(embed=embed)
 
         view: discord.ui.View = discord.ui.View(timeout=None)
-
-        async def something(interaction: discord.Interaction):
-            await interaction.response.defer(thinking=True, ephemeral=True)
-            preview_audio_mgr = PreviewAudioMgr(self.bot, track, interaction)
-            await preview_audio_mgr.reply_to_interaction_message()
-
-        preview_button = discord.ui.Button(label="Preview", style=discord.ButtonStyle.primary, emoji="🔊")
-        preview_button.callback = something
-        view.add_item(preview_button)
+        view.add_item(PreviewButton(track['track']['sn']))
 
         wishlist_button_action = 'add'
         if await self.bot.config._already_in_wishlist(interaction.user, track['track']['sn']):

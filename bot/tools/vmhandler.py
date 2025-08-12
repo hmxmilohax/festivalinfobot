@@ -170,7 +170,7 @@ class PreviewAudioMgr:
         subprocess.run(ffmpeg_command)
         return output_path
 
-    def get_waveform_bytearray(self) -> np.uint8:
+    def get_waveform_bytearray(self) -> tuple[np.uint8, float]:
         AudioSegment.converter = self._get_ffmpeg_path()
 
         def override_prober() -> str:
@@ -180,10 +180,19 @@ class PreviewAudioMgr:
 
         if os.path.exists(self.output_path.replace('preview.ogg', 'waveform.dat')):
             with open(self.output_path.replace('preview.ogg', 'waveform.dat'), 'rb') as f:
-                return np.frombuffer(f.read(), dtype=np.uint8)
+
+                if os.path.exists(self.output_path.replace('preview.ogg', 'duration.dat')):
+                    duration = float(open(self.output_path.replace('preview.ogg', 'duration.dat'), 'r').read())
+                else:
+                    audio = AudioSegment.from_file(self.output_path, format="ogg")
+                    duration = audio.duration_seconds
+                    open(self.output_path.replace('preview.ogg', 'duration.dat'), 'w').write(f'{duration}')
+
+                return (np.frombuffer(f.read(), dtype=np.uint8), duration)
 
         audio = AudioSegment.from_file(self.output_path, format="ogg")
         audio.converter = self._get_ffmpeg_path()
+        duration = audio.duration_seconds
 
         samples = np.array(audio.get_array_of_samples())
         sample_rate = audio.frame_rate
@@ -203,7 +212,10 @@ class PreviewAudioMgr:
         with open(self.output_path.replace('preview.ogg', 'waveform.dat'), 'wb') as f:
             f.write(byte_array.tobytes())
 
-        return byte_array
+        with open(self.output_path.replace('preview.ogg', 'duration.dat'), 'w') as f:
+            f.write(f'{duration}')
+
+        return (byte_array, duration)
 
     async def reply_to_interaction_message(self):
         msg = self.interaction.message
@@ -218,7 +230,7 @@ class PreviewAudioMgr:
         flags = discord.MessageFlags()
         flags.voice = True
 
-        wvform_bytearray = self.get_waveform_bytearray()
+        wvform_bytearray, audio_duration = self.get_waveform_bytearray()
         wvform_b64 = base64.b64encode(wvform_bytearray.tobytes()).decode('utf-8')
 
         payload = {
@@ -228,7 +240,7 @@ class PreviewAudioMgr:
                 {
                     "id": "0",
                     "filename": f"{self.hash}_voice-message.ogg",
-                    "duration_secs": self.audio_duration,
+                    "duration_secs": audio_duration,
                     "waveform": wvform_b64
                 }
             ] # ,
