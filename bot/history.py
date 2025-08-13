@@ -347,6 +347,9 @@ class HistoryHandler():
         return results
 
     async def handle_interaction(self, interaction: discord.Interaction, song:str, use_channel:bool = False):
+        await interaction.response.send_message(embed=constants.common_error_embed('This command is currently broken at the moment due to recent structure changes. Please wait until it is fixed. Thank you'))
+        return
+
         user_id = interaction.user.id
         session_hash = constants.generate_session_hash(user_id, song)
         logging.info(f"Generated session hash: {session_hash} for user: {user_id}")
