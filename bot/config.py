@@ -270,7 +270,7 @@ class Config:
                 row = await cursor.fetchone()
                 return row is not None
             
-    async def _get_wishlist_of_user(self, user: discord.User) -> List[str]:
+    async def _get_wishlist_of_user(self, user: discord.User) -> List[WishlistEntry]:
         async with self.lock:
             async with self.db.execute(
                 "SELECT shortname, created_at, lock_rotation_active, lock_shop_active FROM wishlists WHERE user_id = ?",

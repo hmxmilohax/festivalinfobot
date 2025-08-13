@@ -758,6 +758,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def jswiki_command(interaction: discord.Interaction):
             await interaction.response.send_message("https://docs.google.com/spreadsheets/d/1gHg1F9GkUsjN3xe7WFnW5r4-28fIOgzMXTQwSGlkD0Y/edit")
 
+        @self.tree.command(name="wishlist", description="View your Jam Track Wishlist.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def wishlist_command(interaction: discord.Interaction):
+            await self.wishlist_handler.handle_display(interaction)
+
     async def setup_cogs(self):
         test_cog = TestCog(self)
         await self.add_cog(test_cog)

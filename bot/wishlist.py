@@ -2,6 +2,8 @@ import logging
 import discord
 from bot import config, constants
 from bot.helpers import DailyCommandHandler, ShopCommandHandler
+from bot.tools.wishlistpersist import WishlistButton
+from bot.tracks import JamTrackHandler
 
 class AlreadyInWishlistError(Exception):
     pass
@@ -158,3 +160,170 @@ class WishlistManager():
 
             # we lock the wishlist entry so that we don't notify the user again
             await self.config._lock_wishlist_shop(entry=entry)
+
+    async def handle_display(self, interaction: discord.Interaction, page = 0):
+        first_time = not interaction.response.is_done()
+        if first_time:
+            await interaction.response.defer()
+
+        print('trigger')
+        all_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
+
+        view = discord.ui.LayoutView(timeout=60)
+        
+        container = discord.ui.Container()
+        view.add_item(container)
+
+        entries = await self.config._get_wishlist_of_user(interaction.user)
+        per_page = 5
+        last_page = len(entries) // 5
+
+        container.add_item(
+            discord.ui.Section(
+                discord.ui.TextDisplay(
+                    "# Your Wishlist\n" + 
+                    f"-# Page {page + 1} of {last_page + 1}"
+                ),
+                accessory=discord.ui.Thumbnail(f'attachment://{constants.KEYART_FNAME}')
+            )
+        )
+        container.add_item(
+            discord.ui.Separator()
+        )
+
+        if len(entries) == 0:
+            container.add_item(
+                discord.ui.TextDisplay("There's nothing to see here!\n-# Add more tracks to your wishlist and they will show up here.")
+            )
+
+        chunk_entries = entries[page * 5:(page + 1) * 5]
+
+        for wishlist_entry in chunk_entries:
+            track = discord.utils.find(lambda x: x['track']['sn'] == wishlist_entry.shortname, all_tracks)
+            title = track['track']['tt']
+            artist = track['track']['an']
+
+            btn = discord.ui.Button(label="Unwishlist", emoji="🗑️")
+            async def cb(i: discord.Interaction):
+                await i.response.defer(ephemeral=True, thinking=True)
+
+                user = i.user
+                shortname = track['track']['sn']
+
+                if not await self.config._already_in_wishlist(user, shortname):
+                    await i.edit_original_response(embed=constants.common_error_embed(f"**{title}** - *{artist}* is not in your wishlist."))
+                else:
+                    await self.config._remove_from_wishlist(user, shortname)
+                    await i.edit_original_response(embed=constants.common_success_embed(f"Removed **{title}** - *{artist}* from your wishlist."))
+
+                if i.user.id == interaction.user.id:
+                    await self.handle_display(interaction, page)
+
+            btn.callback = cb
+            btn.style = discord.ButtonStyle.secondary
+
+            container.add_item(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(
+                        f"**{track['track']['tt']}** - *{track['track']['an']}*\n" +
+                        f"Added {discord.utils.format_dt(wishlist_entry.created_at, 'F')}\n-# " +
+                        f"In Shop? " + (constants.SUCCESS_EMOJI if wishlist_entry.lock_shop_active else constants.ERROR_EMOJI) + " · " +
+                        f"In Rotation? " + (constants.SUCCESS_EMOJI if wishlist_entry.lock_rotation_active else constants.ERROR_EMOJI)
+                    ),
+                    accessory=btn
+                )
+            )
+
+        container.add_item(
+            discord.ui.Separator()
+        )
+
+        prev_btn = discord.ui.Button(label="", emoji=constants.PREVIOUS_EMOJI, style=discord.ButtonStyle.secondary)
+        async def prev(i: discord.Interaction):
+
+            if i.user.id != interaction.user.id:
+                await i.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+                return
+
+            await i.response.defer()
+            if page > 0:
+                await self.handle_display(interaction, page - 1)
+
+        prev_btn.callback = prev
+
+        nxt_btn = discord.ui.Button(label="", emoji=constants.NEXT_EMOJI, style=discord.ButtonStyle.secondary)
+        async def nxt(i: discord.Interaction):
+
+            if i.user.id != interaction.user.id:
+                await i.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+                return
+
+            await i.response.defer()
+            if page < last_page:
+                await self.handle_display(interaction, page + 1)
+
+        nxt_btn.callback = nxt
+
+        if page == 0:
+            prev_btn.disabled = True
+        if page == last_page:
+            nxt_btn.disabled = True
+
+        add_track_btn = discord.ui.Button(label="Add to Wishlist", emoji=constants.SEARCH_EMOJI)
+        async def add(i: discord.Interaction):
+            modal = discord.ui.Modal(title="Add to Wishlist")
+            modal.add_item(discord.ui.TextInput(label="Track Search Query", placeholder="A search query: an artist, song name, or shortname."))
+
+            async def search_add(i: discord.Interaction):
+                await i.response.defer(thinking=True, ephemeral=True)
+                text = modal.children[0].value
+                tracks = JamTrackHandler().fuzzy_search_tracks(all_tracks, text)
+
+                if len(tracks) == 0:
+                    await i.edit_original_response(embed=constants.common_error_embed(f'No tracks were found matching \"{text}\"'))
+                    return
+                
+                user = i.user
+                shortname = tracks[0]['track']['sn']
+                ftitle = tracks[0]['track']['tt']
+                fartist = tracks[0]['track']['an']
+                if not await self.config._already_in_wishlist(user, shortname):
+                    await self.config._add_to_wishlist(user, shortname)
+                    await i.edit_original_response(embed=constants.common_success_embed(f"Added **{ftitle}** - *{fartist}* to your wishlist."))
+                else:
+                    await i.edit_original_response(embed=constants.common_error_embed(f"**{ftitle}** - *{fartist}* is already in your wishlist."))
+
+                if user.id == interaction.user.id:
+                    await self.handle_display(interaction, page)
+
+            modal.on_submit = search_add
+            await i.response.send_modal(modal)
+
+        add_track_btn.callback = add
+
+        container.add_item(
+            discord.ui.ActionRow(
+                prev_btn, nxt_btn, add_track_btn                
+            )
+        )
+
+        container.add_item(
+            discord.ui.Separator()
+        )
+        container.add_item(
+            discord.ui.TextDisplay('-# Festival Tracker')
+        )
+
+        async def timeout():
+            for item in view.walk_children():
+                if isinstance(item, discord.ui.Button):
+                    item.disabled = True
+
+            await interaction.edit_original_response(view=view)
+
+        view.on_timeout = timeout
+
+        if first_time:
+            await interaction.edit_original_response(view=view, attachments=[discord.File(constants.KEYART_PATH, constants.KEYART_FNAME)])
+        else:
+            await interaction.edit_original_response(view=view)
