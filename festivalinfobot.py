@@ -391,13 +391,13 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.message.add_reaction("👣")
 
         @self.command()
-        async def wladd(ctx: commands.Context, track: str):
-            await self.config._add_to_wishlist(ctx.author, track)
+        async def kaora(ctx: commands.Context):
+            await ctx.send("<@957611254590087189>")
 
         @self.command()
-        async def wlrem(ctx: commands.Context, track: str):
-            await self.config._remove_from_wishlist(ctx.author, track)
-
+        async def sex(ctx: commands.Context):
+            await ctx.send("https://x.com/FNFestival/status/1731398051242086714")
+            
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
