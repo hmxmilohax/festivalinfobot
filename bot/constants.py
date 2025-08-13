@@ -113,7 +113,8 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 EVENT_NAMES = {
     'added': "Track Added",
     'removed': "Track Removed",
-    'modified': "Track Modified"
+    'modified': "Track Modified",
+    'announcements': "Announcements"
 }
 
 SIMPLE_COMPARISONS = {

@@ -31,9 +31,9 @@ class TestCog(commands.Cog):
         self.bot.suggestions_enabled = enabled
         await interaction.response.send_message(content=text, ephemeral=True)
 
-    @test_group.command(name="emit", description="Emit a message to all subscribed users.")
+    @test_group.command(name="emit", description="Emit a message to all subscribed users. With a desired feed.")
     @app_commands.describe(message = "A text file. This contains the message content.")
-    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None):
+    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None, feed: Literal["added", "modified", "removed", "announcements"] = None):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -59,6 +59,11 @@ class TestCog(commands.Cog):
                 channel = self.bot.get_user(subscribed_channel.id)
             else:
                 channel = self.bot.get_channel(subscribed_channel.id)
+
+            if feed:
+                if not (feed in subscribed_channel.events):
+                    logging.info(f'{subscribed_channel.type.capitalize()} {subscribed_channel.id} is not in feed {feed}, skipped')
+                    continue
 
             if channel:
                 try:
@@ -397,3 +402,23 @@ class TestCog(commands.Cog):
             link = 'invalid'
 
         await interaction.edit_original_response(content=link)
+
+    @test_group.command(name="suball", description="Subscribe all subscribed channels to a specific feed")
+    async def suball(self, interaction: discord.Interaction, feed: str):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+
+        conf: config.Config = self.bot.config
+
+        all_channels = await conf.get_all()
+        for ch in all_channels:
+            events = ch.events
+            events.append('announcements')
+
+            if ch.type == 'user':
+                await conf._user_edit_events(discord.Object(ch.id), events)
+            elif ch.type == 'channel':
+                await conf._channel_edit_events(discord.Object(ch.id), events)
