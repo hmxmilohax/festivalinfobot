@@ -192,6 +192,8 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
         else:
             text = 'Changes saved successfully'
 
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} edited feeds to {event_types}')
+
         await interaction.response.send_message(embed=constants.common_success_embed(text), ephemeral=True)
         new_view = UserSubscriptionsView(self.bot)
         await new_view.reply_to_initial(self.message, interaction.user)
@@ -442,6 +444,8 @@ class ChannelManageEventTypesSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         event_types = self.values
         await self.bot.config._channel_edit_events(self.channel, events=event_types)
+
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} edited feeds to {event_types}')
 
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)

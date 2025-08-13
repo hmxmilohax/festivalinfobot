@@ -171,7 +171,7 @@ class WishlistManager():
 
         view = discord.ui.LayoutView(timeout=60)
         
-        container = discord.ui.Container()
+        container = discord.ui.Container(accent_colour=0x8927A1)
         view.add_item(container)
 
         entries = await self.config._get_wishlist_of_user(interaction.user)

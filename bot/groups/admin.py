@@ -404,7 +404,7 @@ class TestCog(commands.Cog):
         await interaction.edit_original_response(content=link)
 
     @test_group.command(name="suball", description="Subscribe all subscribed channels to a specific feed")
-    async def suball(self, interaction: discord.Interaction, feed: str):
+    async def suball(self, interaction: discord.Interaction, feed: Literal["added", "modified", "removed", "announcements"]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -413,6 +413,8 @@ class TestCog(commands.Cog):
 
         conf: config.Config = self.bot.config
 
+        mod_count = 0
+
         all_channels = await conf.get_all()
         for ch in all_channels:
             events = ch.events
@@ -420,5 +422,14 @@ class TestCog(commands.Cog):
 
             if ch.type == 'user':
                 await conf._user_edit_events(discord.Object(ch.id), events)
+                mod_count+=1
             elif ch.type == 'channel':
-                await conf._channel_edit_events(discord.Object(ch.id), events)
+                chan = self.bot.get_channel(ch.id)
+                if not chan:
+                    logging.info(f'[Suball] Channel {ch.id} not found')
+                    continue
+
+                await conf._channel_edit_events(chan, events)
+                mod_count+=1
+
+        await interaction.edit_original_response(content=f"{mod_count} of {len(all_channels)} have been subbed to {feed}")
