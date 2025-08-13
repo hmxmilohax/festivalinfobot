@@ -31,9 +31,9 @@ class TestCog(commands.Cog):
         self.bot.suggestions_enabled = enabled
         await interaction.response.send_message(content=text, ephemeral=True)
 
-    @test_group.command(name="emit", description="Emit a message to all subscribed users.")
+    @test_group.command(name="emit", description="Emit a message to all subscribed users. With a desired feed.")
     @app_commands.describe(message = "A text file. This contains the message content.")
-    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None):
+    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None, feed: Literal["added", "modified", "removed", "announcements"] = None):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -60,6 +60,11 @@ class TestCog(commands.Cog):
             else:
                 channel = self.bot.get_channel(subscribed_channel.id)
 
+            if feed:
+                if not (feed in subscribed_channel.events):
+                    logging.info(f'{subscribed_channel.type.capitalize()} {subscribed_channel.id} is not in feed {feed}, skipped')
+                    continue
+
             if channel:
                 try:
                     if png:
@@ -76,53 +81,6 @@ class TestCog(commands.Cog):
             result_files.append(discord.File(png, filename=fname))
 
         await interaction.followup.send(content="Test messages have been sent.\nSource attached below.", files=result_files)
-
-    delete_group = app_commands.Group(name="delete", description="Delete commands", parent=test_group, guild_ids=[constants.TEST_GUILD])
-    
-    @delete_group.command(name="channel_where", description="Delete a channel where guild_id = ? or channel_id = ?")
-    async def channel_where(self, interaction: discord.Interaction, guild_id: str = None, channel_id: str = None):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        if (not guild_id) and (not channel_id):
-            await interaction.response.send_message(content="Please specify at least one query parameter")
-
-        await interaction.response.defer()
-
-        bot_config: config.Config = self.bot.config
-
-        if guild_id and channel_id:
-            count = await bot_config._count_channels_with_query(f'WHERE guild_id = {guild_id} AND channel_id = {channel_id}')
-            chs = await bot_config._sel_channels_with_query(f'WHERE guild_id = {guild_id} AND channel_id = {channel_id}')
-        elif guild_id:
-            count = await bot_config._count_channels_with_query(f'WHERE guild_id = {guild_id}')
-            chs = await bot_config._sel_channels_with_query(f'WHERE guild_id = {guild_id}')
-        elif channel_id:
-            count = await bot_config._count_channels_with_query(f'WHERE channel_id = {channel_id}')
-            chs = await bot_config._sel_channels_with_query(f'WHERE channel_id = {channel_id}')
-
-        if count != 0:
-            embeds = []
-            for i in range(0, len(chs), 10):
-                print(i)
-                embed = discord.Embed(title="Deletion Results", color=0x8927A1)
-                chunk = chs[i:i + 10]
-                embed.add_field(name="Deleted", value=f"{count} channel(s)", inline=False)
-                embed.add_field(name="List", value="```" + "\n".join([f"ID {ch.id} Events {ch.events} Roles {ch.roles}" for ch in chunk]) + "```", inline=False)
-                embeds.append(embed)
-
-            view = constants.PaginatorView(embeds, interaction.user.id)
-            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-
-            if guild_id and channel_id:
-                await bot_config._del_channels_with_query(f'WHERE guild_id = {guild_id} AND channel_id = {channel_id}')
-            elif guild_id:
-                await bot_config._del_channels_with_query(f'WHERE guild_id = {guild_id}')
-            elif channel_id:
-                await bot_config._del_channels_with_query(f'WHERE channel_id = {channel_id}')
-        else:
-            await interaction.edit_original_response(content="No channels to delete")
 
     @test_group.command(name="all_subscriptions", description="View all subscriptions")
     async def all_subscriptions(self, interaction: discord.Interaction):
@@ -156,35 +114,6 @@ class TestCog(commands.Cog):
             view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
         else:
             await interaction.edit_original_response(content="No subscriptions to show")
-
-    @delete_group.command(name="user_where", description="Delete a channel where user_id = ?")
-    async def user_where(self, interaction: discord.Interaction, user_id: str):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        await interaction.response.defer()
-
-        bot_config: config.Config = self.bot.config
-
-        count = await bot_config._count_users_with_query(f'WHERE user_id = {user_id}')
-        chs = await bot_config._sel_users_with_query(f'WHERE user_id = {user_id}')
-
-        if count != 0:
-            embeds = []
-            for i in range(0, len(chs), 10):
-                embed = discord.Embed(title="Deletion Results", color=0x8927A1)
-                chunk = chs[i:i + 10]
-                embed.add_field(name="Deleted", value=f"{count} user(s)", inline=False)
-                embed.add_field(name="List", value="```" + "\n".join([f"ID {ch.id} Events {ch.events}" for ch in chunk]) + "```", inline=False)
-                embeds.append(embed)
-
-            view = constants.PaginatorView(embeds, interaction.user.id)
-            view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
-
-            await bot_config._del_users_with_query(f'WHERE user_id = {user_id}')
-        else:
-            await interaction.edit_original_response(content="No users to delete")
 
     @test_group.command(name="validate_users", description="Validate all users")
     async def validate_users(self, interaction: discord.Interaction):
@@ -473,3 +402,34 @@ class TestCog(commands.Cog):
             link = 'invalid'
 
         await interaction.edit_original_response(content=link)
+
+    @test_group.command(name="suball", description="Subscribe all subscribed channels to a specific feed")
+    async def suball(self, interaction: discord.Interaction, feed: Literal["added", "modified", "removed", "announcements"]):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+
+        conf: config.Config = self.bot.config
+
+        mod_count = 0
+
+        all_channels = await conf.get_all()
+        for ch in all_channels:
+            events = ch.events
+            events.append('announcements')
+
+            if ch.type == 'user':
+                await conf._user_edit_events(discord.Object(ch.id), events)
+                mod_count+=1
+            elif ch.type == 'channel':
+                chan = self.bot.get_channel(ch.id)
+                if not chan:
+                    logging.info(f'[Suball] Channel {ch.id} not found')
+                    continue
+
+                await conf._channel_edit_events(chan, events)
+                mod_count+=1
+
+        await interaction.edit_original_response(content=f"{mod_count} of {len(all_channels)} have been subbed to {feed}")

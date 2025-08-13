@@ -164,11 +164,11 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
         self.message = message
         self.sub_user = sub_user
 
+        all_events = config.JamTrackEvents.get_all_events()
+
         # Set the options that will be presented inside the dropdown
         options = [
-            discord.SelectOption(label='New Jam Track Added', description='A Jam Track has been added to the API.', value='added'),
-            discord.SelectOption(label='Jam Track Modified', description='A Jam Track has been modified.', value='modified'),
-            discord.SelectOption(label='Jam Track Removed', description='A Jam Track has been removed from the API.', value='removed')
+            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id, default=False) for event in all_events
         ]
 
         if sub_user:
@@ -191,6 +191,8 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
             text = 'You have been unsubscribed; changes saved successfully'
         else:
             text = 'Changes saved successfully'
+
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} edited feeds to {event_types}')
 
         await interaction.response.send_message(embed=constants.common_success_embed(text), ephemeral=True)
         new_view = UserSubscriptionsView(self.bot)
@@ -275,11 +277,11 @@ class SubscriptionEventTypesDropdown(discord.ui.Select):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+        all_events = config.JamTrackEvents.get_all_events()
+
         # Set the options that will be presented inside the dropdown
         options = [
-            discord.SelectOption(label='New Jam Track Added', description='A Jam Track has been added to the API.', default=True, value='added'),
-            discord.SelectOption(label='Jam Track Modified', description='A Jam Track has been modified.', default=True, value='modified'),
-            discord.SelectOption(label='Jam Track Removed', description='A Jam Track has been removed from the API.', default=True, value='removed')
+            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id, default=True) for event in all_events
         ]
 
         super().__init__(placeholder='Select subscription events...', min_values=1, max_values=len(options), options=options)
@@ -426,11 +428,11 @@ class ChannelManageEventTypesSelect(discord.ui.Select):
         self.message = message
         self.channel = channel
 
+        all_events = config.JamTrackEvents.get_all_events()
+
         # Set the options that will be presented inside the dropdown
         valid_options = [
-            discord.SelectOption(label='New Jam Track Added', description='A Jam Track has been added to the API.', value='added'),
-            discord.SelectOption(label='Jam Track Modified', description='A Jam Track has been modified.', value='modified'),
-            discord.SelectOption(label='Jam Track Removed', description='A Jam Track has been removed from the API.', value='removed')
+            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id) for event in all_events
         ]
 
         for option in valid_options:
@@ -442,6 +444,8 @@ class ChannelManageEventTypesSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         event_types = self.values
         await self.bot.config._channel_edit_events(self.channel, events=event_types)
+
+        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} edited feeds to {event_types}')
 
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)

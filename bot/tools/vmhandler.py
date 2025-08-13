@@ -57,7 +57,7 @@ class PreviewAudioMgr:
         quicksilver_data = json.loads(qi)
         self.pid = quicksilver_data['pid']
 
-        output_path = f'out/AUD_STREAMID_{self.pid}/preview.ogg'
+        output_path = f'{constants.PREVIEW_FOLDER}{self.pid}/preview.ogg'
         if not os.path.exists(output_path):
             mpd = self.acquire_mpegdash_playlist(quicksilver_data)
             master_audio_path = self.download_mpd_playlist(mpd)
@@ -110,7 +110,7 @@ class PreviewAudioMgr:
         segment_template = representation['SegmentTemplate']['@media']
         segment_start = int(representation['SegmentTemplate']['@startNumber'])
 
-        output = f'out/{self.hash}_'
+        output = f'temp/streaming_{self.hash}_'
         init_file = init_template.replace('$RepresentationID$', str(repr_id))
         init_path = output + init_file
         init_url = base_url + init_file
@@ -152,8 +152,8 @@ class PreviewAudioMgr:
         return master_file
     
     def convert_to_ogg(self, master_audio_path):
-        output_path = f'out/AUD_STREAMID_{self.pid}'
-        os.makedirs(output_path)
+        output_path = f'{constants.PREVIEW_FOLDER}{self.pid}'
+        os.makedirs(output_path, exist_ok=True)
         output_path += '/preview.ogg'
 
         ffmpeg_path = self._get_ffmpeg_path()
@@ -170,7 +170,7 @@ class PreviewAudioMgr:
         subprocess.run(ffmpeg_command)
         return output_path
 
-    def get_waveform_bytearray(self) -> bytearray:
+    def get_waveform_bytearray(self) -> tuple[np.uint8, float]:
         AudioSegment.converter = self._get_ffmpeg_path()
 
         def override_prober() -> str:
@@ -178,8 +178,21 @@ class PreviewAudioMgr:
         
         pdutils.get_prober_name = override_prober
 
+        if os.path.exists(self.output_path.replace('preview.ogg', 'waveform.dat')):
+            with open(self.output_path.replace('preview.ogg', 'waveform.dat'), 'rb') as f:
+
+                if os.path.exists(self.output_path.replace('preview.ogg', 'duration.dat')):
+                    duration = float(open(self.output_path.replace('preview.ogg', 'duration.dat'), 'r').read())
+                else:
+                    audio = AudioSegment.from_file(self.output_path, format="ogg")
+                    duration = audio.duration_seconds
+                    open(self.output_path.replace('preview.ogg', 'duration.dat'), 'w').write(f'{duration}')
+
+                return (np.frombuffer(f.read(), dtype=np.uint8), duration)
+
         audio = AudioSegment.from_file(self.output_path, format="ogg")
         audio.converter = self._get_ffmpeg_path()
+        duration = audio.duration_seconds
 
         samples = np.array(audio.get_array_of_samples())
         sample_rate = audio.frame_rate
@@ -195,7 +208,14 @@ class PreviewAudioMgr:
         # Scale to 0-255
         byte_array = np.uint8((downsampled + 1.0) * 127.5)
 
-        return byte_array
+        # Cache the waveform bytearray
+        with open(self.output_path.replace('preview.ogg', 'waveform.dat'), 'wb') as f:
+            f.write(byte_array.tobytes())
+
+        with open(self.output_path.replace('preview.ogg', 'duration.dat'), 'w') as f:
+            f.write(f'{duration}')
+
+        return (byte_array, duration)
 
     async def reply_to_interaction_message(self):
         msg = self.interaction.message
@@ -210,7 +230,7 @@ class PreviewAudioMgr:
         flags = discord.MessageFlags()
         flags.voice = True
 
-        wvform_bytearray = self.get_waveform_bytearray()
+        wvform_bytearray, audio_duration = self.get_waveform_bytearray()
         wvform_b64 = base64.b64encode(wvform_bytearray.tobytes()).decode('utf-8')
 
         payload = {
@@ -220,7 +240,7 @@ class PreviewAudioMgr:
                 {
                     "id": "0",
                     "filename": f"{self.hash}_voice-message.ogg",
-                    "duration_secs": self.audio_duration,
+                    "duration_secs": audio_duration,
                     "waveform": wvform_b64
                 }
             ] # ,
@@ -248,7 +268,7 @@ class PreviewAudioMgr:
             "Authorization": "Bot " + self.bot.http.token
         })
 
-        logging.info(f'[{self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
+        logging.info(f'[Interaction {self.interaction.id}] Voice Message Received: {resp.status_code} {resp.reason}')
 
         if not resp.ok:
             logging.error(resp.text)

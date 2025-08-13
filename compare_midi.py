@@ -460,7 +460,7 @@ def extract_session_id(file_name):
         return match.group(1)  # Return the hash
     return None
 
-def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id):
+def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
     
@@ -486,7 +486,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     
     for time, text1, text2 in text_differences:
         text_times.append(time)
-        text_events.append(f"{text1} > {text2}")
+        text_events.append(f"{text1} >\n{text2}")
         text_changes.append('changed')
 
     # Convert note and text times to numpy arrays for plotting
@@ -504,13 +504,13 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     # Add text event markers
     if text_times:
         # Plot text event changes with blue triangles
-        ax.scatter(text_times, [-1] * len(text_times), c='blue', marker='^', s=100, edgecolor='black', label='Text Event')
+        ax.scatter(text_times, [-1] * len(text_times), c='blue', marker='^', s=25, edgecolor='black', label='Text Event')
         for i, txt in enumerate(text_events):
-            ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=8)
+            ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=6)
 
     ax.set_xlabel('Time')
     ax.set_ylabel('MIDI Note/Text')
-    ax.set_title(f'MIDI Changes for {track_name}')
+    ax.set_title(f'{song_name} | MIDI Changes: {track_name}')
     
     # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
@@ -584,8 +584,8 @@ def compare_text_events(track1_text_events, track2_text_events):
     text2_dict = dict(track2_text_events)
 
     for time in all_times:
-        text1 = text1_dict.get(time, "[no event]")
-        text2 = text2_dict.get(time, "[no event]")
+        text1 = text1_dict.get(time, "X")
+        text2 = text2_dict.get(time, "X")
         if text1 != text2:
             differences.append((time, text1, text2))
 
@@ -638,7 +638,7 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         new_mid.save(output_file)
         print(f"Filtered update MIDI saved to '{output_file}'")
 
-def main(midi_file1, midi_file2, session_id, note_range=range(1, 128)):
+def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)):
     base_name1, ext1 = os.path.splitext(midi_file1)
     base_name2, ext2 = os.path.splitext(midi_file2)
     session_id, ext3 = os.path.splitext(session_id)
@@ -647,7 +647,7 @@ def main(midi_file1, midi_file2, session_id, note_range=range(1, 128)):
         print("Error: Could not extract session ID from the arg.")
         return False
 
-    output_folder = os.path.join(os.path.dirname(__file__), 'out')
+    output_folder = os.path.join(os.path.dirname(__file__), 'temp/')
     os.makedirs(output_folder, exist_ok=True)
 
     if not os.path.exists(midi_file2):
@@ -697,20 +697,21 @@ def main(midi_file1, midi_file2, session_id, note_range=range(1, 128)):
         
         if differences or text_differences:
             #print(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id)
+            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name)
         else:
             print(f"'{track_name}' unchanged")
     return True
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id>")
+    if len(sys.argv) != 5:
+        print("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id> <song_name>")
     else:
         midi_file1 = sys.argv[1]
         midi_file2 = sys.argv[2]
         session_id = sys.argv[3]
+        song_name = sys.argv[4] if len(sys.argv) > 4 else "Unknown Track"
         
-        result = main(midi_file1, midi_file2, session_id)
+        result = main(midi_file1, midi_file2, session_id, song_name)
         if result:
             print("MIDI comparison completed successfully.")
         else:

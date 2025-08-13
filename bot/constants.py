@@ -8,23 +8,32 @@ import os
 
 import discord
 import requests
+import secrets
+
+RAW_JAM_TRACK_CACHE = None
+JAM_TRACK_CACHE = None
+JAM_TRACK_CACHED_AT: datetime = datetime.now(timezone.utc)
 
 # Folder where local JSON files are stored
 LOCAL_JSON_FOLDER = "json/"
 if not os.path.exists(LOCAL_JSON_FOLDER):
     os.makedirs(LOCAL_JSON_FOLDER)
 
-LOCAL_MIDI_FOLDER = "midi_files/"
-if not os.path.exists(LOCAL_MIDI_FOLDER):
-    os.makedirs(LOCAL_MIDI_FOLDER)
+CACHE_FOLDER = "cache/"
+if not os.path.exists(CACHE_FOLDER):
+    os.makedirs(CACHE_FOLDER)
 
-TEMP_FOLDER = "out/"
+MIDI_FOLDER = "cache/midi/"
+if not os.path.exists(MIDI_FOLDER):
+    os.makedirs(MIDI_FOLDER)
+
+PREVIEW_FOLDER = "cache/previews/"
+if not os.path.exists(PREVIEW_FOLDER):
+    os.makedirs(PREVIEW_FOLDER)
+
+TEMP_FOLDER = "temp/"
 if not os.path.exists(TEMP_FOLDER):
     os.makedirs(TEMP_FOLDER)
-
-BACKUP_FOLDER = 'backups/'
-if not os.path.exists(BACKUP_FOLDER):
-    os.makedirs(BACKUP_FOLDER)
 
 config = ConfigParser()
 config.read('config.ini')
@@ -62,6 +71,11 @@ SEASONS = {
 }
 SEASON_NUMBER = 9
 
+keyart_config = ConfigParser()
+keyart_config.read('bot/data/KeyArt/KeyArtOptions.ini')
+KEYART_FNAME: str = f"{keyart_config.get('keyart', 'fname')}.{keyart_config.get('keyart', 'ext')}"
+KEYART_PATH: str = f"bot/data/KeyArt/{KEYART_FNAME}"
+
 def get_season_lb_str(season: int = SEASON_NUMBER) -> str:
     return SEASONS[season]
 
@@ -86,10 +100,21 @@ DOWN_EMOJI = '<:down:1349038099447021680>'
 SEARCH_EMOJI = '<:search:1349038056006746162>'
 INFORMATION_EMOJI = '<:information:1349037772765139065>'
 
+LEAD_EMOJI = '<:guitar:1349038583125639261>'
+BASS_EMOJI = '<:bass:1349038611944837140>'
+DRUMS_EMOJI = '<:drums:1349038567502123128>'
+VOCALS_EMOJI = '<:vocals:1349038596841279539>'
+PRO_LEAD_EMOJI = '<:proguitar:1349038539517591606>'
+PRO_BASS_EMOJI = '<:probass:1349038554797310096>'
+PRO_DRUMS_EMOJI = '<:drums:1349038567502123128>'
+PRO_VOCALS_EMOJI = '<:vocals:1349038596841279539>'
+PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
+
 EVENT_NAMES = {
     'added': "Track Added",
     'removed': "Track Removed",
-    'modified': "Track Modified"
+    'modified': "Track Modified",
+    'announcements': "Announcements"
 }
 
 SIMPLE_COMPARISONS = {
@@ -290,7 +315,7 @@ class OneButtonSimpleView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Button:
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False, ephmeral: bool = False):
         self.on_press = on_press
         self.label = label
         self.emoji = emoji
@@ -299,9 +324,10 @@ class Button:
         self.style = style
         self.disabled = disabled
         self.thinking = thinking
+        self.ephmeral = ephmeral
 
 class ViewButton(discord.ui.Button):
-    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False):
+    def __init__(self, on_press:any, label:str, emoji: str = None, restrict: bool = True, url: str = None, style: discord.ButtonStyle = None, disabled: bool = False, thinking: bool = False, ephmeral: bool = False):
         self._on_press = on_press
         self._restrict = restrict
         self._url = url
@@ -310,6 +336,7 @@ class ViewButton(discord.ui.Button):
         self._emoji = emoji
         self._disabled = disabled
         self._thinking = thinking
+        self._ephmeral = ephmeral
 
         super().__init__(style=self._style, label=self._label, url=self._url, emoji=self._emoji, disabled=self._disabled)
 
@@ -319,7 +346,7 @@ class ViewButton(discord.ui.Button):
             await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
             return
         view.add_buttons()
-        await interaction.response.defer(thinking=self._thinking)
+        await interaction.response.defer(ephemeral=self._ephmeral, thinking=self._thinking)
         if self._on_press:
             await self._on_press(interaction)
 
@@ -344,7 +371,8 @@ class ButtonedView(discord.ui.View):
                 style=button.style,   
                 restrict=button.restrict,
                 disabled=button.disabled,
-                thinking=button.thinking
+                thinking=button.thinking,
+                ephmeral=button.ephmeral
             ))
 
     async def on_timeout(self):
@@ -519,14 +547,32 @@ class ModeTypes(enum.Enum):
     def getall(self) -> list[ModeType]:
         return [self.Major.value, self.Minor.value]
 
-def get_jam_tracks():
+def get_jam_tracks(use_cache: bool = False, max_cache_age: int = 300):
+    max_cache_age = max_cache_age - 2 # the libraries are too accurate man
+
+    global JAM_TRACK_CACHE, JAM_TRACK_CACHED_AT
     content_url = CONTENT_API
 
     logging.debug(f'[GET] {content_url}')
     try:
-        response = requests.get(content_url)
-        response.raise_for_status()
-        data = response.json()
+        cache_age_too_old = False
+        if JAM_TRACK_CACHED_AT is not None:
+            cache_age = (datetime.now(timezone.utc) - JAM_TRACK_CACHED_AT).total_seconds()
+            cache_age_too_old = cache_age > max_cache_age
+
+        if use_cache and JAM_TRACK_CACHE is not None and not cache_age_too_old:
+            data = JAM_TRACK_CACHE
+            logging.debug('[JAM TRACK CACHE] Using cached data')
+        else:
+            response = requests.get(content_url)
+            response.raise_for_status()
+            data = response.json()
+            
+            if use_cache:
+                logging.debug('[JAM TRACK CACHE] Cache will be updated')
+                JAM_TRACK_CACHED_AT = datetime.now(timezone.utc)
+
+        JAM_TRACK_CACHE = data
 
         if isinstance(data, dict):
             available_tracks = []
@@ -610,7 +656,7 @@ def format_date(date_string):
 
 def add_fields(track_data, embed, weekly_tracks, shop_tracks):
     track_devname = track_data['track']['sn']
-    weekly_track = discord.utils.find(lambda offer: offer['shortname'] == track_devname, weekly_tracks)
+    weekly_track = discord.utils.find(lambda offer: offer['metadata']['track']['sn'] == track_devname, weekly_tracks)
     if weekly_track != None:
         embed.add_field(name="Weekly Rotation", value=f"Currently in the free rotation.", inline=False)
 
@@ -630,4 +676,7 @@ def common_success_embed(text) -> discord.Embed:
     return discord.Embed(colour=0x3AB00B, title="Success", description=f"{SUCCESS_EMOJI} {text}")
 
 def tz():
-    return f'[`{datetime.now(timezone.utc).isoformat()}`]'
+    return f'[`{datetime.now(timezone.utc).isoformat().replace('T', ' ').replace('Z', '').replace('+00:00', '')[:-3]}`]'
+
+def rand_hex(from_str: str) -> str:
+    return secrets.token_hex(len(from_str) // 2)

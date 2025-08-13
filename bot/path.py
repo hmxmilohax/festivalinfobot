@@ -133,15 +133,18 @@ class PathCommandHandler():
                 return
             midi_file = modified_midi_file
 
+        song_ini_w_path = f'{os.path.dirname(midi_file)}/song.ini'
+        # print(song_ini_w_path)
+        open(song_ini_w_path, 'w').write("[song]\nname = " + track_title + "\n" + "artist = " + artist_title + "\n" + "charter = Festival Tracker")
+
         output_image = f"{short_name}_{chosen_instrument.chopt.lower()}_path_{session_hash}.png".replace(' ', '_')
         chopt_output = self.run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument=chosen_instrument, difficulty=chosen_diff.chopt,extra_args=extra_arguments)
 
         filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
 
         description = (
-            f"**Instrument:** {display_instrument}\n"
-            f"**Difficulty:** {chosen_diff.english}\n"
-            f"**Squeeze:** {squeeze_percent}%\n"
+            f"**Instrument & Diff.:** {display_instrument} ({chosen_diff.english})\n"
+            f"**Squeeze %:** {squeeze_percent}%\n"
         )
 
         for arg in field_argument_descriptors:
