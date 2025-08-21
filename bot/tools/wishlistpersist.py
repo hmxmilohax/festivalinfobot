@@ -2,7 +2,7 @@ import re
 import discord
 import bot.constants as constants
 
-class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishlist:v(?P<version>\d+):(?P<action>\w+):(?P<id>[a-zA-Z0-9]+):(?P<user_id>\d+)'):
+class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishlist:v(?P<version>\d+):(?P<action>\w+):(?P<id>[a-zA-Z0-9_]+):(?P<user_id>\d+)'):
     def __init__(self, shortname: str, action: str, user_id: int, version: str = '1') -> None:
         super().__init__(
             discord.ui.Button(
