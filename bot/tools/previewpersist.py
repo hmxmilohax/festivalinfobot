@@ -3,7 +3,7 @@ import discord
 import bot.tools.vmhandler as vmhandler
 import bot.constants as constants
 
-class PreviewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'persistent_preview:sn:(?P<id>[a-zA-Z0-9]+)'):
+class PreviewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'persistent_preview:sn:(?P<id>[a-zA-Z0-9_]+)'):
     def __init__(self, shortname: str) -> None:
         super().__init__(
             discord.ui.Button(
