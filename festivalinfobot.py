@@ -517,6 +517,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
             if len(missing_midi) > 0:
                 embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
 
+            embed.set_footer(text="Festival Tracker")
+
             await interaction.response.send_message(embed=embed)
 
         @self.tree.command(name="metadata", description="Get the metadata of a song as a .json file.")
