@@ -42,6 +42,7 @@ class TestCog(commands.Cog):
         
         logging.debug(f'[GET] {message.url}')
         text_content = requests.get(message.url).text
+        # print(len(text_content))
 
         if image:
             logging.debug(f'[GET] {image.url}')
@@ -433,3 +434,17 @@ class TestCog(commands.Cog):
                 mod_count+=1
 
         await interaction.edit_original_response(content=f"{mod_count} of {len(all_channels)} have been subbed to {feed}")
+
+    @test_group.command(name="dbdump", description="Get a dump of the database")
+    async def dbdump(self, interaction: discord.Interaction):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer(ephemeral=True)
+
+        f = open('subscriptions.db', 'rb')
+        data = f.read()
+        f.close()
+
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(data), 'subscriptions.db')])
