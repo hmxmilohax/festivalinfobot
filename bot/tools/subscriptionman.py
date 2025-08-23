@@ -487,10 +487,18 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         # Set the options that will be presented inside the dropdown
 
         options = [discord.SelectOption(label=f'@{role["name"]}', value=str(role["id"]), default=role["default"]) for role in allowed_roles]
+        if len(options) == 0:
+            options = [discord.SelectOption(label='No mentionable roles', value='none', default=True, description="There are no mentionable roles in this server")]
+
         super().__init__(placeholder='Select roles to mention...', min_values=0, max_values=len(options), options=options)
 
     async def callback(self, interaction: discord.Interaction):
         role_ids = self.values
+
+        if 'none' in role_ids:
+            await interaction.response.send_message(embed=constants.common_error_embed("Changes not saved"), ephemeral=True)
+            return
+
         objects = [discord.Object(id=int(role_id)) for role_id in role_ids]
         await self.bot.config._channel_edit_roles(self.channel, roles=objects)
 
