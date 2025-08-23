@@ -487,9 +487,10 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         # Set the options that will be presented inside the dropdown
 
         options = [discord.SelectOption(label=f'@{role["name"]}', value=str(role["id"]), default=role["default"]) for role in allowed_roles]
-        logging.info(options)
         if len(options) == 0:
-            options = [discord.SelectOption(label='No mentionable roles', value='none', default=True, description="There are no mentionable roles in this server")]
+            options = [discord.SelectOption(label='No mentionable roles', value='none', default=True, description="I can't mention any roles in your server.")]
+        if len(options) > 25:
+            options = [discord.SelectOption(label='Too many roles', value='none', default=True, description="Your server has too many roles.")]
 
         super().__init__(placeholder='Select roles to mention...', min_values=0, max_values=len(options), options=options)
 
