@@ -421,7 +421,7 @@ class GuildManageChannelView(discord.ui.View):
         embed.add_field(name="How to", value="Use the dropdowns below to customize the subscription. Changes will automatically save.", inline=False)
 
         self.add_item(ChannelManageEventTypesSelect(self.bot, self.message, self.channel, channel_subscription))
-        # self.add_item(ChannelManageMentionableRolesSelect(self.bot, self.message, self.channel, channel_subscription))
+        self.add_item(ChannelManageMentionableRolesSelect(self.bot, self.message, self.channel, channel_subscription))
 
         await message.edit(embed=embed, view=self)
 
@@ -487,6 +487,7 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         # Set the options that will be presented inside the dropdown
 
         options = [discord.SelectOption(label=f'@{role["name"]}', value=str(role["id"]), default=role["default"]) for role in allowed_roles]
+        logging.info(options)
         if len(options) == 0:
             options = [discord.SelectOption(label='No mentionable roles', value='none', default=True, description="There are no mentionable roles in this server")]
 
