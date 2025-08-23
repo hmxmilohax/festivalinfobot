@@ -65,8 +65,11 @@ class SubscriptionTypesDropdown(discord.ui.Select):
             if not member:
                 await interaction.response.send_message(embed=constants.common_error_embed("We are unable to check your permissions in this server. Due to this, you are currently unable to manage Server Subscriptions."), ephemeral=True)
                 return
+            
+            doesnt_have_admin = not member.guild_permissions.administrator
+            isnt_bot_owner = not (member.id in constants.BOT_OWNERS)
 
-            if (not member.guild_permissions.administrator) or not (member.id in constants.BOT_OWNERS):
+            if doesnt_have_admin and isnt_bot_owner:
                 await interaction.response.send_message(embed=constants.common_error_embed("You do not have permission to manage subscriptions in this server! You need Administrator permissions."), ephemeral=True)
                 return
 
