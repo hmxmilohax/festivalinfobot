@@ -479,8 +479,8 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
                 found_role["default"] = True
             else:
                 if len(role_id) == 0:
-                    role_id = 'none'
-                    
+                    role_id = 'invalid'
+
                 allowed_roles.append({
                     "id": role_id,
                     "name": f"Unknown Role {role_id}",
@@ -505,6 +505,7 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
             return
         
         role_ids = [role_id for role_id in role_ids if len(role_id) > 0]
+        role_ids = [role_id for role_id in role_ids if role_id != 'invalid']
 
         objects = [discord.Object(id=int(role_id)) for role_id in role_ids]
         await self.bot.config._channel_edit_roles(self.channel, roles=objects)
