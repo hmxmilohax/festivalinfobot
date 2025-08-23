@@ -594,6 +594,10 @@ class LoopCheckHandler():
 
             if modified_songs and JamTrackEvents.Modified.value.id in channel_to_send.events:
                 logging.info(f"Modified songs sending to channel {channel.id}")
+
+                if len(modified_songs_data) > 0:
+                    if content != "":
+                        message = await channel.send(content=content)
                 
                 for song_metadata_diff_container, chart_diffs_data in modified_songs_data:
                     view: discord.ui.LayoutView = discord.ui.LayoutView()
@@ -619,7 +623,7 @@ class LoopCheckHandler():
                         )
 
                     try:
-                        message = await channel.send(content=content, view=view, files=[discord.File(fpath) for fpath in files] if files else None)
+                        message = await channel.send(view=view, files=[discord.File(fpath) for fpath in files] if files else None)
 
                     except discord.Forbidden as e:
                         logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
