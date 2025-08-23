@@ -500,6 +500,8 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         if 'none' in role_ids:
             await interaction.response.send_message(embed=constants.common_error_embed("Changes not saved"), ephemeral=True)
             return
+        
+        role_ids = [role_id for role_id in role_ids if len(role_id) > 0]
 
         objects = [discord.Object(id=int(role_id)) for role_id in role_ids]
         await self.bot.config._channel_edit_roles(self.channel, roles=objects)
