@@ -478,6 +478,9 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
             if found_role:
                 found_role["default"] = True
             else:
+                if len(role_id) == 0:
+                    role_id = 'none'
+                    
                 allowed_roles.append({
                     "id": role_id,
                     "name": f"Unknown Role {role_id}",
