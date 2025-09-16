@@ -143,7 +143,9 @@ SIMPLE_COMPARISONS = {
     'gt': 'Gameplay Tags',
     'mmo': 'Music Moment Offset',
     'nu': 'New Until Date',
-    'tb': 'Quest Thumbnail'
+    'tb': 'Quest Thumbnail',
+    'sm': 'Stage Mood',
+    'ag': 'Animation Genre'
 }
 
 DIFFICULTY_COMPARISONS = {
