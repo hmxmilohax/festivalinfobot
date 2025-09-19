@@ -31,6 +31,7 @@ from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
 from bot.groups.suggestions import SuggestionModal
+from bot.tools.lyrics import LyricsHandler
 from bot.tools.previewpersist import PreviewButton
 from bot.tools.subscriptionman import SubscriptionManager
 from bot.tools.wishlistpersist import WishlistButton
@@ -765,6 +766,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def wishlist_command(interaction: discord.Interaction):
             await self.wishlist_handler.handle_display(interaction)
+
+        @self.tree.command(name="lyrics", description="View the lyrics of a Jam Track (if it supports Pro Vocals).")
+        @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def lyrics_command(interaction: discord.Interaction, song: str):
+            lyrics_handler = LyricsHandler()
+            await lyrics_handler.handle_interaction(interaction, song)
 
     async def setup_cogs(self):
         test_cog = TestCog(self)
