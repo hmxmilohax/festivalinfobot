@@ -14,6 +14,9 @@ import textwrap
 
 from bot.tracks import JamTrackHandler
 
+class LyricsError(Exception):
+    pass
+
 event_map = {
     'intro': 'Intro',
     'verse': 'Verse',
@@ -50,9 +53,11 @@ class LyricsHandler():
         
         track = matched_tracks[0]
 
-        fname = self.load_lyrics(track)
-
-        await interaction.edit_original_response(attachments=[discord.File(fname)])
+        try:
+            fname = self.load_lyrics(track)
+            await interaction.edit_original_response(attachments=[discord.File(fname)])
+        except LyricsError as e:
+            await interaction.edit_original_response(embed=constants.common_error_embed(str(e)))
 
     def load_lyrics(self, track):
         midi = track['track']['mu']
@@ -73,7 +78,7 @@ class LyricsHandler():
         pro_vocals_track = discord.utils.find(lambda t: t.name == 'PRO VOCALS', tracks)
 
         if not pro_vocals_track:
-            raise Exception('Pro Vocals not supported')
+            raise LyricsError('Pro Vocals not supported')
 
         messages = list(_to_abstime(pro_vocals_track))
         messages_only_notes = list(filter(lambda m: m.type == 'note_on' or m.type == 'note_off', messages))
