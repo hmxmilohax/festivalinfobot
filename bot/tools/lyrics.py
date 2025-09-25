@@ -90,14 +90,19 @@ class LyricsHandler():
         phrases = []
         cur_phrase = None
         for phrase in messages_only_phrases:
-            if phrase.type == 'note_on':
+            #                            I hope this doesnt
+            #                              break anything!
+            if phrase.type == 'note_on' and not cur_phrase:
                 cur_phrase = {
                     'start': phrase.time,
                     'note': phrase.note,
                     'end': None,
                     'notes': []
                 }
-            elif phrase.type == 'note_off' and cur_phrase and phrase.note == cur_phrase['note']:
+                #                                   DUMBASS FIX BRO 
+                #                                    HARMONIX FIX
+                #                                    UR GAME PLS
+            elif (phrase.type == 'note_off' or phrase.type == 'note_on') and cur_phrase and phrase.note == cur_phrase['note']:
                 cur_phrase['end'] = phrase.time
                 phrases.append(cur_phrase)
                 cur_phrase = None
