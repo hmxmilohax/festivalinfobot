@@ -10,6 +10,7 @@ import requests
 
 from bot import config, constants
 from bot.groups.oauthmanager import OAuthManager
+from bot.groups.suggestions import SuggestionModal
 from bot.tracks import JamTrackHandler
 from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 
@@ -31,6 +32,13 @@ class SubscriptionsView(discord.ui.View):
         self.bot: commands.Bot = bot
 
         self.add_item(SubscriptionTypesDropdown())
+
+        async def problemsf(interaction: discord.Interaction):
+            await interaction.response.send_modal(SuggestionModal(self.bot))
+
+        problems = discord.ui.Button(label="Problems with Subscriptions / Changes Not Saving / Feedback / Concerns / Bugs?", emoji=constants.ERROR_EMOJI, style=discord.ButtonStyle.secondary, row=1)
+        problems.callback = problemsf
+        self.add_item(problems)
 
     async def reply_to_initial(self, message: discord.Message):
         embed = discord.Embed(title=f"Subscription Manager", description="Manage your subscriptions to Festival Tracker.", color=0x8927A1)

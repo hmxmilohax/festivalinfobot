@@ -486,8 +486,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             songs_with, songs_without, missing_midi = provocals_data
             percentage = round((len(songs_with) / len(track_list)) * 100, 2)
-            percentage_missing = round((len(songs_without) / len(track_list)) * 100, 2)
             embed.add_field(name="Pro Vocals", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
+
+            lipsync_only_list = [
+                t for t in track_list 
+                if t['track'].get('ld', None) != None
+            ]
 
             legacy_list = [
                 t for t in track_list 
@@ -502,18 +506,20 @@ class FestivalInfoBot(commands.AutoShardedBot):
             ]
 
             legacy_with_pro_vocals = []
-            legacy_without_pro_vocals = []
             for track in songs_with:
                 if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
                     legacy_with_pro_vocals.append(track)
-            
-            for track in songs_without:
-                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
-                    legacy_without_pro_vocals.append(track)
 
             percentage_legacy = round((len(legacy_with_pro_vocals) / len(legacy_list)) * 100, 2)
-            percentage_missing_legacy = round((len(legacy_without_pro_vocals) / len(legacy_list)) * 100, 2)
             embed.add_field(name="Pro Vocals (Legacy)", value=f"**{len(legacy_with_pro_vocals)}**/**{len(legacy_list)}** ({percentage_legacy}%)", inline=False)
+
+            ls_w_pv = []
+            for track in songs_with:
+                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
+                    ls_w_pv.append(track)
+
+            percentage_ls = round((len(ls_w_pv) / len(lipsync_only_list)) * 100, 2)
+            embed.add_field(name="Pro Vocals (Lipsync Only)", value=f"**{len(ls_w_pv)}**/**{len(lipsync_only_list)}** ({percentage_ls}%)", inline=False)
 
             if len(missing_midi) > 0:
                 embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
@@ -573,18 +579,18 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 ]
             )
 
-        @self.tree.command(name="suggestion", description="Suggest a feature for Festival Tracker")
+        @self.tree.command(name="feedback", description="Suggest/give feedback to the Festival Tracker Devs")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def suggestion_command(interaction: discord.Interaction):
             try:
                 if not self.suggestions_enabled:
-                    await interaction.response.send_message(f"Sorry; Suggestions are currently not enabled.", ephemeral=True)
+                    await interaction.response.send_message(f"Sorry; Feedback is currently not enabled.", ephemeral=True)
                     return
                 else:
                     await interaction.response.send_modal(SuggestionModal(self))
             except Exception as e:
-                await interaction.response.send_message(f'Unable to send the suggestion: {e}', ephemeral=True)
+                await interaction.response.send_message(f'Unable to send your feedback: {e}', ephemeral=True)
 
         @self.tree.command(name="stats", description="Displays Festival Tracker stats")
         @app_commands.allowed_installs(guilds=True, users=True)

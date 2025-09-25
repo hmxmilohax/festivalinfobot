@@ -30,6 +30,7 @@ event_map = {
     'solo_bass': 'Bass Solo',
     'solo_drums': 'Drum Solo',
     'solo_vocals': 'Vocal Solo',
+    'solo_keys': 'Keyboard Solo',
     'outro': 'Outro',
 }
 
@@ -199,7 +200,7 @@ class LyricsHandler():
                 })
 
         for phrase in phrases:
-            is_overdrive_active = discord.utils.find(lambda od: od['start'] <= phrase['start'] <= od['end'], overdrive_phrases)
+            is_overdrive_active = discord.utils.find(lambda od: od['start'] <= phrase['start'] < od['end'], overdrive_phrases)
 
             if is_overdrive_active:
                 print(phrase['notes'])
