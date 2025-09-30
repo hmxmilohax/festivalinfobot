@@ -1,14 +1,14 @@
 # Terms of Service
 
-_Last Updated: 2025.03.27
+Last Updated: 2025.09.30
 
 1. **Acceptance of Terms**  
    By using this Discord bot, you agree to comply with and be bound by the following terms. If you disagree to these terms, you may not use the bot.
 
 2. **Usage**  
-   You may use this bot to access Fortnite Festival-related information, including track metadata, live leaderboards, and shop details. You must not misuse the bot, including but not limited to spamming commands, engaging in harassment to users with information shared within the bot's responses, or attempting to exploit the bot for malicious personal gain.
-
-   While being subscribed to any Jam Track Event, you may receive occassional status updates and information about Festival Tracker to the channel where the subscription is present.
+   You may use this bot to access Fortnite Festival-related information, including track metadata, live leaderboards, and shop details. 
+   
+   You must not misuse the bot, including but not limited to spamming commands, engaging in harassment to users with information shared within the bot's responses, or attempting to exploit the bot for malicious personal gain.
 
    The bot owner reserves the right to revoke any subscription at any time, if it is found to be invalid (channel deleted, missing permissions, etc), or misuse is found, with or without previous notice. We recommend you verify your subscription often.
 
