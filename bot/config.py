@@ -18,7 +18,7 @@ class JamTrackEvents(enum.Enum):
     Added = JamTrackEvent('added', 'Jam Track Added', desc='A Jam Track has been added to the API.')
     Modified = JamTrackEvent('modified', 'Jam Track Modified', desc='A Jam Track has been modified.')
     Removed = JamTrackEvent('removed', 'Jam Track Removed', desc='A Jam Track has been removed from the API.')
-    Announcements = JamTrackEvent('announcements', 'Announcements', desc='Important Festival Tracker announcements and bugfixes.')
+    Announcements = JamTrackEvent('announcements', 'Announcements', desc='Important Festival Tracker announcements and bugfixes. (Recommended)')
 
     def get_all_events():
         return list(JamTrackEvents.__members__.values())

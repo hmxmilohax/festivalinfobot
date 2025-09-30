@@ -292,7 +292,7 @@ class SubscriptionEventTypesDropdown(discord.ui.Select):
 
         # Set the options that will be presented inside the dropdown
         options = [
-            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id, default=True) for event in all_events
+            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id, default=(True if event.value.id == 'announcements' else False)) for event in all_events
         ]
 
         super().__init__(placeholder='Select subscription events...', min_values=1, max_values=len(options), options=options)
