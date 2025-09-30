@@ -9,6 +9,10 @@ import bot.constants as constants
 from discord.ext import commands
 import logging
 
+def b64_decode_padded(s: str) -> bytes:
+    """Decodes a base64 string, adding padding if necessary."""
+    return base64.urlsafe_b64decode(s + '=' * (-len(s) % 4))
+
 class EpicAccount:
     def __init__(self, account_id: str, display_name: str):
         self.account_id = account_id
@@ -114,7 +118,7 @@ class OAuthManager:
         if self._access_token == None:
             raise Exception("Festival Tracker is not ready yet! Please try again in a few moments.")
 
-        payload = json.loads(base64.urlsafe_b64decode(self._access_token.split('.')[1]))
+        payload = json.loads(b64_decode_padded(self._access_token.split('.')[1]))
         # TS PMO
         ts_exp = payload['exp']
         # ts_exp = 0
