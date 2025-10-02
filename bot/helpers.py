@@ -238,7 +238,7 @@ class DailyCommandHandler:
             data = response.json()
 
             track_list = constants.get_jam_tracks(use_cache=True)
-            open('response.json', 'w').write(response.text)
+            # open('response.json', 'w').write(response.text)
 
             channels = data.get('channels', {})
             client_events_data = channels.get('client-events', {})
