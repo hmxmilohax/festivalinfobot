@@ -2,11 +2,23 @@ import mido
 import sys
 from collections import defaultdict
 import os
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+
+from matplotlib import pyplot as plt
+import matplotlib.font_manager as fm
+import matplotlib.image as mpimg
 import numpy as np
 import re
 
-# Define the note name maps for different tracks
+font_path = os.path.abspath('bot/data/Fonts/InterTight-Regular.ttf')
+prop = fm.FontProperties(fname=font_path)
+font_name = prop.get_name()
+
+fm.fontManager.addfont(font_path)
+
+plt.rcParams['font.family'] = font_name
+
 note_name_maps = {
     # Pro Charts
     'PLASTIC GUITAR': {
@@ -109,59 +121,59 @@ note_name_maps = {
         12: "Beat"
     },
     'SECTION': {
-        10: "Note 10 (???)"
+        10: "Practice Sections (?)"
     },
     'PRO VOCALS': {
         116: "Overdrive",
         105: "Phrase Marker",
-        84: "Pitched Vocals 48",
-        83: "Pitched Vocals 47",
-        82: "Pitched Vocals 46",
-        81: "Pitched Vocals 45",
-        80: "Pitched Vocals 44",
-        79: "Pitched Vocals 43",
-        78: "Pitched Vocals 42",
-        77: "Pitched Vocals 41",
-        76: "Pitched Vocals 40",
-        75: "Pitched Vocals 39",
-        74: "Pitched Vocals 38",
-        73: "Pitched Vocals 37",
-        72: "Pitched Vocals 36",
-        71: "Pitched Vocals 35",
-        70: "Pitched Vocals 34",
-        69: "Pitched Vocals 33",
-        68: "Pitched Vocals 32",
-        67: "Pitched Vocals 31",
-        66: "Pitched Vocals 30",
-        65: "Pitched Vocals 29",
-        64: "Pitched Vocals 28",
-        63: "Pitched Vocals 27",
-        62: "Pitched Vocals 26",
-        61: "Pitched Vocals 25",
-        60: "Pitched Vocals 24",
-        59: "Pitched Vocals 23",
-        58: "Pitched Vocals 22",
-        57: "Pitched Vocals 21",
-        56: "Pitched Vocals 20",
-        55: "Pitched Vocals 19",
-        54: "Pitched Vocals 18",
-        53: "Pitched Vocals 17",
-        52: "Pitched Vocals 16",
-        51: "Pitched Vocals 15",
-        50: "Pitched Vocals 14",
-        49: "Pitched Vocals 13",
-        48: "Pitched Vocals 12",
-        47: "Pitched Vocals 11",
-        46: "Pitched Vocals 10",
-        45: "Pitched Vocals 9",
-        44: "Pitched Vocals 8",
-        43: "Pitched Vocals 7",
-        42: "Pitched Vocals 6",
-        41: "Pitched Vocals 5",
-        40: "Pitched Vocals 4",
-        39: "Pitched Vocals 3",
-        38: "Pitched Vocals 2",
-        37: "Pitched Vocals 1"
+        84: "Pro Vocals 48",
+        83: "Pro Vocals 47",
+        82: "Pro Vocals 46",
+        81: "Pro Vocals 45",
+        80: "Pro Vocals 44",
+        79: "Pro Vocals 43",
+        78: "Pro Vocals 42",
+        77: "Pro Vocals 41",
+        76: "Pro Vocals 40",
+        75: "Pro Vocals 39",
+        74: "Pro Vocals 38",
+        73: "Pro Vocals 37",
+        72: "Pro Vocals 36",
+        71: "Pro Vocals 35",
+        70: "Pro Vocals 34",
+        69: "Pro Vocals 33",
+        68: "Pro Vocals 32",
+        67: "Pro Vocals 31",
+        66: "Pro Vocals 30",
+        65: "Pro Vocals 29",
+        64: "Pro Vocals 28",
+        63: "Pro Vocals 27",
+        62: "Pro Vocals 26",
+        61: "Pro Vocals 25",
+        60: "Pro Vocals 24",
+        59: "Pro Vocals 23",
+        58: "Pro Vocals 22",
+        57: "Pro Vocals 21",
+        56: "Pro Vocals 20",
+        55: "Pro Vocals 19",
+        54: "Pro Vocals 18",
+        53: "Pro Vocals 17",
+        52: "Pro Vocals 16",
+        51: "Pro Vocals 15",
+        50: "Pro Vocals 14",
+        49: "Pro Vocals 13",
+        48: "Pro Vocals 12",
+        47: "Pro Vocals 11",
+        46: "Pro Vocals 10",
+        45: "Pro Vocals 9",
+        44: "Pro Vocals 8",
+        43: "Pro Vocals 7",
+        42: "Pro Vocals 6",
+        41: "Pro Vocals 5",
+        40: "Pro Vocals 4",
+        39: "Pro Vocals 3",
+        38: "Pro Vocals 2",
+        37: "Pro Vocals 1"
     },
     # Normal Charts
     'PART VOCALS': {
@@ -463,6 +475,10 @@ def extract_session_id(file_name):
 def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Add a background image that fills the entire figure (not just the axes)
+    img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
+    fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
     
     times = []
     notes = []
@@ -510,7 +526,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
 
     ax.set_xlabel('Time')
     ax.set_ylabel('MIDI Note/Text')
-    ax.set_title(f'{song_name} | MIDI Changes: {track_name}')
+    ax.set_title(f'{track_name} Track Diff. ({song_name})')
     
     # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
@@ -523,12 +539,14 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     ax.grid(True, linestyle='--', alpha=0.7)
 
     track_name = track_name.replace(' ', '_')
+    fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
 
     plt.tight_layout()
     
     # Save the plot to the output folder with session ID in the file name
     image_path = os.path.join(output_folder, f"{track_name}_changes_{session_id}.png")
     plt.savefig(image_path)
+
     plt.close()
     
     #print(f"Saved MIDI comparison visualization for {track_name} to {image_path}")
@@ -716,3 +734,7 @@ if __name__ == "__main__":
             print("MIDI comparison completed successfully.")
         else:
             print("MIDI comparison failed.")
+
+def run_comparison(midi_file1, midi_file2, session_id, song_name = 'unknown'):
+    result = main(midi_file1, midi_file2, session_id, song_name)
+    return result

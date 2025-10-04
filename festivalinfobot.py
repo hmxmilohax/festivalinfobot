@@ -242,7 +242,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.shop_handler = ShopCommandHandler(self)
         self.tracklist_handler = TracklistHandler(self)
         self.path_handler = PathCommandHandler()
-        self.history_handler = HistoryHandler()
+        self.history_handler = HistoryHandler(self)
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
@@ -292,6 +292,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
             err_text: str = str(error)
             err_text = err_text.replace(constants.SPARKS_MIDI_KEY, constants.rand_hex(constants.SPARKS_MIDI_KEY))
             err_text = err_text.replace(constants.EPIC_ACCOUNT_ID, constants.rand_hex(constants.EPIC_ACCOUNT_ID))
+            uname = os.environ.get("USERNAME")
+            if uname:
+                err_text = err_text.replace(uname, '-' * len(uname))
 
             embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="This error has been reported.")
             embed.add_field(name="", value=f"```{str(err_text)}```")
@@ -388,6 +391,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.send(file=discord.File('bot/data/EasterEgg/miku.png', filename="miku.png"))
 
         @self.command()
+        async def impersonator(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/Screenshot 2025-10-04 005309.png', filename="Screenshot 2025-10-04 005309.png"))
+
+        @self.command()
+        async def milohaxowner(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/heisthebot.png', filename="heisthebot.png"))
+
+        @self.command()
         async def feet(ctx: commands.Context):
             await ctx.message.add_reaction("👣")
 
@@ -398,6 +409,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @self.command()
         async def sex(ctx: commands.Context):
             await ctx.send("https://x.com/FNFestival/status/1731398051242086714")
+
+        @self.tree.command(name="agreements", description="Festival Tracker Privacy Policy and Terms of Service.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def search_command(interaction: discord.Interaction):
+            await interaction.response.send_message("**Privacy Policy:** <https://festivaltracker.org/privacy-policy>\n**Terms of Service:** <https://festivaltracker.org/terms-of-service>", ephemeral=True)
             
         @self.tree.command(name="search", description="Search a song.")
         @app_commands.allowed_installs(guilds=True, users=True)
@@ -705,8 +722,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
                         color=0x8927A1
                     )
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
-                    embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
-                    embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
+                    embed.add_field(name='Privacy Policy', value='[View](https://festivaltracker.org/privacy-policy)')
+                    embed.add_field(name='Terms of Service', value='[View](https://festivaltracker.org/terms-of-service)')
                     embed.add_field(name=f"Help with `/{found_command.qualified_name}`", value=description, inline=False)
 
                     embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
@@ -739,8 +756,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
                         color=0x8927A1
                     )
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
-                    embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
-                    embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
+                    embed.add_field(name='Privacy Policy', value='[View](https://festivaltracker.org/privacy-policy)')
+                    embed.add_field(name='Terms of Service', value='[View](https://festivaltracker.org/terms-of-service)')
                     embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://invite.festivaltracker.org)', inline=False)
                     chunk = commands[i:i + 5]
 

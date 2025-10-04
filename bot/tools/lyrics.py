@@ -294,7 +294,7 @@ class LyricsHandler():
 
         image = self.draw_lyrics(
             sentences=sentences, 
-            font_path="bot/data/Fonts/SF-Pro-Display-Bold.otf",
+            font_path="bot/data/Fonts/InterTight-Bold.ttf",
             album_art_path=album_art_path,
             line_spacing=10,
             text_color=(255, 255, 255),
