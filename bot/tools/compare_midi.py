@@ -3,6 +3,8 @@ import sys
 from collections import defaultdict
 import os
 import matplotlib
+
+from bot import constants
 matplotlib.use('Agg')
 
 from matplotlib import pyplot as plt
@@ -10,6 +12,8 @@ import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
 import numpy as np
 import re
+
+import logging
 
 font_path = os.path.abspath('bot/data/Fonts/InterTight-Regular.ttf')
 prop = fm.FontProperties(fname=font_path)
@@ -393,7 +397,7 @@ def load_midi_tracks(file_path):
     try:
         mid = mido.MidiFile(file_path)
     except OSError as e:
-        print(f"Error loading MIDI file {file_path}: {e}")
+        logging.debug(f"Error loading MIDI file {file_path}: {e}")
         return None, None
 
     tracks = {}
@@ -476,7 +480,19 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Add a background image that fills the entire figure (not just the axes)
+    # dark mode (prototype)
+    dark_mode = False
+
+    if dark_mode:
+        gray = (0.1, 0.1, 0.1)
+        fig.patch.set_facecolor(gray)
+        ax.set_facecolor(gray)
+
+        ax.tick_params(colors='white')
+        ax.xaxis.label.set_color('white')
+        ax.yaxis.label.set_color('white')
+        ax.title.set_color('white')
+
     img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
     fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
     
@@ -517,6 +533,8 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     note_indices = [note_to_index[note] for note in notes]
     ax.scatter(times, note_indices, c=colors, marker='s', s=100, edgecolor='black', label=f'{track_name}')
 
+    
+
     # Add text event markers
     if text_times:
         # Plot text event changes with blue triangles
@@ -532,7 +550,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
 
     # Apply note names instead of raw MIDI numbers, using the note_name_map
-    ax.set_yticklabels([note_name_map.get(note, f"Note {note}") for note in unique_notes] + ['Text Events'])
+    ax.set_yticklabels([note_name_map.get(note, f"Note {note}") for note in unique_notes] + ['MIDI Notes'])
     
     ax.invert_yaxis()  # This inverts the y-axis to ensure highest notes are at the top
 
@@ -545,11 +563,13 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     
     # Save the plot to the output folder with session ID in the file name
     image_path = os.path.join(output_folder, f"{track_name}_changes_{session_id}.png")
+    logging.debug(f"Saving {image_path}")
+
     plt.savefig(image_path)
 
     plt.close()
     
-    #print(f"Saved MIDI comparison visualization for {track_name} to {image_path}")
+    #logging.debug(f"Saved MIDI comparison visualization for {track_name} to {image_path}")
 
 def compare_tracks(track1_events, track2_events, time_window, time_threshold, velocity_threshold=5):
     differences = []
@@ -651,10 +671,10 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         #empty_output_file = os.path.join(os.path.dirname(output_file), f"{os.path.splitext(os.path.basename(output_file))[0]}_emptyupdate.txt")
         #with open(empty_output_file, 'w', encoding='utf-8') as f:
         #    f.write("EMPTY")
-        print(f"Filtered output only contains a single track that is not in the list to compare.")
+        logging.debug(f"Filtered output only contains a single track that is not in the list to compare.")
     else:
         new_mid.save(output_file)
-        print(f"Filtered update MIDI saved to '{output_file}'")
+        logging.debug(f"Filtered update MIDI saved to '{output_file}'")
 
 def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)):
     base_name1, ext1 = os.path.splitext(midi_file1)
@@ -662,34 +682,34 @@ def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)
     session_id, ext3 = os.path.splitext(session_id)
 
     if not session_id:
-        print("Error: Could not extract session ID from the arg.")
+        logging.debug("Error: Could not extract session ID from the arg.")
         return False
 
-    output_folder = os.path.join(os.path.dirname(__file__), 'temp/')
+    output_folder = constants.TEMP_FOLDER
     os.makedirs(output_folder, exist_ok=True)
 
     if not os.path.exists(midi_file2):
-        print(f"Update file '{midi_file2}' is missing.")
+        logging.debug(f"Update file '{midi_file2}' is missing.")
         return False
 
     tracks1, tempo_events1 = load_midi_tracks(midi_file1)
     if tracks1 is None:
-        print(f"Error loading base MIDI file '{midi_file1}'.")
+        logging.debug(f"Error loading base MIDI file '{midi_file1}'.")
         return False
 
     tracks2, tempo_events2 = load_midi_tracks(midi_file2)
     if tracks2 is None:
-        print(f"Error loading update MIDI file '{midi_file2}'.")
+        logging.debug(f"Error loading update MIDI file '{midi_file2}'.")
         return False
 
     # Compare tempo events
     tempo_differences = compare_tempo_events(tempo_events1, tempo_events2)
     if tempo_differences:
-        print("Tempo differences found:")
+        logging.debug("Tempo differences found:")
         for time, tempo1, tempo2 in tempo_differences:
-            print(f"At time {time}: Tempo changed from {tempo1} to {tempo2}")
+            logging.debug(f"At time {time}: Tempo changed from {tempo1} to {tempo2}")
     else:
-        print("Tempo Map unchanged")
+        logging.debug("Tempo Map unchanged")
 
     # Compare existing tracks
     common_tracks = sorted(set(tracks1) & set(tracks2))
@@ -714,15 +734,15 @@ def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)
         text_differences = compare_text_events(track1_text_events, track2_text_events)
         
         if differences or text_differences:
-            #print(f"Differences found in track '{track_name}':")
+            #logging.debug(f"Differences found in track '{track_name}':")
             visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name)
         else:
-            print(f"'{track_name}' unchanged")
+            logging.debug(f"'{track_name}' unchanged")
     return True
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        print("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id> <song_name>")
+        logging.debug("Usage: python compare_midi.py <midi_file1> <midi_file2> <session_id> <song_name>")
     else:
         midi_file1 = sys.argv[1]
         midi_file2 = sys.argv[2]
@@ -731,10 +751,14 @@ if __name__ == "__main__":
         
         result = main(midi_file1, midi_file2, session_id, song_name)
         if result:
-            print("MIDI comparison completed successfully.")
+            logging.debug("MIDI comparison completed successfully.")
         else:
-            print("MIDI comparison failed.")
+            logging.debug("MIDI comparison failed.")
 
 def run_comparison(midi_file1, midi_file2, session_id, song_name = 'unknown'):
     result = main(midi_file1, midi_file2, session_id, song_name)
+    if result:
+        logging.debug("MIDI comparison completed successfully.")
+    else:
+        logging.debug("MIDI comparison failed.")
     return result

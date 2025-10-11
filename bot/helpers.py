@@ -12,6 +12,7 @@ from bot import constants
 from bot.constants import OneButtonSimpleView
 from discord.ext import commands
 from bot.embeds import SearchEmbedHandler
+from bot.midi import MidiArchiveTools
 
 class WeeklySongsDisplay(discord.ui.Container):
     def __init__(self, tracks):
@@ -391,14 +392,30 @@ class TracklistHandler:
     def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()
 
-    async def handle_interaction(self, interaction: discord.Interaction):
+    async def handle_interaction(self, interaction: discord.Interaction, pro_vocals_only: bool = False):
         tracks = constants.get_jam_tracks()
         if not tracks:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
+        
+        await interaction.response.defer()
+        
+        if pro_vocals_only:
+            midi_tool = MidiArchiveTools()
+
+            filtered_tracks = []
+            for track in tracks:
+                midi_url = track['track'].get('mu', '')
+                if midi_url:
+                    midi_file = midi_tool.save_chart(track['track']['mu'])
+                    if os.path.exists(midi_file):
+                        with open(midi_file, 'rb') as mf:
+                            if b'PRO VOCALS' in mf.read():
+                                filtered_tracks.append(track)
+
+            tracks = filtered_tracks
 
         track_list = constants.sort_track_list(tracks)
-        await interaction.response.defer()
 
         total_tracks = len(track_list)
         title = f"Available Tracks (Total: {total_tracks})"

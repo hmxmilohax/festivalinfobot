@@ -446,6 +446,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def tracklist_command(interaction: discord.Interaction):
             await self.tracklist_handler.handle_interaction(interaction=interaction)
 
+        @tracklist_group.command(name="provocals", description="Browse the full list of available Jam Tracks with Pro Vocals.")
+        async def tracklist_command(interaction: discord.Interaction):
+            await self.tracklist_handler.handle_interaction(interaction=interaction, pro_vocals_only=True)
+
         @filter_group.command(name="artist", description="Browse the list of available Jam Tracks that match a queried artist.")
         @app_commands.describe(artist = "A search query to use in the song name.")
         async def tracklist_command(interaction: discord.Interaction, artist:str):

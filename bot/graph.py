@@ -8,11 +8,27 @@ from bot.tracks import JamTrackHandler
 import os
 import bot.constants as const
 import mido
-import matplotlib.pyplot as plt
+
+import matplotlib
+matplotlib.use('Agg')
+
+from matplotlib import pyplot as plt
+import matplotlib.font_manager as fm
+import matplotlib.image as mpimg
+import matplotlib.patheffects as path_effects
+
 import numpy as np
 import pandas as pd
 from mido.midifiles.tracks import _to_abstime
 import re
+
+font_path = os.path.abspath('bot/data/Fonts/InterTight-Regular.ttf')
+prop = fm.FontProperties(fname=font_path)
+font_name = prop.get_name()
+
+fm.fontManager.addfont(font_path)
+
+plt.rcParams['font.family'] = font_name
 
 class GraphCommandsHandler():
     def __init__(self) -> None:
@@ -218,7 +234,10 @@ class GraphingFuncs():
         window_size = 10
         df = pd.DataFrame({'nps': notes_per_second}, index=seconds)
         ema = df['nps'].ewm(span=window_size, adjust=False).mean()
-        plt.figure(figsize=(10, 4))
+        fig = plt.figure(figsize=(10, 4))
+
+        img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
+        fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
 
         # Plot the original notes per second
         plt.plot(seconds, notes_per_second, color='black', linestyle='-', linewidth=1, label='Notes per second')
@@ -226,17 +245,23 @@ class GraphingFuncs():
         # Plot the EMA
         plt.plot(ema.index, ema.values, color='purple', linestyle='--', linewidth=1, label='EMA (Average)')
 
-        plt.text(max_nps_second, max_nps, f'{max_nps}', color='blue', fontsize=10, ha='center', va='bottom')
+        mxnps = plt.text(max_nps_second, max_nps, f'{max_nps}', color='red', fontsize=15, ha='center', va='bottom')
+
+        mxnps.set_path_effects([
+            path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+        ])
 
         plt.xlabel('Time (seconds)')
         plt.ylabel('Notes per second')
-        plt.title(f'{song_name} - {song_artist}: NPS ({diff.english} {inst.english})')
+        plt.title(f'{diff.english} {inst.english} NPS [{song_name}]')
 
         plt.xticks(np.arange(min(seconds), max(seconds)+1, 10))
         plt.xticks(rotation=90)
         plt.grid(axis='y')
 
         plt.legend()
+
+        fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
 
         plt.tight_layout()
         plt.savefig(os.path.join(const.TEMP_FOLDER, path))
@@ -246,6 +271,15 @@ class GraphingFuncs():
     def generate_lanes_chart(self, midi_path : str, spath : str, inst : const.Instrument, diff : const.Difficulty, song_name, song_artist):
         labels = ['Green', 'Red', 'Yellow', 'Blue', 'Orange']
         colours = ['green', 'red', 'yellow', 'blue', 'orange']
+
+        text_colour_map = {
+            'green': 'white',
+            'red': 'white',
+            'yellow': 'black',
+            'blue': 'white',
+            'orange': 'black',
+        }
+
         notes = [0, 0, 0, 0, 0]
         start = diff.pitch_ranges[0]
         end = diff.pitch_ranges[1]
@@ -326,11 +360,29 @@ class GraphingFuncs():
 
         plt.bar(labels, notes, color=colours)
 
+        fig = plt.gcf() # get current figure
+        ax = plt.gca() # get current axis
+        img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
+        fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
+
+        bbox = ax.get_window_extent()
+        axis_height_pixels = bbox.height
+        ymin, ymax = ax.get_ylim()
+        data_per_pixel_y = (ymax - ymin) / axis_height_pixels
+
+        vertical_data_units = 4 * data_per_pixel_y
+
         for i, value in enumerate(notes):
-            plt.text(i, value + 3, str(value), ha='center')
+            txt = plt.text(i, value + vertical_data_units, str(value), ha='center', color=text_colour_map[colours[i]], fontsize=10)
+            txt.set_path_effects([
+                path_effects.Stroke(linewidth=3, foreground=colours[i]), path_effects.Normal()
+            ])
+            # plt.text(i, value, str(value), ha='center')
         plt.xlabel('Lanes')
         plt.ylabel('Number of Notes')
         plt.title(f'{song_artist} - {song_name}: Notes per lane ({diff.english} {inst.english})')
+
+        fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
 
         plt.savefig(os.path.join(const.TEMP_FOLDER, spath))
 
@@ -388,10 +440,14 @@ class GraphingFuncs():
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        rects1 = ax.bar(x - 1.5*width, easy, width, label='Easy', color='orange')
-        rects2 = ax.bar(x - 0.5*width, medium, width, label='Medium', color='blue')
-        rects3 = ax.bar(x + 0.5*width, hard, width, label='Hard', color='green')
-        rects4 = ax.bar(x + 1.5*width, expert, width, label='Expert', color='purple')
+        img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
+        fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
+        fig.figimage(img, xo=1000, yo=0, alpha=0.15, zorder=-1)
+
+        rects1 = ax.bar(x - 1.5*width, easy, width, label='Easy', color='lime')
+        rects2 = ax.bar(x - 0.5*width, medium, width, label='Medium', color='yellow')
+        rects3 = ax.bar(x + 0.5*width, hard, width, label='Hard', color='orange')
+        rects4 = ax.bar(x + 1.5*width, expert, width, label='Expert', color='red')
 
         ax.set_xlabel('Instrument')
         ax.set_ylabel('Notes')
@@ -399,13 +455,21 @@ class GraphingFuncs():
         ax.set_xticks(x)
         ax.set_xticklabels(labels)
         ax.legend()
+
+        bbox = ax.get_window_extent()
+        axis_height_pixels = bbox.height
+        ymin, ymax = ax.get_ylim()
+        data_per_pixel_y = (ymax - ymin) / axis_height_pixels
+
+        vertical_data_units = 2 * data_per_pixel_y
+
         def add_bar_labels(rects):
             for rect in rects:
                 height = rect.get_height()
                 ax.text(
-                    rect.get_x() + rect.get_width() / 2, height + 10,
+                    rect.get_x() + rect.get_width() / 2, height + vertical_data_units,
                     f'{height}',
-                    ha='center', va='bottom', color='black', rotation=90
+                    ha='center', va='bottom', color='black', rotation=90, fontsize=8
                 )
 
         add_bar_labels(rects1)
@@ -413,10 +477,12 @@ class GraphingFuncs():
         add_bar_labels(rects3)
         add_bar_labels(rects4)
 
+        fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
+
         # Display the graph
         # plt.tight_layout()
         plt.tight_layout()
-        plt.savefig(os.path.join(const.TEMP_FOLDER, path))
+        plt.savefig(os.path.join(const.TEMP_FOLDER, path), dpi=115)
 
         plt.close()
 

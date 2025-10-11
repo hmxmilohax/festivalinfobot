@@ -24,7 +24,7 @@ from bot.tools.previewpersist import PreviewButton
 from bot.tools.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler
 
-import compare_midi as midi_comparison
+import bot.tools.compare_midi as midi_comparison
 
 import bot.sparks_tracks as sparks_tracks
 # import cloudscraper # FUCK YOU CLOUDFLARE (jk i love you)
@@ -204,13 +204,14 @@ class HistoryHandler():
                 # Now that comparison is complete, check for any image output
                 comparison_images = [f for f in os.listdir(constants.TEMP_FOLDER) if f.endswith(f'{session_hash}.png')]
 
+                logging.debug(comparison_images)
+
                 last_modified_old_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_old.replace('Z', '+00:00')), style='D')
                 last_modified_new_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')), style='D')
 
                 if comparison_images:
                     list_of_images = []
 
-                    # do not use edit_original_response here
                     for image in comparison_images:
                         image_path = os.path.abspath(os.path.join(constants.TEMP_FOLDER, image))
                         list_of_images.append(image_path)
@@ -335,7 +336,7 @@ class HistoryHandler():
         results = []
 
         for i in range(1, len(midi_file_changes)):
-            print(f'{shortname} chart history is running as we speak step {i}')
+            logging.info(f'{shortname} chart history is running as we speak step {i}')
             old_midi = midi_file_changes[i - 1]
             new_midi = midi_file_changes[i]
             old_midi_file = old_midi[1]
@@ -350,7 +351,7 @@ class HistoryHandler():
             this_res = await self.process_chart_url_change(
                 old_midi_file, new_midi_file, shortname, old_midi[0], new_midi[0], real_session_hash
             )
-            print(this_res)
+            logging.info(this_res)
             results.append(this_res)
 
             # task = loop.run_in_executor(
@@ -409,7 +410,7 @@ class HistoryHandler():
 
         # Call the new function that uses asyncio.gather and a thread pool
         results = await self.process_all_midi_changes(midi_file_changes, shortname, actual_title, actual_artist, album_art_url, session_hash)
-        print(results)
+        logging.info(results)
 
         the_view_itself = history_tools.HistoryView(results, session_hash, interaction.user.id, track_data)
         fpaths = the_view_itself.update_components()

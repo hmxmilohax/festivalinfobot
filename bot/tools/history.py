@@ -43,7 +43,7 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
 
         self.action_row = None
 
-        print(self.total_pages)
+        logging.info(self.total_pages)
 
     def update_components(self) -> list[str]:
         """
@@ -58,7 +58,7 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
         container = discord.ui.Container(
             discord.ui.Section(
                 discord.ui.TextDisplay(f"**{self.track_data['track']['tt']}** - *{self.track_data['track']['an']}*"),
-                discord.ui.TextDisplay(f"Detected {len(attchs)} track change(s) in v{self.current_page + 2}"),
+                discord.ui.TextDisplay(f"Detected {len(_attchs)} track change(s) in v{self.current_page + 2}"),
                 discord.ui.TextDisplay(f"From {pdata['last_modified_old']}\n" +
                                        f"To {pdata['last_modified_new']}\n" + 
                                        f"Since {pdata['last_modified_new'].replace('D', 'R')}"),
