@@ -503,8 +503,16 @@ class LoopCheckHandler():
 
         bot_config: config.Config = self.bot.config
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
-        # EQUALITY
-        random.shuffle(combined_channels)
+        target_id = 1328391774720229517
+        obj = discord.utils.find(lambda x: x.id == target_id, combined_channels)
+        if obj:
+            idx = combined_channels.index(obj)
+            if idx is not None:
+                target = combined_channels.pop(idx)
+                random.shuffle(combined_channels)
+                combined_channels.insert(0, target)
+            else:
+                random.shuffle(combined_channels)
 
         start = datetime.now()
 

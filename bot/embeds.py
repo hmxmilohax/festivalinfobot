@@ -68,7 +68,7 @@ class SearchEmbedHandler:
     def __init__(self) -> None:
         pass
     
-    def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False):
+    def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False, is_detail=False):
         track = track_data['track']
         if is_new:
             title = f"New Track Added:"
@@ -102,12 +102,23 @@ class SearchEmbedHandler:
 
         duration = track.get('dn', 0)
         embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
-        embed.add_field(name="Key", value=key, inline=True)
+
+        if not is_detail:
+            embed.add_field(name="Key", value=key, inline=True)
+        else:
+            embed.add_field(name="Key", value=_key, inline=True)
+            embed.add_field(name="Mode", value=mode, inline=True)
+
         embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
 
         # ----------
 
-        embed.add_field(name="Shortname & ID", value=track['sn'] + ' [' + track.get('ti').replace('SparksSong:sid_placeholder_', '') + ']', inline=True)
+        if not is_detail:
+            embed.add_field(name="Shortname & ID", value=track['sn'] + ' [' + track.get('ti').replace('SparksSong:sid_placeholder_', '') + ']', inline=True)
+        else:
+            embed.add_field(name="Shortname", value=track['sn'], inline=True)
+            embed.add_field(name="Item ID", value=track.get('ti'), inline=True)
+        
         embed.add_field(name="Jam Loop Code", value=track.get('jc', 'N/A'), inline=True)
         embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
         
@@ -125,8 +136,8 @@ class SearchEmbedHandler:
         band_diff = track['in'].get('bd', -1) # apparently bd is placeholder for pro vocals
 
         midi_tool = MidiArchiveTools()
-        user_id = track.get('ry', 2025)
-        session_hash = constants.generate_session_hash(user_id, track['sn'])
+        # user_id = track.get('ry', 2025)
+        # session_hash = constants.generate_session_hash(user_id, track['sn'])
         midi_file = midi_tool.save_chart(track['mu'])
         has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
 
@@ -147,9 +158,32 @@ class SearchEmbedHandler:
         # ----------
 
         gameplay_tags = track.get('gt')
-        if gameplay_tags != None:
+        if gameplay_tags and not is_detail:
             embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
 
+        if is_detail:
+            embed.add_field(name="Animation Genre", value=track.get('ag', 'N/A'), inline=True)
+            embed.add_field(name="Stage Mood", value=track.get('sm', 'N/A'), inline=True)
+            embed.add_field(name="Streaming Data", value='```' + track.get('qi', 'N/A') + '```', inline=False)
+
+            sib = track.get('sib', "N/A")
+            sid = track.get('sid', "N/A")
+            siv = track.get('siv', "N/A")
+            sig = track.get('sig', "N/A")
+
+            embed.add_field(name="Starting Instruments", value="```" +
+                            f"{sib = }\n" +
+                            f"{sid = }\n" +
+                            f"{siv = }\n" +
+                            f"{sig = }```", inline=False)
+
+            embed.add_field(name="MIDI Uri", value=track.get('mu', 'N/A'), inline=False)
+            embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
+
+            if has_pro_vocals:
+                embed.add_field(name="Pro Vocals", value="Yes", inline=True)
+            
+            embed.add_field(name="Rating", value=f"`{track.get('ar', 'N/A')}`", inline=True)
 
         # average diff
         difficulties_array = [
@@ -190,7 +224,7 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
 
-        pro_vocals_supported_indicator = ' · Pro Vocals Supported' if has_pro_vocals else ''
+        pro_vocals_supported_indicator = ' · Pro Vocals Supported' if (has_pro_vocals and not is_detail) else ''
 
         embed.set_footer(text=f"ESRB: {rating_description}{pro_vocals_supported_indicator} · Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
         

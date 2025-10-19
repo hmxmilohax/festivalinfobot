@@ -18,7 +18,6 @@ from configparser import ConfigParser
 
 from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
-from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
 from bot.groups.graphs import GraphCog
 from bot.groups.history import HistoryCog
@@ -185,6 +184,25 @@ class FestivalInfoBot(commands.AutoShardedBot):
         if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
             self.utility_loop_task.start()
 
+        if not self.old_ack:
+            self.old_ack = self.ws._keep_alive.ack
+
+            def new_ack():
+                logging.debug("Received ACK from Discord Gateway")
+                if self.ws.latency > 10:
+                    logging.warning(f"High latency detected: {self.ws.latency*1000:.2f}ms")
+                    logging.warning(f"Auto-restarting...")
+                    self.close()
+
+                    python_executable = sys.executable
+                    script_path = os.path.abspath(sys.argv[0])
+                    subprocess.Popen([python_executable, script_path] + sys.argv[1:])
+                    sys.exit(0)
+
+                self.old_ack()
+
+            self.ws._keep_alive.ack = new_ack
+
         logging.debug("on_ready finished!")
 
     async def on_shard_connect(self, shard_id: int):
@@ -204,6 +222,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.suggestions_enabled = True
         self.is_done_chunking = False
         self.last_analytic: Optional[datetime] = None
+        self.old_ack = None
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -416,12 +435,13 @@ class FestivalInfoBot(commands.AutoShardedBot):
         async def search_command(interaction: discord.Interaction):
             await interaction.response.send_message("**Privacy Policy:** <https://festivaltracker.org/privacy-policy>\n**Terms of Service:** <https://festivaltracker.org/terms-of-service>", ephemeral=True)
             
-        @self.tree.command(name="search", description="Search a song.")
+        @self.tree.command(name="search", description="Search a track.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(query = "A search query: an artist, song name, or shortname.")
-        async def search_command(interaction: discord.Interaction, query:str):
-            await self.search_handler.handle_interaction(interaction=interaction, query=query)
+        @app_commands.describe(detail = "Whether to show extra information about the track.")
+        async def search_command(interaction: discord.Interaction, query:str, detail:bool = False):
+            await self.search_handler.handle_interaction(interaction=interaction, query=query, detail=detail)
 
         @self.tree.command(name="weekly", description="Display the tracks currently in weekly rotation.")
         @app_commands.allowed_installs(guilds=True, users=True)
@@ -811,9 +831,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         random_cog = RandomCog(self)
         await self.add_cog(random_cog)
-
-        festrpc = FestRPCCog(self)
-        await self.add_cog(festrpc)
 
         graph_cog = GraphCog(self)
         await self.add_cog(graph_cog)
