@@ -177,7 +177,7 @@ class SearchEmbedHandler:
                             f"{siv = }\n" +
                             f"{sig = }```", inline=False)
 
-            embed.add_field(name="MIDI Uri", value=track.get('mu', 'N/A'), inline=False)
+            embed.add_field(name="MIDI Url", value=track.get('mu', 'N/A'), inline=False)
             embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
 
             if has_pro_vocals:
