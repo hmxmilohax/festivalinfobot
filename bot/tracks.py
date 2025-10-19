@@ -36,8 +36,7 @@ class JamTrackHandler:
             'mlcs': ['magicalcureloveshot'], 
             'mscl': ['magicalcureloveshot'],
             'trash': [
-                'showthemwhoweare', 
-                'roar', 
+                'showthemwhoweare',
                 'thesoundofsilence', 
                 'beautifulday', 
                 'nightmareschoice',
