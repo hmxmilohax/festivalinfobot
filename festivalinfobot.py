@@ -185,23 +185,24 @@ class FestivalInfoBot(commands.AutoShardedBot):
             self.utility_loop_task.start()
 
         if not self.old_ack:
-            self.old_ack = self.ws._keep_alive.ack
+            if self.ws:
+                self.old_ack = self.ws._keep_alive.ack
 
-            def new_ack():
-                logging.debug("Received ACK from Discord Gateway")
-                if self.ws.latency > 10:
-                    logging.warning(f"High latency detected: {self.ws.latency*1000:.2f}ms")
-                    logging.warning(f"Auto-restarting...")
-                    self.close()
+                def new_ack():
+                    logging.debug("Received ACK from Discord Gateway")
+                    if self.ws.latency > 10:
+                        logging.warning(f"High latency detected: {self.ws.latency*1000:.2f}ms")
+                        logging.warning(f"Auto-restarting...")
+                        self.close()
 
-                    python_executable = sys.executable
-                    script_path = os.path.abspath(sys.argv[0])
-                    subprocess.Popen([python_executable, script_path] + sys.argv[1:])
-                    sys.exit(0)
+                        python_executable = sys.executable
+                        script_path = os.path.abspath(sys.argv[0])
+                        subprocess.Popen([python_executable, script_path] + sys.argv[1:])
+                        sys.exit(0)
 
-                self.old_ack()
+                    self.old_ack()
 
-            self.ws._keep_alive.ack = new_ack
+                self.ws._keep_alive.ack = new_ack
 
         logging.debug("on_ready finished!")
 
@@ -305,8 +306,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 exc_text += f'\n- Command: /{command.qualified_name}'
             onetry = ''.join(traceback.format_exception(error))
 
-            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content=exc_text)
-            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
+            err_f = onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))
+            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content=exc_text, file=discord.File(io.StringIO(err_f), filename='error.txt'))
+            # await self.get_partial_messageable(constants.ERR_CHANNEL).send()
 
             err_text: str = str(error)
             err_text = err_text.replace(constants.SPARKS_MIDI_KEY, constants.rand_hex(constants.SPARKS_MIDI_KEY))
@@ -521,7 +523,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             epic = [t for t in track_list if t['track']['an'] == 'Epic Games']
             percentage = round((len(epic) / len(track_list)) * 100, 2)
 
-            embed.add_field(name="Epic Games Tracks", value=f"**{len(epic)}** Jam Tracks are from Epic Games. ({percentage}%)", inline=False)
+            embed.add_field(name="Epic Games Jam Tracks", value=f"**{len(epic)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
             provocals_data = self.pro_vocals_handler.get_pro_vocals_counts()
 
@@ -536,6 +538,18 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             legacy_list = [
                 t for t in track_list 
+                if track_list.index(
+                    t
+                ) < track_list.index(
+                    discord.utils.find(
+                        lambda x: x['track']['sn'] == 'abarsong', 
+                        track_list
+                    )
+                )
+            ]
+
+            legacy_lipsync_list = [
+                t for t in lipsync_only_list
                 if track_list.index(
                     t
                 ) < track_list.index(
@@ -561,6 +575,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             percentage_ls = round((len(ls_w_pv) / len(lipsync_only_list)) * 100, 2)
             embed.add_field(name="Pro Vocals (Lipsync Only)", value=f"**{len(ls_w_pv)}**/**{len(lipsync_only_list)}** ({percentage_ls}%)", inline=False)
+
+            legacy_ls_w_pv = []
+            for track in songs_with:
+                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list) and discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
+                    legacy_ls_w_pv.append(track)
+
+            percentage_legacy_ls = round((len(legacy_ls_w_pv) / len(legacy_lipsync_list)) * 100, 2)
+            embed.add_field(name="Pro Vocals (Legacy Lipsync Only)", value=f"**{len(legacy_ls_w_pv)}**/**{len(legacy_lipsync_list)}** ({percentage_legacy_ls}%)", inline=False)
 
             if len(missing_midi) > 0:
                 embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)

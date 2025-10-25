@@ -195,7 +195,8 @@ class JamTrackHandler:
                 'blingbangbangborn',
                 'gimmechocolate',
                 'frommetou'
-            ]
+            ],
+            'oiia': ['oiiaoiia']
         }
 
         if search_term in custom_results.keys():
