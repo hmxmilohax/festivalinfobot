@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
+import functools
 import hashlib
 import json
 import logging
@@ -23,7 +24,9 @@ from bot.tools.previewpersist import PreviewButton
 from bot.tools.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler
 
-import sparks_tracks
+import bot.tools.compare_midi as midi_comparison
+
+import bot.sparks_tracks as sparks_tracks
 # import cloudscraper # FUCK YOU CLOUDFLARE (jk i love you)
 
 def save_known_songs(songs):
@@ -91,10 +94,11 @@ def load_known_songs(shortnames:bool = False):
     return list()
 
 class HistoryHandler():
-    def __init__(self) -> None:
+    def __init__(self, bot) -> None:
         self.jam_track_handler = JamTrackHandler()
         self.midi_handler = MidiArchiveTools()
         self.search_embed_handler = SearchEmbedHandler()
+        self.bot: commands.Bot = bot
         pass
 
     def track_midi_changes(self, json_files, shortname, session_hash):
@@ -165,6 +169,9 @@ class HistoryHandler():
             grouped_changes[key].append(item[1])
         
         return grouped_changes
+    
+    def comparison_process(self, old_midi_file, new_midi_file, session_hash, track_name):
+        return midi_comparison.run_comparison(old_midi_file, new_midi_file, session_hash, track_name)
 
     async def process_chart_url_change(self, old_url:str, new_url:str, track_name:str, last_modified_old, last_modified_new, session_hash:str):
         """
@@ -182,16 +189,22 @@ class HistoryHandler():
             shutil.copy(old_midi_file, old_midi_out_path)
             shutil.copy(new_midi_file, new_midi_out_path)
 
-            comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash, track_name]
-            result = subprocess.run(comparison_command, capture_output=True, text=True)
-            # Check the output for errors, just in case
-            if result.returncode != 0:
-                return None
+            comparison = functools.partial(self.comparison_process, old_midi_out_path, new_midi_out_path, session_hash, track_name)
+
+            # comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash, track_name]
+            # result = subprocess.run(comparison_command, capture_output=True, text=True)
+            # # Check the output for errors, just in case
+            # if result.returncode != 0:
+            #     return None
+
+            comparison_result = await self.bot.loop.run_in_executor(None, comparison)
 
             # Check for the completion flag in the output
-            if "MIDI comparison completed successfully" in result.stdout:
+            if comparison_result == True:
                 # Now that comparison is complete, check for any image output
                 comparison_images = [f for f in os.listdir(constants.TEMP_FOLDER) if f.endswith(f'{session_hash}.png')]
+
+                logging.debug(comparison_images)
 
                 last_modified_old_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_old.replace('Z', '+00:00')), style='D')
                 last_modified_new_str = discord.utils.format_dt(datetime.fromisoformat(last_modified_new.replace('Z', '+00:00')), style='D')
@@ -199,7 +212,6 @@ class HistoryHandler():
                 if comparison_images:
                     list_of_images = []
 
-                    # do not use edit_original_response here
                     for image in comparison_images:
                         image_path = os.path.abspath(os.path.join(constants.TEMP_FOLDER, image))
                         list_of_images.append(image_path)
@@ -318,37 +330,44 @@ class HistoryHandler():
     async def process_all_midi_changes(self, midi_file_changes, shortname, actual_title, actual_artist, album_art_url, session_hash):
         # assisted by gemini
 
-        tasks = []
-        loop = asyncio.get_event_loop()
-        with concurrent.futures.ThreadPoolExecutor() as pool: # Create a thread pool
-            for i in range(1, len(midi_file_changes)):
-                print(f'{shortname} chart history is running as we speak step {i}')
-                old_midi = midi_file_changes[i - 1]
-                new_midi = midi_file_changes[i]
-                old_midi_file = old_midi[1]
-                new_midi_file = new_midi[1]
+        # tasks = []
+        # loop = asyncio.get_event_loop()
+        # with concurrent.futures.ThreadPoolExecutor() as pool: # Create a thread pool
+        results = []
 
-                #  Define a helper function to run in the thread.  This helper *awaits* the
-                #  self.process_chart_url_change coroutine.
-                async def run_in_thread():
-                    return await self.process_chart_url_change(
-                        old_midi_file, new_midi_file, shortname, old_midi[0], new_midi[0], session_hash
-                    )
+        for i in range(1, len(midi_file_changes)):
+            logging.info(f'{shortname} chart history is running as we speak step {i}')
+            old_midi = midi_file_changes[i - 1]
+            new_midi = midi_file_changes[i]
+            old_midi_file = old_midi[1]
+            new_midi_file = new_midi[1]
 
-                task = loop.run_in_executor(
-                    pool,
-                    lambda: asyncio.run(run_in_thread())  # Pass a function that runs the coroutine
-                )
-                tasks.append(task)
+            #  Define a helper function to run in the thread.  This helper *awaits* the
+            #  self.process_chart_url_change coroutine.
+            # async def run_in_thread():
+
+            real_session_hash = f"{session_hash}_{i}"
+
+            this_res = await self.process_chart_url_change(
+                old_midi_file, new_midi_file, shortname, old_midi[0], new_midi[0], real_session_hash
+            )
+            logging.info(this_res)
+            results.append(this_res)
+
+            # task = loop.run_in_executor(
+            #     pool,
+            #     lambda: asyncio.run(run_in_thread())  # Pass a function that runs the coroutine
+            # )
+            # tasks.append(task)
 
             # Use asyncio.gather to run all the tasks concurrently.
             # The results will be in the same order as the tasks were added.
-            results = await asyncio.gather(*tasks)
+            # results = await asyncio.gather(*tasks)
         return results
 
     async def handle_interaction(self, interaction: discord.Interaction, song:str, use_channel:bool = False):
-        await interaction.response.send_message(embed=constants.common_error_embed('This command is currently broken at the moment due to recent structure changes. Please wait until it is fixed. Thank you'))
-        return
+        # await interaction.response.send_message(embed=constants.common_error_embed('This command is currently broken at the moment due to recent structure changes. Please wait until it is fixed. Thank you'))
+        # return
 
         user_id = interaction.user.id
         session_hash = constants.generate_session_hash(user_id, song)
@@ -387,44 +406,26 @@ class HistoryHandler():
             await interaction.edit_original_response(embed=constants.common_error_embed(f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the MIDI file exists."))
             return
         
-        array_of_tuples_of_embeds_and_files = [] # [(embed, file), (embed, file)]
+        # array_of_tuples_of_embeds_and_files = [] # [(embed, file), (embed, file)]
 
         # Call the new function that uses asyncio.gather and a thread pool
         results = await self.process_all_midi_changes(midi_file_changes, shortname, actual_title, actual_artist, album_art_url, session_hash)
-        array_of_tuples_of_embeds_and_files.extend(results) # simplification
+        logging.info(results)
 
-        array_of_files_to_give_to_dpy = []
-        array_of_embeds_to_give_to_view = []
+        the_view_itself = history_tools.HistoryView(results, session_hash, interaction.user.id, track_data)
+        fpaths = the_view_itself.update_components()
+        attchs = [discord.File(fp, filename=os.path.basename(fp)) for fp in fpaths]
 
-        if len(array_of_tuples_of_embeds_and_files) == 0:
-            await interaction.edit_original_response('There were no resulting images in this comparison, or an error has ocurred.')
-            return
+        await interaction.edit_original_response(embed=constants.common_success_embed("Please wait..."))
+        msg = await interaction.followup.send(wait=True, view=the_view_itself, files=attchs)
 
-        logging.info(array_of_tuples_of_embeds_and_files)
-
-        for comparison in array_of_tuples_of_embeds_and_files:
-            for embed, _file in comparison:
-                array_of_files_to_give_to_dpy.append(_file)
-                array_of_embeds_to_give_to_view.append(embed)
-
-        the_view_itself = history_tools.HistoryView(array_of_embeds_to_give_to_view, array_of_files_to_give_to_dpy, session_hash, interaction.user.id)
-
-        if len(the_view_itself.attachments) == 0:
-            await interaction.edit_original_response(embed=constants.common_error_embed('There are no attachments to display.'))
-            return
-
-        message = await interaction.original_response()
-        the_view_itself.message = message
-
-        # initial edit
-        # the view manages it afterwards
-        msg = await interaction.edit_original_response(content="", view=the_view_itself, attachments=[the_view_itself.get_cur_attch()], embed=the_view_itself.get_embed())
+        the_view_itself.message = msg
 
 class LoopCheckHandler():
     def __init__(self, bot : commands.Bot) -> None:
         self.bot = bot
         self.embed_handler = SearchEmbedHandler()
-        self.history_handler = HistoryHandler()
+        self.history_handler = HistoryHandler(bot)
         self.midi_tools = MidiArchiveTools()
         self.jam_track_handler = JamTrackHandler()
 
@@ -502,8 +503,16 @@ class LoopCheckHandler():
 
         bot_config: config.Config = self.bot.config
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
-        # EQUALITY
-        random.shuffle(combined_channels)
+        target_id = 1328391774720229517
+        obj = discord.utils.find(lambda x: x.id == target_id, combined_channels)
+        if obj:
+            idx = combined_channels.index(obj)
+            if idx is not None:
+                target = combined_channels.pop(idx)
+                random.shuffle(combined_channels)
+                combined_channels.insert(0, target)
+            else:
+                random.shuffle(combined_channels)
 
         start = datetime.now()
 

@@ -68,7 +68,10 @@ class LeaderboardPaginatorView(discord.ui.View):
 
         entries = self.page_data[str(page)]['entries']
 
-        page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+        try:
+            page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+        except ValueError:
+            page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
 
         # print(entries)
 
@@ -167,7 +170,10 @@ class BandLeaderboardView(LeaderboardPaginatorView):
             self.get_page_data(page)
 
         entries = self.page_data[str(page)]['entries']
-        page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+        try:
+            page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+        except ValueError:
+            page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
 
         # print(entries)
 
@@ -220,7 +226,10 @@ class AllTimeLeaderboardView(LeaderboardPaginatorView):
 
         entries = self.page_data[str(page)]['entries']
 
-        page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+        try:
+            page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc)
+        except ValueError:
+            page_updated = datetime.strptime(self.page_data[str(page)]['updatedTime'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
 
         _entries_start = math.floor((self.current_page * self.per_page) % 100)
         _entries_end = math.floor(_entries_start + self.per_page)

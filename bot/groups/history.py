@@ -10,7 +10,7 @@ class HistoryCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.config = bot.config
-        self.history_handler = HistoryHandler()
+        self.history_handler = HistoryHandler(bot)
 
     history_group = app_commands.Group(name="history", description="History commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 

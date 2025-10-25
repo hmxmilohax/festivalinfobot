@@ -566,14 +566,14 @@ def get_jam_tracks(use_cache: bool = False, max_cache_age: int = 300):
 
         if use_cache and JAM_TRACK_CACHE is not None and not cache_age_too_old:
             data = JAM_TRACK_CACHE
-            logging.debug('[JAM TRACK CACHE] Using cached data')
+            logging.debug('[JTC] Using cached data')
         else:
             response = requests.get(content_url)
             response.raise_for_status()
             data = response.json()
             
             if use_cache:
-                logging.debug('[JAM TRACK CACHE] Cache will be updated')
+                logging.debug('[JTC] Cache will be updated')
                 JAM_TRACK_CACHED_AT = datetime.now(timezone.utc)
 
         JAM_TRACK_CACHE = data

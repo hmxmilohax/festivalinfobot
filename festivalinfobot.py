@@ -18,7 +18,6 @@ from configparser import ConfigParser
 
 from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
-from bot.groups.festrpc import FestRPCCog
 from bot.groups.fortnitecog import FortniteCog
 from bot.groups.graphs import GraphCog
 from bot.groups.history import HistoryCog
@@ -185,6 +184,26 @@ class FestivalInfoBot(commands.AutoShardedBot):
         if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
             self.utility_loop_task.start()
 
+        if not self.old_ack:
+            if self.ws:
+                self.old_ack = self.ws._keep_alive.ack
+
+                def new_ack():
+                    logging.debug("Received ACK from Discord Gateway")
+                    if self.ws.latency > 10:
+                        logging.warning(f"High latency detected: {self.ws.latency*1000:.2f}ms")
+                        logging.warning(f"Auto-restarting...")
+                        self.close()
+
+                        python_executable = sys.executable
+                        script_path = os.path.abspath(sys.argv[0])
+                        subprocess.Popen([python_executable, script_path] + sys.argv[1:])
+                        sys.exit(0)
+
+                    self.old_ack()
+
+                self.ws._keep_alive.ack = new_ack
+
         logging.debug("on_ready finished!")
 
     async def on_shard_connect(self, shard_id: int):
@@ -204,6 +223,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.suggestions_enabled = True
         self.is_done_chunking = False
         self.last_analytic: Optional[datetime] = None
+        self.old_ack = None
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -242,7 +262,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.shop_handler = ShopCommandHandler(self)
         self.tracklist_handler = TracklistHandler(self)
         self.path_handler = PathCommandHandler()
-        self.history_handler = HistoryHandler()
+        self.history_handler = HistoryHandler(self)
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
         self.pro_vocals_handler = ProVocalsHandler(self)
@@ -286,12 +306,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 exc_text += f'\n- Command: /{command.qualified_name}'
             onetry = ''.join(traceback.format_exception(error))
 
-            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content=exc_text)
-            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content="```" + onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))[:1990] + "```")
+            err_f = onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))
+            await self.get_partial_messageable(constants.ERR_CHANNEL).send(content=exc_text, file=discord.File(io.StringIO(err_f), filename='error.txt'))
+            # await self.get_partial_messageable(constants.ERR_CHANNEL).send()
 
             err_text: str = str(error)
             err_text = err_text.replace(constants.SPARKS_MIDI_KEY, constants.rand_hex(constants.SPARKS_MIDI_KEY))
             err_text = err_text.replace(constants.EPIC_ACCOUNT_ID, constants.rand_hex(constants.EPIC_ACCOUNT_ID))
+            uname = os.environ.get("USERNAME")
+            if uname:
+                err_text = err_text.replace(uname, '-' * len(uname))
 
             embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="This error has been reported.")
             embed.add_field(name="", value=f"```{str(err_text)}```")
@@ -388,6 +412,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.send(file=discord.File('bot/data/EasterEgg/miku.png', filename="miku.png"))
 
         @self.command()
+        async def impersonator(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/Screenshot 2025-10-04 005309.png', filename="Screenshot 2025-10-04 005309.png"))
+
+        @self.command()
+        async def milohaxowner(ctx: commands.Context):
+            await ctx.send(file=discord.File('bot/data/EasterEgg/heisthebot.png', filename="heisthebot.png"))
+
+        @self.command()
         async def feet(ctx: commands.Context):
             await ctx.message.add_reaction("👣")
 
@@ -398,13 +430,20 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @self.command()
         async def sex(ctx: commands.Context):
             await ctx.send("https://x.com/FNFestival/status/1731398051242086714")
+
+        @self.tree.command(name="agreements", description="Festival Tracker Privacy Policy and Terms of Service.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def search_command(interaction: discord.Interaction):
+            await interaction.response.send_message("**Privacy Policy:** <https://festivaltracker.org/privacy-policy>\n**Terms of Service:** <https://festivaltracker.org/terms-of-service>", ephemeral=True)
             
-        @self.tree.command(name="search", description="Search a song.")
+        @self.tree.command(name="search", description="Search a track.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(query = "A search query: an artist, song name, or shortname.")
-        async def search_command(interaction: discord.Interaction, query:str):
-            await self.search_handler.handle_interaction(interaction=interaction, query=query)
+        @app_commands.describe(detail = "Whether to show extra information about the track.")
+        async def search_command(interaction: discord.Interaction, query:str, detail:bool = False):
+            await self.search_handler.handle_interaction(interaction=interaction, query=query, detail=detail)
 
         @self.tree.command(name="weekly", description="Display the tracks currently in weekly rotation.")
         @app_commands.allowed_installs(guilds=True, users=True)
@@ -428,6 +467,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @tracklist_group.command(name="all", description="Browse the full list of available Jam Tracks.")
         async def tracklist_command(interaction: discord.Interaction):
             await self.tracklist_handler.handle_interaction(interaction=interaction)
+
+        @tracklist_group.command(name="provocals", description="Browse the full list of available Jam Tracks with Pro Vocals.")
+        async def tracklist_command(interaction: discord.Interaction):
+            await self.tracklist_handler.handle_interaction(interaction=interaction, pro_vocals_only=True)
 
         @filter_group.command(name="artist", description="Browse the list of available Jam Tracks that match a queried artist.")
         @app_commands.describe(artist = "A search query to use in the song name.")
@@ -480,7 +523,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             epic = [t for t in track_list if t['track']['an'] == 'Epic Games']
             percentage = round((len(epic) / len(track_list)) * 100, 2)
 
-            embed.add_field(name="Epic Games Tracks", value=f"**{len(epic)}** Jam Tracks are from Epic Games. ({percentage}%)", inline=False)
+            embed.add_field(name="Epic Games Jam Tracks", value=f"**{len(epic)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
             provocals_data = self.pro_vocals_handler.get_pro_vocals_counts()
 
@@ -495,6 +538,18 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             legacy_list = [
                 t for t in track_list 
+                if track_list.index(
+                    t
+                ) < track_list.index(
+                    discord.utils.find(
+                        lambda x: x['track']['sn'] == 'abarsong', 
+                        track_list
+                    )
+                )
+            ]
+
+            legacy_lipsync_list = [
+                t for t in lipsync_only_list
                 if track_list.index(
                     t
                 ) < track_list.index(
@@ -520,6 +575,14 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
             percentage_ls = round((len(ls_w_pv) / len(lipsync_only_list)) * 100, 2)
             embed.add_field(name="Pro Vocals (Lipsync Only)", value=f"**{len(ls_w_pv)}**/**{len(lipsync_only_list)}** ({percentage_ls}%)", inline=False)
+
+            legacy_ls_w_pv = []
+            for track in songs_with:
+                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list) and discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
+                    legacy_ls_w_pv.append(track)
+
+            percentage_legacy_ls = round((len(legacy_ls_w_pv) / len(legacy_lipsync_list)) * 100, 2)
+            embed.add_field(name="Pro Vocals (Legacy Lipsync Only)", value=f"**{len(legacy_ls_w_pv)}**/**{len(legacy_lipsync_list)}** ({percentage_legacy_ls}%)", inline=False)
 
             if len(missing_midi) > 0:
                 embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
@@ -705,8 +768,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
                         color=0x8927A1
                     )
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
-                    embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
-                    embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
+                    embed.add_field(name='Privacy Policy', value='[View](https://festivaltracker.org/privacy-policy)')
+                    embed.add_field(name='Terms of Service', value='[View](https://festivaltracker.org/terms-of-service)')
                     embed.add_field(name=f"Help with `/{found_command.qualified_name}`", value=description, inline=False)
 
                     embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
@@ -739,8 +802,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
                         color=0x8927A1
                     )
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
-                    embed.add_field(name='Privacy Policy', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/privacy_policy.md)')
-                    embed.add_field(name='Terms of Service', value='[View](https://github.com/hmxmilohax/festivalinfobot/blob/main/terms_of_service.md)')
+                    embed.add_field(name='Privacy Policy', value='[View](https://festivaltracker.org/privacy-policy)')
+                    embed.add_field(name='Terms of Service', value='[View](https://festivaltracker.org/terms-of-service)')
                     embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://invite.festivaltracker.org)', inline=False)
                     chunk = commands[i:i + 5]
 
@@ -790,9 +853,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         random_cog = RandomCog(self)
         await self.add_cog(random_cog)
-
-        festrpc = FestRPCCog(self)
-        await self.add_cog(festrpc)
 
         graph_cog = GraphCog(self)
         await self.add_cog(graph_cog)

@@ -31,17 +31,24 @@ class JamTrackHandler:
             'btf': ['beyondtheflame'],
             'mop': ['masterofpuppets'],
             'dftr': ['dontfearthereaper'],
-            'wtp': ['welcometoparadise'],
             'nggyu': ['nevergonnagiveyouup'],
             'mcls': ['magicalcureloveshot'], 
             'mlcs': ['magicalcureloveshot'], 
             'mscl': ['magicalcureloveshot'],
-            'trash': ['showthemwhoweare', 'roar', 'thesoundofsilence', 'beautifulday', 'nightmareschoice'],
+            'trash': [
+                'showthemwhoweare',
+                'thesoundofsilence', 
+                'beautifulday', 
+                'nightmareschoice',
+                'bumbum',
+                'slay',
+                'montagemtomada',
+                'lockedandloaded',
+                'whatareyouwaitingfor'
+            ],
             'peak': ['larrysplace', 'nevergiveup', 'freebird'],
             'comingsoon': ['juicy'],
-            'ralph': ['streetsignite'],
             'cowabunga': ['streetsignite'],
-            'kog': ['streetsignite'],
             'one': ['one'],
             'latino': [
                 'migente', 
@@ -54,23 +61,152 @@ class JamTrackHandler:
                 'cairo', 
                 'okidoki', 
                 'provenza', 
-                'livinlavidaloca', 
-                'whineup',
+                'livinlavidaloca',
                 'bondedobrunao',
-                'munra'
+                'munra',
+                'cheguei',
+                'elpaletero',
+            ],
+            'español': [
+                'migente', 
+                'ellabailasola', 
+                'dakiti', 
+                'titimepregunto', 
+                'mia', 
+                'tusa', 
+                'qlona', 
+                'cairo', 
+                'okidoki', 
+                'provenza', 
+                'livinlavidaloca',
+                'bondedobrunao',
+                'munra',
+                'cheguei',
+                'elpaletero',
+            ],
+            'sudamerica': [
+                'migente', 
+                'ellabailasola', 
+                'dakiti', 
+                'titimepregunto', 
+                'mia', 
+                'tusa', 
+                'qlona', 
+                'cairo', 
+                'okidoki', 
+                'provenza', 
+                'livinlavidaloca',
+                'bondedobrunao',
+                'munra',
+                'cheguei',
+                'elpaletero',
+            ],
+            'south america': [
+                'migente', 
+                'ellabailasola', 
+                'dakiti', 
+                'titimepregunto', 
+                'mia', 
+                'tusa', 
+                'qlona', 
+                'cairo', 
+                'okidoki', 
+                'provenza', 
+                'livinlavidaloca',
+                'bondedobrunao',
+                'munra',
+                'cheguei',
+                'elpaletero',
+            ],
+            'america del sur': [
+                'migente', 
+                'ellabailasola', 
+                'dakiti', 
+                'titimepregunto', 
+                'mia', 
+                'tusa', 
+                'qlona', 
+                'cairo', 
+                'okidoki', 
+                'provenza', 
+                'livinlavidaloca',
+                'bondedobrunao',
+                'munra',
+                'cheguei',
+                'elpaletero',
             ],
             '🥦': ['broccoli'],
-            '🐦': ['freebird'],
-            'slts': ['smellsliketeenspirit'],
             'trans': ['transparentsoul'],
             'trns': ['transparentsoul'],
-            'transparent': ['transparentsoul']
+            'transparent': ['transparentsoul'],
+            'pppa': ['ppap'],
+            'scooby doo': ['whatsnewscoobydoo'],
+            'phonk': [
+                'montagemtomada',
+                'slay'
+            ],
+            'pnd': ['breakfromtoronto'],
+            'superbowl': [
+                'dakiti',
+                'titimepregunto',
+                'mia'
+            ],
+            'japan': [
+                'thebrave',
+                'yorunikakeru',
+                'idol',
+                'monster',
+                'players',
+                'takanenohanakosan',
+                'worldismine',
+                'decade',
+                'melt',
+                'nightdancer',
+                'blingbangbangborn',
+                'gimmechocolate',
+                'frommetou'
+            ],
+            'japanese': [
+                'thebrave',
+                'yorunikakeru',
+                'idol',
+                'monster',
+                'players',
+                'takanenohanakosan',
+                'worldismine',
+                'decade',
+                'melt',
+                'nightdancer',
+                'blingbangbangborn',
+                'gimmechocolate',
+                'frommetou'
+            ],
+            '日本語': [
+                'thebrave',
+                'yorunikakeru',
+                'idol',
+                'monster',
+                'players',
+                'takanenohanakosan',
+                'worldismine',
+                'decade',
+                'melt',
+                'nightdancer',
+                'blingbangbangborn',
+                'gimmechocolate',
+                'frommetou'
+            ],
+            'oiia': ['oiiaoiia']
         }
 
         if search_term in custom_results.keys():
             premature_matches = []
             for result in custom_results.get(search_term, []):
-                premature_matches.append(discord.utils.find(lambda track: track['track']['sn'] == result, tracks))
+                r = discord.utils.find(lambda track: track['track']['sn'] == result, tracks)
+                if r:
+                    premature_matches.append(r)
+                else:
+                    logging.warning(f'what is {result}?')
 
             return premature_matches
 
@@ -236,7 +372,7 @@ class SearchCommandHandler:
         view.message = message
         await message.edit(embed=embed, view=view)
 
-    async def handle_interaction(self, interaction: discord.Interaction, query:str):
+    async def handle_interaction(self, interaction: discord.Interaction, query:str, detail:bool = False):
         await interaction.response.defer() # edit_original_response
 
         # meow case for im a cat
@@ -267,7 +403,7 @@ class SearchCommandHandler:
         else:
             track = matched_tracks[0]
 
-        embed = self.embed_handler.generate_track_embed(track)
+        embed = self.embed_handler.generate_track_embed(track, is_detail=detail)
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
         message = await interaction.edit_original_response(embed=embed)
 
