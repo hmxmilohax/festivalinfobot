@@ -184,26 +184,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
             self.utility_loop_task.start()
 
-        if not self.old_ack:
-            if self.ws:
-                self.old_ack = self.ws._keep_alive.ack
-
-                def new_ack():
-                    logging.debug("Received ACK from Discord Gateway")
-                    if self.ws.latency > 10:
-                        logging.warning(f"High latency detected: {self.ws.latency*1000:.2f}ms")
-                        logging.warning(f"Auto-restarting...")
-                        self.close()
-
-                        python_executable = sys.executable
-                        script_path = os.path.abspath(sys.argv[0])
-                        subprocess.Popen([python_executable, script_path] + sys.argv[1:])
-                        sys.exit(0)
-
-                    self.old_ack()
-
-                self.ws._keep_alive.ack = new_ack
-
         logging.debug("on_ready finished!")
 
     async def on_shard_connect(self, shard_id: int):
@@ -223,7 +203,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.suggestions_enabled = True
         self.is_done_chunking = False
         self.last_analytic: Optional[datetime] = None
-        self.old_ack = None
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
