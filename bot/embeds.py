@@ -178,6 +178,7 @@ class SearchEmbedHandler:
                             f"{sig = }```", inline=False)
 
             embed.add_field(name="MIDI Url", value=track.get('mu', 'N/A'), inline=False)
+            embed.add_field(name="LipSync Url", value=track.get('lad', 'N/A'), inline=False)
             embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
 
             if has_pro_vocals:
