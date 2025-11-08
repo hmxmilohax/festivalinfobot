@@ -539,7 +539,7 @@ class LoopCheckHandler():
 
             file_diffs = None
 
-            if (old_url != new_url) and self.bot.DECRYPTION_ALLOWED and self.bot.CHART_COMPARING_ALLOWED:
+            if (old_url != new_url):
                 logging.info(f"Chart URL changed:")
                 logging.info(f"Old: {local_midi_file_old}")
                 logging.info(f"New: {local_midi_file_new}")

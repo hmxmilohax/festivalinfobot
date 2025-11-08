@@ -229,11 +229,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
         DISCORD_TOKEN = config.get('discord', 'token')
 
         # Bot configuration properties
-        self.UTILITY_TASK_INTERVAL = config.getint('bot', 'utility_task_interval', fallback=7)
+        self.UTILITY_TASK_INTERVAL = config.getint('bot', 'utility_task_interval', fallback=5)
         self.CHECK_FOR_NEW_SONGS = config.getboolean('bot', 'check_for_new_songs', fallback=True)
-        self.DECRYPTION_ALLOWED = config.getboolean('bot', 'decryption', fallback=True)
-        self.PATHING_ALLOWED = config.getboolean('bot', 'pathing', fallback=True)
-        self.CHART_COMPARING_ALLOWED = config.getboolean('bot', 'chart_comparing', fallback=True)
         self.DEVELOPER = config.getboolean('bot', 'is_developer_environment', fallback=True)
 
         self.start_time = time.time()
@@ -623,10 +620,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.describe(no_solos = "If set to True, CHOpt will not draw Solo Sections.")
         @app_commands.describe(no_time_signatures = "If set to True, CHOpt will not draw Time Signatures.")
         async def path_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
-            if not self.PATHING_ALLOWED or not self.DECRYPTION_ALLOWED:
-                await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-                return
-
             await self.path_handler.handle_interaction(
                 interaction,
                 song=song,
