@@ -32,6 +32,7 @@ from bot.path import PathCommandHandler
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.lyrics import LyricsHandler
 from bot.tools.previewpersist import PreviewButton
+from bot.tools.setlists import SetlistHandler
 from bot.tools.subscriptionman import SubscriptionManager
 from bot.tools.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
@@ -265,6 +266,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.pro_vocals_handler = ProVocalsHandler(self)
         self.mix_handler = MixHandler()
         self.wishlist_handler = WishlistManager(self)
+        self.setlist_handler = SetlistHandler(self)
 
         self.setup_commands()
 
@@ -501,6 +503,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def shop_command(interaction: discord.Interaction):
             await self.shop_handler.handle_interaction(interaction=interaction)
+
+        @self.tree.command(name="setlists", description="View the setlists.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def setlists_command(interaction: discord.Interaction):
+            await self.setlist_handler.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.allowed_installs(guilds=True, users=True)
