@@ -36,7 +36,7 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
         self.message : discord.Message
 
         self.session_id = session_id
-        self.data = data
+        self.data = list(filter(lambda d: d is not None, data))
         self.track_data = track_data
 
         self.total_pages = len(data)

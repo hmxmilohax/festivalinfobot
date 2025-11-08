@@ -328,7 +328,7 @@ class HistoryHandler():
         await interaction.edit_original_response(view=view, embed=view.get_embed())
 
     async def process_all_midi_changes(self, midi_file_changes, shortname, actual_title, actual_artist, album_art_url, session_hash):
-        # assisted by gemini
+        results = []
 
         # tasks = []
         # loop = asyncio.get_event_loop()

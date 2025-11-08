@@ -89,9 +89,10 @@ def setup() -> logging.RootLogger:
     except: pass
         
     # file handler
-    log_file = f"cache/logs/FESTIVALTRACKERLOGS.log"
+    log_file = f"cache/logs/FESTIVALTRACKERLOGS_V2.log"
     # Every 40mb another file will be created (?)
-    file_handler = logging.handlers.RotatingFileHandler(log_file, backupCount=20, maxBytes=5 * 1024 * 1024, encoding='utf-8')
+                                                                            # we are NOT playing around anymore
+    file_handler = logging.handlers.RotatingFileHandler(log_file, backupCount=40, maxBytes=5 * 1024 * 1024, encoding='utf-8')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(CustomFormatter(no_ansi=True))
 

@@ -247,43 +247,55 @@ class TestCog(commands.Cog):
             return
         
         text = "Tasks debug"
-        check: tasks.Loop = self.bot.check_new_songs_task
-        text += f"\nCheck for new songs: \n- Interval: {check.minutes}m\n- Is Running: {check.is_running()}\n- Iter: {check.current_loop}"
+        check: tasks.Loop = self.bot.utility_loop_task
+        text += f"\nUtility: \n{check.minutes = }m\n{check.is_running() = }\n{check.current_loop = }"
         activity: tasks.Loop = self.bot.activity_task
-        text += f"\nActivity: \n- Interval: {activity.minutes}m\n- Is Running: {activity.is_running()}\n- Iter: {activity.current_loop}"
+        text += f"\nActivity: \n{activity.minutes = }m\n{activity.is_running() = }\n{activity.current_loop = }"
         analytic: tasks.Loop = self.bot.analytic_loop
-        text += f"\nAnalytics: \n- Interval: {analytic.hours}h\n- Is Running: {analytic.is_running()}\n- Iter: {analytic.current_loop}"
+        text += f"\nAnalytic: \n{analytic.minutes = }m\n{analytic.is_running() = }\n{analytic.current_loop = }"
+        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session
+        text += f"\nOauth Refresh: \n{oauth_refresh.seconds = }s\n{oauth_refresh.is_running() = }\n{oauth_refresh.current_loop = }"
+        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session
+        text += f"\nOauth Verify: \n{oauth_verify.seconds = }s\n{oauth_verify.is_running() = }\n{oauth_verify.current_loop = }"
         
         await interaction.response.send_message(content=text)
 
     @test_group.command(name="stop_task", description="Stop a task (doesnt use .stop rather .cancel)")
-    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
         
-        check: tasks.Loop = self.bot.check_new_songs_task
+        check: tasks.Loop = self.bot.utility_loop_task
         activity: tasks.Loop = self.bot.activity_task
         analytic: tasks.Loop = self.bot.analytic_loop
+        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session
+        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session
 
         if task == 'Check':
             check.cancel()
-        elif task == 'Activity':
+        elif task == 'Utility':
             activity.cancel()
         elif task == 'Analytics':
             analytic.cancel()
+        elif task == 'Verify OAuth':
+            oauth_verify.cancel()
+        elif task == 'Refresh OAuth':
+            oauth_refresh.cancel()
 
         await interaction.response.send_message(content=f"Task \"{task}\" stopped")
 
     @test_group.command(name="start_task", description="Start a task")
-    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
         
-        check: tasks.Loop = self.bot.check_new_songs_task
+        check: tasks.Loop = self.bot.utility_loop_task
         activity: tasks.Loop = self.bot.activity_task
         analytic: tasks.Loop = self.bot.analytic_loop
+        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session
+        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session
 
         if task == 'Check':
             check.start()
@@ -291,16 +303,20 @@ class TestCog(commands.Cog):
             activity.start()
         elif task == 'Analytics':
             analytic.start()
+        elif task == 'Verify OAuth':
+            oauth_verify.start()
+        elif task == 'Refresh OAuth':
+            oauth_refresh.start()
 
         await interaction.response.send_message(content=f"Task \"{task}\" started")
 
     @test_group.command(name="restart_task", description="Restart a task (only reinitates it, doesnt start it if cancelled)")
-    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Check", "Activity"]):
+    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
         
-        check: tasks.Loop = self.bot.check_new_songs_task
+        check: tasks.Loop = self.bot.utility_loop_task
         activity: tasks.Loop = self.bot.activity_task
         analytic: tasks.Loop = self.bot.analytic_loop
 
@@ -310,6 +326,10 @@ class TestCog(commands.Cog):
             activity.restart()
         elif task == 'Analytics':
             analytic.restart()
+        elif task == 'Verify OAuth':
+            self.bot.oauth_manager.verify_session.restart()
+        elif task == 'Refresh OAuth':
+            self.bot.oauth_manager.refresh_session.restart()
 
         await interaction.response.send_message(content=f"Task \"{task}\" restarted")
 
