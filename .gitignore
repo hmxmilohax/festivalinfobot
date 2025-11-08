@@ -33,3 +33,4 @@ ffprobe.exe
 ft_venv/
 
 debug_frames/
+bot/tools/brand.py
