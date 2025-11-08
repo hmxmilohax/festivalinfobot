@@ -60,7 +60,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        midi_file = self.midi_tool.save_chart(song_url)
+        midi_file = await self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_pdi_graph_{session_hash}.png'
         GraphingFuncs().generate_no_notes_pdi_chart(midi_path=midi_file, path=image_path, song_name=track_title, song_artist=artist_title)
@@ -98,7 +98,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        midi_file = self.midi_tool.save_chart(song_url)
+        midi_file = await self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_lift_graph_{session_hash}.png'
         GraphingFuncs().generate_no_notes_pdi_chart(midi_path=midi_file, path=image_path, song_name=track_title, song_artist=artist_title, lifts=True)
@@ -139,7 +139,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        midi_file = self.midi_tool.save_chart(song_url)
+        midi_file = await self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_nps_graph_{session_hash}.png'
         GraphingFuncs().generate_nps_chart(midi_path=midi_file, path=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)
@@ -181,7 +181,7 @@ class GraphCommandsHandler():
         short_name = song_data['track'].get('sn')
         artist_title = song_data['track'].get('an')
 
-        midi_file = self.midi_tool.save_chart(song_url)
+        midi_file = await self.midi_tool.save_chart(song_url)
         
         image_path = f'{short_name}_lanes_graph_{session_hash}.png'
         GraphingFuncs().generate_lanes_chart(midi_path=midi_file, spath=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)

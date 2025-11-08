@@ -18,18 +18,11 @@ class GraphCog(commands.Cog):
     @graph_notes_group.command(name="all", description="Graph the note counts for a specific song.")
     @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
     async def graph_note_counts_command(self, interaction: discord.Interaction, song:str):
-        if not self.bot.DECRYPTION_ALLOWED:
-            await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-            return
         await self.graph_handler.handle_pdi_interaction(interaction=interaction, song=song)
 
     @graph_notes_group.command(name="lifts", description="Graph the lift counts for a specific song.")
     @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
     async def graph_note_counts_command(self, interaction: discord.Interaction, song:str):
-        if not self.bot.DECRYPTION_ALLOWED:
-            await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-            return
-        
         await self.graph_handler.handle_lift_interaction(interaction=interaction, song=song)
 
     @graph_group.command(name="nps", description="Graph the NPS (Notes per second) for a specific song, instrument, and difficulty.")
@@ -37,10 +30,6 @@ class GraphCog(commands.Cog):
     @app_commands.describe(instrument = "The instrument to view the NPS of.")
     @app_commands.describe(difficulty = "The difficulty to view the NPS for.")
     async def graph_nps_command(self, interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-        if not self.bot.DECRYPTION_ALLOWED:
-            await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-            return
-        
         await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
 
     @graph_group.command(name="lanes", description="Graph the number of notes for each lane in a specific song, instrument, and difficulty.")
@@ -48,8 +37,4 @@ class GraphCog(commands.Cog):
     @app_commands.describe(instrument = "The instrument to view the #notes of.")
     @app_commands.describe(difficulty = "The difficulty to view the #notes for.")
     async def graph_lanes_command(self, interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-        if not self.bot.DECRYPTION_ALLOWED:
-            await interaction.response.send_message(content="This command is not enabled in this bot.", ephemeral=True)
-            return
-        
         await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
