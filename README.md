@@ -1,9 +1,9 @@
 
-# Festival Tracker
+# [Festival Tracker]((https://festivaltracker.org))
 
 Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every minute, among other features.
 
-Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.festivaltracker.org/)
+Follow Us: [X (Twitter)](https://x.festivaltracker.org/)
 
 ## Features
 
@@ -57,7 +57,6 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 ## Commands
 
 - Run `/help` to view a list of all available commands.
-- Run `/stats` to view insights of the instance.
 
 ## License
 
@@ -69,7 +68,7 @@ If you want to contribute to this project, feel free to fork the repository and 
 
 ## Issues
 
-If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you may create a suggestion (`/suggestion`).
+If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you can send us feedback (`/feedback`).
 
 # Dependencies
 
@@ -81,6 +80,6 @@ To be able to fetch and generate paths you will need two things:
 
     For newer CHOpt versions, Qt6 .dlls may be required to be copied as well. These files are present in the .gitignore.
 
-To be able to produce audio previews, any build of FFmpeg and FFprobe (executables) in the root is required.
+To be able to produce audio previews, any builds of FFmpeg and FFprobe (executables) in the root are required.
 
-Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key.
+Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key. You WILL experience errors if the key is not provided.
