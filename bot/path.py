@@ -123,7 +123,7 @@ class PathCommandHandler():
         artist_title = song_data['track'].get('an')
         display_instrument = chosen_instrument.english
 
-        midi_file = self.midi_tool.save_chart(chart_url)
+        midi_file = await self.midi_tool.save_chart(chart_url)
 
         modified_midi_file = None
         if chosen_instrument.replace != None:

@@ -55,14 +55,14 @@ class LyricsHandler():
         track = matched_tracks[0]
 
         try:
-            fname = self.load_lyrics(track)
+            fname = await self.load_lyrics(track)
             await interaction.edit_original_response(attachments=[discord.File(fname)])
         except LyricsError as e:
             await interaction.edit_original_response(embed=constants.common_error_embed(str(e)))
 
-    def load_lyrics(self, track):
+    async def load_lyrics(self, track):
         midi = track['track']['mu']
-        midi_path = self.midi_tool.save_chart(midi)
+        midi_path = await self.midi_tool.save_chart(midi)
         
         midi_slug = midi_path.split('/')[-1].replace('.mid', '')
         print(midi_slug)

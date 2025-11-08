@@ -3,6 +3,7 @@ import logging
 import os
 import subprocess
 
+import aiohttp
 import mido
 import requests
 
@@ -21,7 +22,7 @@ class MidiArchiveTools:
         decrypted_data = cipher.decrypt(dat_bytes)
         return decrypted_data
 
-    def save_chart(self, chart_url:str, decrypt:bool = True, log: bool = True) -> str:
+    async def save_chart(self, chart_url:str, decrypt:bool = True, log: bool = True) -> str:
         fname = chart_url.split('/')[-1].split('.')[0]
         midiname = f"{fname}.mid"
         encname = f"{fname}.dat"
@@ -44,8 +45,11 @@ class MidiArchiveTools:
             return local_path
         else:
             logging.debug(f'[GET] {chart_url}')
-            response = requests.get(chart_url)
+            session = aiohttp.ClientSession()
+            response = await session.get(chart_url)
             response.raise_for_status()
+
+            await session.close()
 
             with open(local_enc_path, 'wb') as f:
                 f.write(response.content)

@@ -357,7 +357,7 @@ class SearchCommandHandler:
     async def handle_imacat_search(self, interaction: discord.Interaction):
         with open('bot/imacat.json', 'r') as imacat_file:
             imacat_data = json.load(imacat_file)
-        embed = self.embed_handler.generate_track_embed(imacat_data)
+        embed = await self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
         message = await interaction.edit_original_response(embed=embed)
 
@@ -403,7 +403,7 @@ class SearchCommandHandler:
         else:
             track = matched_tracks[0]
 
-        embed = self.embed_handler.generate_track_embed(track, is_detail=detail)
+        embed = await self.embed_handler.generate_track_embed(track, is_detail=detail)
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
         message = await interaction.edit_original_response(embed=embed)
 

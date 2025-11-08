@@ -68,7 +68,7 @@ class SearchEmbedHandler:
     def __init__(self) -> None:
         pass
     
-    def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False, is_detail=False):
+    async def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False, is_detail=False):
         track = track_data['track']
         if is_new:
             title = f"New Track Added:"
@@ -138,7 +138,7 @@ class SearchEmbedHandler:
         midi_tool = MidiArchiveTools()
         # user_id = track.get('ry', 2025)
         # session_hash = constants.generate_session_hash(user_id, track['sn'])
-        midi_file = midi_tool.save_chart(track['mu'])
+        midi_file = await midi_tool.save_chart(track['mu'])
         has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
 
         # ----------

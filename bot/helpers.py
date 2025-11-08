@@ -407,7 +407,7 @@ class TracklistHandler:
             for track in tracks:
                 midi_url = track['track'].get('mu', '')
                 if midi_url:
-                    midi_file = midi_tool.save_chart(track['track']['mu'])
+                    midi_file = await midi_tool.save_chart(track['track']['mu'])
                     if os.path.exists(midi_file):
                         with open(midi_file, 'rb') as mf:
                             if b'PRO VOCALS' in mf.read():
@@ -483,7 +483,7 @@ class GamblingHandler:
 
         async def re_roll():
             chosen_track = random.choice(track_list)
-            embed = self.search_embed_handler.generate_track_embed(chosen_track, is_random=True)
+            embed = await self.search_embed_handler.generate_track_embed(chosen_track, is_random=True)
             constants.add_fields(chosen_track, embed, weekly_tracks, shop_tracks)
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 

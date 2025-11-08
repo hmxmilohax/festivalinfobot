@@ -5,6 +5,7 @@ import logging
 import requests
 import os
 from datetime import datetime
+import aiohttp
 
 from bot import constants
 
@@ -18,7 +19,7 @@ DOWNLOAD_DIR = "./json"
 
 GITHUB_TOKEN = constants.GITHUB_PAT
 
-def get_commit_history():
+async def get_commit_history():
     headers = {}
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
@@ -27,20 +28,24 @@ def get_commit_history():
     all_commits = []
     page = 1
 
+    session = aiohttp.ClientSession()
+
     while True:
         params["page"] = page
         url = f'{COMMITS_URL}?' + '&'.join([f'{k}={v}' for k, v in params.items()])
         logging.debug(f'[GET] {url}')
-        response = requests.get(url, headers=headers)
+        response = await session.get(url, headers=headers)
         # print(response.headers)
         response.raise_for_status()
-        commits = response.json()
+        commits = await response.json()
         
         if not commits:
             break
 
         all_commits.extend(commits)
         page += 1
+
+    await session.close()
 
     return all_commits
 
@@ -52,14 +57,16 @@ def format_commit_timestamp(commit_timestamp):
     
     return formatted_timestamp
 
-def download_file_at_commit(commit_sha, commit_timestamp):
+async def download_file_at_commit(commit_sha, commit_timestamp):
     headers = {}
     if GITHUB_TOKEN:
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
+
+    session = aiohttp.ClientSession()
     
     raw_url = f"https://raw.githubusercontent.com/{REPO_OWNER}/{REPO_NAME}/{commit_sha}/{FILE_PATH}"
     logging.debug(f'[GET] {raw_url}')
-    response = requests.get(raw_url, headers=headers)
+    response = await session.get(raw_url, headers=headers)
     response.raise_for_status()
 
     if not os.path.exists(DOWNLOAD_DIR):
@@ -71,7 +78,9 @@ def download_file_at_commit(commit_sha, commit_timestamp):
 
     # Save the file
     with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(response.text)
+        f.write(await response.text())
+
+    await session.close()
 
     logging.debug(f"Downloaded: {file_name}")
 
@@ -83,8 +92,8 @@ def already_downloaded(commit_timestamp):
     # Check if this file already exists
     return os.path.exists(file_path)
 
-def main():
-    commit_history = get_commit_history()
+async def main():
+    commit_history = await get_commit_history()
     
     
     for commit in commit_history:
@@ -94,7 +103,8 @@ def main():
         if already_downloaded(commit_timestamp):
             continue
 
-        download_file_at_commit(commit_sha, commit_timestamp)
+        await download_file_at_commit(commit_sha, commit_timestamp)
 
 if __name__ == "__main__":
-    main()
+    # main()
+    print('not supported')

@@ -21,10 +21,8 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 
 ### Requirements
 
-- Python 3.8+
+- Python (latest)
 - `discord.py`
-
-    Run this command: `pip install -U git+https://github.com/Rapptz/discord.py.git@refs/pull/10166/merge`
 - `requests`
 - `mido`
 - `matplotlib`
@@ -33,9 +31,7 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/) [Bluesky](https://bsky.
 - `pycryptodome`
 - `pydub`
 - `xmltodict`
-- `pandas`
 - `numpy`
-- `cloudscraper`
 
 ### Installation
 

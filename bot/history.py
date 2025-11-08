@@ -101,7 +101,7 @@ class HistoryHandler():
         self.bot: commands.Bot = bot
         pass
 
-    def track_midi_changes(self, json_files, shortname, session_hash):
+    async def track_midi_changes(self, json_files, shortname, session_hash):
         midi_file_changes = []
         seen_midi_files = {}
         json_files = [f for f in json_files if f.endswith('.json')]
@@ -124,7 +124,7 @@ class HistoryHandler():
 
                 if midi_file_url and midi_file_url not in seen_midi_files:
                     seen_midi_files[midi_file_url] = True
-                    local_midi_file = self.midi_handler.save_chart(midi_file_url)
+                    local_midi_file = await self.midi_handler.save_chart(midi_file_url)
                     midi_file_changes.append((last_modified, local_midi_file))
 
         except Exception as e:
@@ -179,8 +179,8 @@ class HistoryHandler():
         # list(str): files
         this function now returns only a Tuple[Dict, List(str)]
         """
-        old_midi_file = self.midi_handler.save_chart(old_url)
-        new_midi_file = self.midi_handler.save_chart(new_url)
+        old_midi_file = await self.midi_handler.save_chart(old_url)
+        new_midi_file = await self.midi_handler.save_chart(new_url)
 
         if old_midi_file and new_midi_file:
             old_midi_out_path = os.path.join(constants.TEMP_FOLDER, f"{track_name}_old_{session_hash}.mid")
@@ -397,7 +397,7 @@ class HistoryHandler():
             await interaction.edit_original_response(embed=constants.common_error_embed(f"No local history files found."))
             return
 
-        midi_file_changes = self.track_midi_changes(json_files, shortname, session_hash)
+        midi_file_changes = await self.track_midi_changes(json_files, shortname, session_hash)
         logging.info(f"Found {len(midi_file_changes)} MIDI file changes for {shortname}.")
 
         await interaction.edit_original_response(embed=constants.common_success_embed(f"Processing the diff for **{actual_title}** - *{actual_artist}*, please wait...\n-# This operation can take more than a minute."))
@@ -455,7 +455,7 @@ class LoopCheckHandler():
             return
         
         for track in tracks:
-            self.midi_tools.save_chart(track['track']['mu'], decrypt=True, log=False)
+            await self.midi_tools.save_chart(track['track']['mu'], decrypt=True, log=False)
 
         # web_catalog_url = 'https://www.fortnite.com/item-shop/jam-tracks?lang=en-US&_data=routes%2Fitem-shop.jam-tracks._index'
 
@@ -473,7 +473,7 @@ class LoopCheckHandler():
         session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
 
         try:
-            sparks_tracks.main()
+            await sparks_tracks.main()
         except Exception as e:
             logging.error("", exc_info=e)
 
@@ -534,8 +534,8 @@ class LoopCheckHandler():
             album_art_url = new_song['track']['au']
             last_modified_old = old_song.get('lastModified', None)
             last_modified_new = new_song.get('lastModified', None)
-            local_midi_file_old = self.midi_tools.save_chart(old_url)
-            local_midi_file_new = self.midi_tools.save_chart(new_url)
+            local_midi_file_old = await self.midi_tools.save_chart(old_url)
+            local_midi_file_new = await self.midi_tools.save_chart(new_url)
 
             file_diffs = None
 
@@ -585,7 +585,7 @@ class LoopCheckHandler():
             if new_songs and JamTrackEvents.Added.value.id in channel_to_send.events:
                 logging.info(f"New songs sending to channel {channel.id}")
                 for new_song in new_songs:
-                    embed = self.embed_handler.generate_track_embed(new_song, is_new=True)
+                    embed = await self.embed_handler.generate_track_embed(new_song, is_new=True)
 
                     view = discord.ui.View(timeout=None)
                     view.add_item(PreviewButton(new_song['track']['sn']))
@@ -644,7 +644,7 @@ class LoopCheckHandler():
             if removed_songs and JamTrackEvents.Removed.value.id in channel_to_send.events:
                 logging.info(f"Removed songs sending to channel {channel.id}")
                 for removed_song in removed_songs:
-                    embed = self.embed_handler.generate_track_embed(removed_song, is_removed=True)
+                    embed = await self.embed_handler.generate_track_embed(removed_song, is_removed=True)
                     try:
                         message = await channel.send(content=content, embed=embed)
 
