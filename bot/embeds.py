@@ -301,12 +301,12 @@ class SearchEmbedHandler:
                 )
 
         for value, name in difficulty_comparisons.items():
-            if old_track_data['in'].get(value, 0) != new_track_data['in'].get(value, 0):
+            if old_track_data['in'].get(value, -1) != new_track_data['in'].get(value, -1):
                 container.add_item(
                     discord.ui.TextDisplay(f"{name} difficulty changed"),
                 )
                 container.add_item(
-                    discord.ui.TextDisplay(f"```Old: \"{constants.generate_difficulty_bar(old_track_data['in'].get(value, 0))}\"\nNew: \"{constants.generate_difficulty_bar(new_track_data['in'].get(value, 0))}\"```")
+                    discord.ui.TextDisplay(f"```Old: \"{constants.generate_difficulty_bar(old_track_data['in'].get(value, -1))}\"\nNew: \"{constants.generate_difficulty_bar(new_track_data['in'].get(value, -1))}\"```")
                 )
 
 

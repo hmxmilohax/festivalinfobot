@@ -328,11 +328,6 @@ class HistoryHandler():
         await interaction.edit_original_response(view=view, embed=view.get_embed())
 
     async def process_all_midi_changes(self, midi_file_changes, shortname, actual_title, actual_artist, album_art_url, session_hash):
-        # assisted by gemini
-
-        # tasks = []
-        # loop = asyncio.get_event_loop()
-        # with concurrent.futures.ThreadPoolExecutor() as pool: # Create a thread pool
         results = []
 
         for i in range(1, len(midi_file_changes)):
@@ -342,10 +337,6 @@ class HistoryHandler():
             old_midi_file = old_midi[1]
             new_midi_file = new_midi[1]
 
-            #  Define a helper function to run in the thread.  This helper *awaits* the
-            #  self.process_chart_url_change coroutine.
-            # async def run_in_thread():
-
             real_session_hash = f"{session_hash}_{i}"
 
             this_res = await self.process_chart_url_change(
@@ -353,16 +344,6 @@ class HistoryHandler():
             )
             logging.info(this_res)
             results.append(this_res)
-
-            # task = loop.run_in_executor(
-            #     pool,
-            #     lambda: asyncio.run(run_in_thread())  # Pass a function that runs the coroutine
-            # )
-            # tasks.append(task)
-
-            # Use asyncio.gather to run all the tasks concurrently.
-            # The results will be in the same order as the tasks were added.
-            # results = await asyncio.gather(*tasks)
         return results
 
     async def handle_interaction(self, interaction: discord.Interaction, song:str, use_channel:bool = False):
