@@ -32,6 +32,7 @@ from bot.path import PathCommandHandler
 from bot.groups.suggestions import SuggestionModal
 from bot.tools.lyrics import LyricsHandler
 from bot.tools.previewpersist import PreviewButton
+from bot.tools.setlists import SetlistHandler
 from bot.tools.subscriptionman import SubscriptionManager
 from bot.tools.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
@@ -151,7 +152,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         await self.oauth_manager.create_session()
 
-        uptime = datetime.now() - datetime.fromtimestamp(self.start_time)
+        uptime = datetime.now() - datetime.fromtimestamp(self.connection_time)
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
 
         restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
@@ -184,33 +185,17 @@ class FestivalInfoBot(commands.AutoShardedBot):
         if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
             self.utility_loop_task.start()
 
-        if not self.old_ack:
-            if self.ws:
-                self.old_ack = self.ws._keep_alive.ack
-
-                def new_ack():
-                    logging.debug("Received ACK from Discord Gateway")
-                    if self.ws.latency > 10:
-                        logging.warning(f"High latency detected: {self.ws.latency*1000:.2f}ms")
-                        logging.warning(f"Auto-restarting...")
-                        self.close()
-
-                        python_executable = sys.executable
-                        script_path = os.path.abspath(sys.argv[0])
-                        subprocess.Popen([python_executable, script_path] + sys.argv[1:])
-                        sys.exit(0)
-
-                    self.old_ack()
-
-                self.ws._keep_alive.ack = new_ack
-
         logging.debug("on_ready finished!")
 
     async def on_shard_connect(self, shard_id: int):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} connected")
 
     async def on_shard_disconnect(self, shard_id: int):
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} disconnected")        
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} disconnected")
+
+    async def on_socket_event_type(self, event_type: str):
+        if event_type == "READY":
+            self.connection_time = time.time()
     
     def __init__(self):
         # Load configuration from config.ini
@@ -223,7 +208,6 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.suggestions_enabled = True
         self.is_done_chunking = False
         self.last_analytic: Optional[datetime] = None
-        self.old_ack = None
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -234,6 +218,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.DEVELOPER = config.getboolean('bot', 'is_developer_environment', fallback=True)
 
         self.start_time = time.time()
+        self.connection_time = self.start_time
         self.analytics: list[constants.Analytic] = []
 
         # Set up Discord bot with necessary intents
@@ -265,6 +250,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.pro_vocals_handler = ProVocalsHandler(self)
         self.mix_handler = MixHandler()
         self.wishlist_handler = WishlistManager(self)
+        self.setlist_handler = SetlistHandler(self)
 
         self.setup_commands()
 
@@ -501,6 +487,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def shop_command(interaction: discord.Interaction):
             await self.shop_handler.handle_interaction(interaction=interaction)
+
+        @self.tree.command(name="setlists", description="View the setlists.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def setlists_command(interaction: discord.Interaction):
+            await self.setlist_handler.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.allowed_installs(guilds=True, users=True)

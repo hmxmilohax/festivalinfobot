@@ -31,3 +31,6 @@ ffmpeg.exe
 ffprobe.exe
 # virtual enviroment
 ft_venv/
+
+debug_frames/
+bot/tools/brand.py
