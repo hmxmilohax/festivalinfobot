@@ -6,6 +6,8 @@ import requests
 from PIL import Image
 import io
 import bot.constants as constants
+from bot.tools.setlists_views import SetlistView
+from PIL import ImageFilter, ImageEnhance
 
 class SetlistHandler():
     def __init__(self, bot):
@@ -76,20 +78,25 @@ class SetlistHandler():
         available_setlists = dict(sorted(available_setlists.items(), key=_sort_key))
 
         for setlist_id, shortnames in available_setlists.items():
-            logging.info(f"Setlist {setlist_id}:")
-            
             container = discord.ui.Container()
-            container.add_item(discord.ui.TextDisplay("# Setlist"))
+            container.add_item(discord.ui.TextDisplay("# Main Stage Setlists"))
 
-            td = discord.ui.TextDisplay("")
+            songsstr = ''
+            length_secs = 0
             auurls = []
 
             for shortname in shortnames:
                 track_info = discord.utils.find(lambda t: t['track']['sn'] == shortname, track_list)
 
-                td.content += f"- **{track_info['track']['tt']}** - *{track_info['track']['an']}*\n"
+                songsstr += f"- **{track_info['track']['tt']}** - *{track_info['track']['an']}*\n"
+                length_secs += track_info['track']['dn']
                 auurls.append(track_info['track']['au'])
 
+            minutes = length_secs // 60
+            seconds = length_secs % 60
+            length = f"{minutes}m {seconds}s"
+
+            td = discord.ui.TextDisplay(f"{len(shortnames)} songs · {length}\n{songsstr}")
             container.add_item(td)
 
             imgs = []
@@ -102,7 +109,11 @@ class SetlistHandler():
                 imgs.append(Image.new("RGBA", (512, 512), (0, 0, 0, 0)))
 
             grid_w, grid_h = 512 * 2, 512 * 2
-            grid = Image.new("RGBA", (grid_w, grid_h), (0, 0, 0, 0))
+            bg = Image.open("bot/data/Logo/Festival_Tracker_Fuser_sat.png").convert("RGBA")
+            bg = bg.resize((grid_w, grid_h))
+            bg = bg.filter(ImageFilter.GaussianBlur(radius=120))
+            bg = ImageEnhance.Brightness(bg).enhance(0.4)
+            grid = bg
 
             positions = [(0, 0), (512, 0), (0, 512), (512, 512)]
             for img, pos in zip(imgs, positions):
@@ -124,8 +135,8 @@ class SetlistHandler():
 
             containers.append(container)
 
-        view = discord.ui.LayoutView()
-        for container in containers:
-            view.add_item(container)
+        view = SetlistView(containers=containers, user_id=interaction.user.id)
+        view.update_components()
 
-        await interaction.followup.send(view=view, files=[discord.File(io.BytesIO(img_data), filename=img_name) for img_name, img_data in img_bytes])
+        msg = await interaction.followup.send(view=view, files=[discord.File(io.BytesIO(img_data), filename=img_name) for img_name, img_data in img_bytes], wait=True)
+        view.message = msg
