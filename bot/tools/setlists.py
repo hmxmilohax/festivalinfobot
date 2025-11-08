@@ -111,7 +111,7 @@ class SetlistHandler():
             grid_w, grid_h = 512 * 2, 512 * 2
             bg = Image.open("bot/data/Logo/Festival_Tracker_Fuser_sat.png").convert("RGBA")
             bg = bg.resize((grid_w, grid_h))
-            bg = bg.filter(ImageFilter.GaussianBlur(radius=120))
+            bg = bg.filter(ImageFilter.GaussianBlur(radius=75))
             bg = ImageEnhance.Brightness(bg).enhance(0.4)
             grid = bg
 
