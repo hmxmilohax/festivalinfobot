@@ -23,6 +23,7 @@ from bot.groups.graphs import GraphCog
 from bot.groups.history import HistoryCog
 from bot.groups.lb import LeaderboardCog
 from bot.tools.log import setup as setup_log
+from bot.tools.log import CustomHandler
 from bot.groups.admin import TestCog
 from bot.groups.randomcog import RandomCog
 from bot.config import Config
@@ -187,6 +188,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         logging.debug("on_ready finished!")
 
+        # raise ValueError("I hate you, test")
+
     async def on_shard_connect(self, shard_id: int):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} connected")
 
@@ -199,7 +202,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
     
     def __init__(self):
         # Load configuration from config.ini
-        setup_log()
+        loggers = setup_log()
+
+        for handler in loggers.handlers:
+            if isinstance(handler, CustomHandler):
+                handler.error_pipe = self.custom_on_error
 
         config = ConfigParser()
         config.read('config.ini')
@@ -255,6 +262,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.setup_commands()
 
         self.tree.on_error = self.custom_on_error
+        async def _on_error_wrapper(error: str, *args, **kwargs):
+            exc = sys.exc_info()[1]
+            await self.custom_on_error(None, exc)
+
+        self.on_error = _on_error_wrapper 
         # self.setup_subscribe_commands()
 
         self.run(DISCORD_TOKEN, log_handler=None)
@@ -275,16 +287,20 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.analytics.append(analytic)
 
     # CUSTOM ERROR HANDLER
-    async def custom_on_error(self, interaction: discord.Interaction, error: Exception):
-        command = interaction.command
+    async def custom_on_error(self, interaction: discord.Interaction, error: Exception, is_piped: bool = False):
+        command = interaction.command if interaction else None
 
         if isinstance(error, discord.app_commands.errors.CommandInvokeError):
             if isinstance(error.original, discord.NotFound):
-                logging.error('An interaction could not be finished')
+                logging.error('Interaction could not be finished')
                 return
 
         try:
-            exc_text = f"Exception caught\n- Time: {discord.utils.format_dt(datetime.now(), 'F')}"
+            message = "Exception caught"
+            if is_piped:
+                message = "Error message caught"
+
+            exc_text = f"{message}\n- Time: {discord.utils.format_dt(datetime.now(), 'F')}"
             if command:
                 exc_text += f'\n- Command: /{command.qualified_name}'
             onetry = ''.join(traceback.format_exception(error))
@@ -304,24 +320,27 @@ class FestivalInfoBot(commands.AutoShardedBot):
             embed.add_field(name="", value=f"```{str(err_text)}```")
             embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
 
-            try:
-                if interaction.response.is_done():
-                    await interaction.edit_original_response(embed=embed)
-                else:
-                    await interaction.response.send_message(embed=embed, ephemeral=True)
-            except Exception as e:
-                logging.critical(exc_info=e)
+            if interaction:
+                try:
+                    if interaction.response.is_done():
+                        await interaction.edit_original_response(embed=embed)
+                    else:
+                        await interaction.response.send_message(embed=embed, ephemeral=True)
+                except Exception as e:
+                    logging.critical(exc_info=e)
 
         except Exception as e:
-            logging.critical('We were not able to log the exception, we\'re truly cooked.', exc_info=e)
+            logging.critical('Failed to report error', exc_info=e)
 
         if command is not None:
             if command._has_any_error_handlers():
                 return
 
-            logging.error('Ignoring exception in command %r', command.name, exc_info=error)
+            if not is_piped:
+                logging.error('Ignoring exception in command %r', command.name, exc_info=error)
         else:
-            logging.error('Ignoring exception in command tree', exc_info=error)
+            if not is_piped:
+                logging.error('Ignoring exception in command tree', exc_info=error)
 
     def setup_commands(self):
         

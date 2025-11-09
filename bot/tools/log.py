@@ -2,6 +2,8 @@ import logging
 import logging.handlers
 import sys
 
+import asyncio
+
 from pathlib import Path
 
 BLACK = "\033[0;30m"
@@ -32,6 +34,14 @@ END = "\033[0m"
 class CustomHandler(logging.StreamHandler):
     def emit(self, record):
         log_entry = self.format(record)
+
+        # print(record.funcName)
+
+        if record.funcName != 'custom_on_error':
+            if hasattr(self, 'error_pipe') and record.levelno >= logging.ERROR:
+                # Send the log entry to the error pipe (usually an async function)
+                asyncio.create_task(self.error_pipe(None, ValueError(record.message), True))
+
         # Print our logs to the console, since thats how it works
         print(log_entry)
 
