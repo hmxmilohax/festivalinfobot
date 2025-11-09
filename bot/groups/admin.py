@@ -409,7 +409,7 @@ class TestCog(commands.Cog):
         
         await interaction.response.defer(ephemeral=True)
 
-        with open('cache/logs/festivalinfobot.log', 'r', encoding='utf-8') as f:
+        with open('cache/logs/FESTIVALTRACKERLOGS_V2.log', 'r', encoding='utf-8') as f:
             lines = f.readlines()[-100:]
 
         await interaction.edit_original_response(attachments=[discord.File(io.StringIO(''.join(lines)), 'log.txt')])
