@@ -92,29 +92,30 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self._connection.parse_guild_members_chunk(data)
 
     async def on_ready(self):
+        self.is_ready = False
         logging.info(f'Logged in as {self.user.name}')
 
-        logging.info("Bot going active on:")
-        logging.info(' '.join(["No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date"]))
+        # logging.info("Bot going active on:")
+        # logging.info(' '.join(["No.".ljust(5), "Name".ljust(30), "ID".ljust(20), "Join Date"]))
         
-        sorted_guilds = sorted(
-            self.guilds, 
-            key=lambda guild: guild.me.joined_at or datetime.min
-        )
+        # sorted_guilds = sorted(
+        #     self.guilds, 
+        #     key=lambda guild: guild.me.joined_at or datetime.min
+        # )
         
-        for index, guild in enumerate(sorted_guilds, start=1):
-            join_date = "Unknown"
-            if guild.me:
-                if guild.me.joined_at:
-                    join_date = guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
+        # for index, guild in enumerate(sorted_guilds, start=1):
+        #     join_date = "Unknown"
+        #     if guild.me:
+        #         if guild.me.joined_at:
+        #             join_date = guild.me.joined_at.strftime("%Y-%m-%d %H:%M:%S") 
 
-            logging.info(
-                ' '.join([str(index).ljust(5),
-                    guild.name.ljust(30), 
-                    str(guild.id).ljust(20), 
-                    join_date
-                ])
-            )
+        #     logging.info(
+        #         ' '.join([str(index).ljust(5),
+        #             guild.name.ljust(30), 
+        #             str(guild.id).ljust(20), 
+        #             join_date
+        #         ])
+        #     )
 
         if not os.path.exists(f'{constants.CACHE_FOLDER}CommandTree.dat'):
             open(f'{constants.CACHE_FOLDER}CommandTree.dat', 'wb').write(b'')
@@ -162,7 +163,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             msg_id = ids[1]
             chn_id = ids[2]
             try:
-                await self.get_partial_messageable(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=True)
+                await self.get_partial_messageable(int(chn_id)).get_partial_message(int(msg_id)).reply(f'Ready in {uptime.seconds}s', mention_author=False)
             except Exception as e:
                 logging.error("Could not send ready message", exc_info=e)                
 
@@ -188,7 +189,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         logging.debug("on_ready finished!")
 
-        # raise ValueError("I hate you, test")
+        self.is_ready = True
 
     async def on_shard_connect(self, shard_id: int):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} connected")
@@ -215,6 +216,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.suggestions_enabled = True
         self.is_done_chunking = False
         self.last_analytic: Optional[datetime] = None
+        self.is_ready = False
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')

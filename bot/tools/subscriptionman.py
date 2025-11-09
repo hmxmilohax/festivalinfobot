@@ -21,6 +21,11 @@ class SubscriptionManager():
     async def handle_interaction(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
         message = await interaction.original_response()
+
+        if not self.bot.is_ready:
+            await interaction.edit_original_response(embed=constants.common_error_embed("Festival Tracker is not ready yet. Please try again in a moment."))
+            return
+
         view = SubscriptionsView(self.bot)
         await view.reply_to_initial(message)
 
@@ -36,7 +41,7 @@ class SubscriptionsView(discord.ui.View):
         async def problemsf(interaction: discord.Interaction):
             await interaction.response.send_modal(SuggestionModal(self.bot))
 
-        problems = discord.ui.Button(label="Problems with Subscriptions / Changes Not Saving / Feedback / Concerns / Bugs?", emoji=constants.ERROR_EMOJI, style=discord.ButtonStyle.secondary, row=1)
+        problems = discord.ui.Button(label="Problems with Subscriptions / Concerns?", emoji=constants.ERROR_EMOJI, style=discord.ButtonStyle.secondary, row=1)
         problems.callback = problemsf
         self.add_item(problems)
 

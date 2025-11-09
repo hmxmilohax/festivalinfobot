@@ -40,7 +40,8 @@ class CustomHandler(logging.StreamHandler):
         if record.funcName != 'custom_on_error':
             if hasattr(self, 'error_pipe') and record.levelno >= logging.ERROR:
                 # Send the log entry to the error pipe (usually an async function)
-                asyncio.create_task(self.error_pipe(None, ValueError(record.message), True))
+                fmt = CustomFormatter(no_ansi=True)
+                asyncio.create_task(self.error_pipe(None, ValueError(fmt.format(record)), True))
 
         # Print our logs to the console, since thats how it works
         print(log_entry)
