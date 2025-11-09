@@ -112,7 +112,7 @@ class HistoryHandler():
                 file_path = os.path.join(constants.LOCAL_JSON_FOLDER, json_file)
                 file_content = constants.load_json_from_file(file_path)
                 if not file_content:
-                    logging.error(f"Failed to load content from {file_path}, skipping to next file.")
+                    logging.warning(f"Failed to load content from {file_path}, skipping to next file.")
                     continue
 
                 song_data = file_content.get(shortname)
@@ -245,7 +245,7 @@ class HistoryHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
-            logging.error(f"No tracks found matching {song}.")
+            # logging.error(f"No tracks found matching {song}.")
             await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not give any results.'))
             return
         
@@ -361,7 +361,7 @@ class HistoryHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
-            logging.error(f"No tracks found matching {song}.")
+            # logging.error(f"No tracks found matching {song}.")
             await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not give any results.'))
             return
         
@@ -432,7 +432,7 @@ class LoopCheckHandler():
         tracks = constants.get_jam_tracks() # no cache here
 
         if not tracks:
-            logging.error('Could not fetch tracks.')
+            # logging.error('Could not fetch tracks.')
             return
         
         for track in tracks:
@@ -548,12 +548,12 @@ class LoopCheckHandler():
                 channel = None
 
             if not channel:
-                logging.error(f"{channel_to_send.type.capitalize()} with ID {channel_to_send.id} not found.")
+                logging.warning(f"{channel_to_send.type.capitalize()} with ID {channel_to_send.id} not found.")
                 continue
 
             if isinstance(channel, discord.abc.GuildChannel):
                 if channel.permissions_for(channel.guild.me).send_messages == False:
-                    logging.error(f"We do not have permission to send messages to {channel.id}, skipping.")
+                    logging.warning(f"We do not have permission to send messages to {channel.id}, skipping.")
                     continue
 
             content = ""
@@ -576,11 +576,11 @@ class LoopCheckHandler():
                         message = await channel.send(content=content, embed=embed, view=view)
 
                     except discord.Forbidden as e:
-                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
+                        logging.warning(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
                         break
                         
                     except Exception as e:
-                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
+                        logging.warning(f"Error sending message to channel {channel.id}", exc_info=e)
 
             if modified_songs and JamTrackEvents.Modified.value.id in channel_to_send.events:
                 logging.info(f"Modified songs sending to channel {channel.id}")
@@ -616,11 +616,11 @@ class LoopCheckHandler():
                         message = await channel.send(view=view, files=[discord.File(fpath) for fpath in files] if files else None)
 
                     except discord.Forbidden as e:
-                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
+                        logging.warning(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
                         break
 
                     except Exception as e:
-                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
+                        logging.warning(f"Error sending message to channel {channel.id}", exc_info=e)
 
             if removed_songs and JamTrackEvents.Removed.value.id in channel_to_send.events:
                 logging.info(f"Removed songs sending to channel {channel.id}")
@@ -630,11 +630,11 @@ class LoopCheckHandler():
                         message = await channel.send(content=content, embed=embed)
 
                     except discord.Forbidden as e:
-                        logging.error(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
+                        logging.warning(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
                         break
 
                     except Exception as e:
-                        logging.error(f"Error sending message to channel {channel.id}", exc_info=e)
+                        logging.warning(f"Error sending message to channel {channel.id}", exc_info=e)
 
         logging.info(f"Done checking for new songs: New: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
 
