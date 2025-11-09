@@ -49,18 +49,22 @@ class MidiArchiveTools:
             response = await session.get(chart_url)
             response.raise_for_status()
 
-            await session.close()
+            midi_data = await response.content.read() # why??
+
 
             with open(local_enc_path, 'wb') as f:
-                f.write(response.content)
+                f.write(midi_data)
 
+            
             if decrypt:
-                decrypted_data = self.decrypt_bytes(response.content)
+                decrypted_data = self.decrypt_bytes(midi_data)
                 with open(local_path, 'wb') as f:
                     f.write(decrypted_data)
 
+                await session.close()
                 return local_path
             
+            await session.close()
             return local_enc_path
         
     def modify_midi_file(self, midi_file: str, instrument: constants.Instrument, session_hash: str, shortname: str) -> str:
