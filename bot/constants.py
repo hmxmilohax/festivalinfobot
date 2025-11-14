@@ -125,6 +125,7 @@ SIMPLE_COMPARISONS = {
     'ab': 'Album',
     'sn': 'Shortname',
     'ry': 'Release Year',
+    'dn': 'Duration',
     'jc': 'Jam Loop Mnemonic Code',
     'ti': 'Placeholder ID',
     'mm': 'Mode',
