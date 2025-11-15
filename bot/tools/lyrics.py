@@ -695,7 +695,7 @@ class LyricsHandler():
         # Draw footer: paste logo at left and right-align festivaltracker.org at right margin
         try:
             footer_top = final_image_height - 100
-            logo_path = os.path.join('bot', 'data', 'Logo', 'index.png')
+            logo_path = os.path.join('bot', 'data', 'Logo', 'Title.png')
             if os.path.exists(logo_path):
                 logo = Image.open(logo_path).convert('RGBA')
                 # resize to height 50 keeping aspect ratio
