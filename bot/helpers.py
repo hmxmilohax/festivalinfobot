@@ -16,7 +16,7 @@ from bot.midi import MidiArchiveTools
 
 class WeeklySongsDisplay(discord.ui.Container):
     def __init__(self, tracks):
-        super().__init__(accent_colour=0x8927A1)
+        super().__init__(accent_colour=constants.ACCENT_COLOUR) # im not sure how this is valid at all but in the end its python so whatever
         self.page = 0
         self.per_page = 3
         self.track_page_items: list[discord.ui.Section] = []
@@ -216,7 +216,7 @@ class DailyCommandHandler:
         embeds = []
         
         for i in range(0, len(daily_tracks), chunk_size):
-            embed = discord.Embed(title="Weekly Rotation Tracks", color=0x8927A1)
+            embed = discord.Embed(title="Weekly Rotation Tracks", colour=constants.ACCENT_COLOUR)
             chunk = daily_tracks[i:i + chunk_size]
             
             for entry in chunk:
@@ -325,7 +325,7 @@ class ShopCommandHandler:
         embeds = []
 
         for i in range(0, len(shop_tracks), 5):
-            embed = discord.Embed(title=title, color=0x8927A1)
+            embed = discord.Embed(title=title, colour=constants.ACCENT_COLOUR)
             chunk = shop_tracks[i:i + 5]
 
             for track in chunk: # track is in epic format
@@ -520,7 +520,7 @@ class GamblingHandler:
             for i in range(limit):
                 chosen_tracks.append(random.choice(track_list))
 
-            embed = discord.Embed(title="Your random setlist!", description=f"The {limit} tracks are...", color=0x8927A1)
+            embed = discord.Embed(title="Your random setlist!", description=f"The {limit} tracks are...", colour=constants.ACCENT_COLOUR)
             embed.add_field(name="", value="\n".join([f'- **{str(track["track"]["tt"])}** - *{str(track["track"]["an"])}*' for track in chosen_tracks]))
             await interaction.edit_original_response(embed=embed, view=reroll_view)
 

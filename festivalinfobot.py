@@ -516,9 +516,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await self.setlist_handler.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
+        @app_commands.describe(detail = "Whether to show detailed categories of Jam Tracks.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def count_command(interaction: discord.Interaction):
+        async def count_command(interaction: discord.Interaction, detail: bool = False):
             track_list = JamTrackHandler().get_jam_tracks()
             if not track_list:
                 await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
@@ -527,13 +528,13 @@ class FestivalInfoBot(commands.AutoShardedBot):
             embed = discord.Embed(
                 title="Total Available Jam Tracks",
                 description=f"**{len(track_list)}** Jam Tracks are available in Fortnite Festival.",
-                color=0x8927A1
+                colour=constants.ACCENT_COLOUR
             )
 
             epic = [t for t in track_list if t['track']['an'] == 'Epic Games']
             percentage = round((len(epic) / len(track_list)) * 100, 2)
 
-            embed.add_field(name="Epic Games Jam Tracks", value=f"**{len(epic)}**/**{len(track_list)}** ({percentage}%)", inline=False)
+            embed.add_field(name="Epic Games", value=f"**{len(epic)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
             provocals_data = self.pro_vocals_handler.get_pro_vocals_counts()
 
@@ -570,32 +571,33 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 )
             ]
 
-            legacy_with_pro_vocals = []
-            for track in songs_with:
-                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
-                    legacy_with_pro_vocals.append(track)
+            if detail:
+                legacy_with_pro_vocals = []
+                for track in songs_with:
+                    if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
+                        legacy_with_pro_vocals.append(track)
 
-            percentage_legacy = round((len(legacy_with_pro_vocals) / len(legacy_list)) * 100, 2)
-            embed.add_field(name="Pro Vocals (Legacy)", value=f"**{len(legacy_with_pro_vocals)}**/**{len(legacy_list)}** ({percentage_legacy}%)", inline=False)
+                percentage_legacy = round((len(legacy_with_pro_vocals) / len(legacy_list)) * 100, 2)
+                embed.add_field(name="Pro Vocals (Legacy)", value=f"**{len(legacy_with_pro_vocals)}**/**{len(legacy_list)}** ({percentage_legacy}%)", inline=False)
 
-            ls_w_pv = []
-            for track in songs_with:
-                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
-                    ls_w_pv.append(track)
+                ls_w_pv = []
+                for track in songs_with:
+                    if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
+                        ls_w_pv.append(track)
 
-            percentage_ls = round((len(ls_w_pv) / len(lipsync_only_list)) * 100, 2)
-            embed.add_field(name="Pro Vocals (Lipsync Only)", value=f"**{len(ls_w_pv)}**/**{len(lipsync_only_list)}** ({percentage_ls}%)", inline=False)
+                percentage_ls = round((len(ls_w_pv) / len(lipsync_only_list)) * 100, 2)
+                embed.add_field(name="Pro Vocals (Lipsync Only)", value=f"**{len(ls_w_pv)}**/**{len(lipsync_only_list)}** ({percentage_ls}%)", inline=False)
 
-            legacy_ls_w_pv = []
-            for track in songs_with:
-                if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list) and discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
-                    legacy_ls_w_pv.append(track)
+                legacy_ls_w_pv = []
+                for track in songs_with:
+                    if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list) and discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
+                        legacy_ls_w_pv.append(track)
 
-            percentage_legacy_ls = round((len(legacy_ls_w_pv) / len(legacy_lipsync_list)) * 100, 2)
-            embed.add_field(name="Pro Vocals (Legacy Lipsync Only)", value=f"**{len(legacy_ls_w_pv)}**/**{len(legacy_lipsync_list)}** ({percentage_legacy_ls}%)", inline=False)
+                percentage_legacy_ls = round((len(legacy_ls_w_pv) / len(legacy_lipsync_list)) * 100, 2)
+                embed.add_field(name="Pro Vocals (Legacy Lipsync Only)", value=f"**{len(legacy_ls_w_pv)}**/**{len(legacy_lipsync_list)}** ({percentage_legacy_ls}%)", inline=False)
 
-            if len(missing_midi) > 0:
-                embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
+                if len(missing_midi) > 0:
+                    embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
 
             embed.set_footer(text="Festival Tracker")
 
@@ -703,7 +705,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             embed = discord.Embed(
                 title="Festival Tracker Statistics",
                 description="",
-                color=0x8927A1
+                colour=constants.ACCENT_COLOUR
             )
             embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
             embed.add_field(name="Channels", value=f"{channel_count} channels", inline=True)
@@ -771,7 +773,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
                     embed = discord.Embed(
                         title="",
                         description=f"A powerful bot for Fortnite Festival song data.",
-                        color=0x8927A1
+                        colour=constants.ACCENT_COLOUR
                     )
                     embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
                     embed.add_field(name='Privacy Policy', value='[View](https://festivaltracker.org/privacy-policy)')
@@ -805,13 +807,13 @@ class FestivalInfoBot(commands.AutoShardedBot):
                     embed = discord.Embed(
                         title="Festival Tracker Help",
                         description=f"A powerful bot for Fortnite Festival song data.\nUse `/help <command>` to get more information on a specific command.",
-                        color=0x8927A1
+                        colour=constants.ACCENT_COLOUR
                     )
-                    embed.add_field(name='Source Code', value='[View](https://www.github.com/hmxmilohax/festivalinfobot)')
-                    embed.add_field(name='Privacy Policy', value='[View](https://festivaltracker.org/privacy-policy)')
-                    embed.add_field(name='Terms of Service', value='[View](https://festivaltracker.org/terms-of-service)')
-                    embed.add_field(name='Invite Link', value='[Add Festival Tracker to your server!](https://invite.festivaltracker.org)', inline=False)
+                    embed.add_field(name='Source Code', value='[View Source Code](https://www.github.com/hmxmilohax/festivalinfobot)')
+                    embed.add_field(name='Invite Link', value='[Add us to your server!](https://invite.festivaltracker.org)', inline=False)
                     chunk = commands[i:i + 5]
+
+                    embed.add_field(name="Commands", value="", inline=False)
 
                     for command in chunk:
                         embed.add_field(name=f'`/{command["name"]}`', value=command['value'], inline=command['inline'])

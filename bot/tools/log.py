@@ -63,19 +63,19 @@ class CustomFormatter(logging.Formatter):
         file_line = f'{record.filename}:{record.lineno}'
         padded_file_line = self.set_fixed_size(file_line, 25)
 
-        level_color = YELLOW
+        level_colour = YELLOW
         if record.levelname == 'INFO':
-            level_color = CYAN
+            level_colour = CYAN
         if record.levelname == 'DEBUG':
-            level_color = BLUE
+            level_colour = BLUE
         if record.levelname == 'WARNING':
-            level_color = f'{BOLD}{BROWN}'
+            level_colour = f'{BOLD}{BROWN}'
         if record.levelname == 'ERROR':
-            level_color = f'{BOLD}{RED}' 
+            level_colour = f'{BOLD}{RED}' 
         if record.levelname == 'CRITICAL':
-            level_color = f'{BOLD}{PURPLE}'
+            level_colour = f'{BOLD}{PURPLE}'
         
-        log_format = f"{GREEN}{self.formatTime(record, self.datefmt)}{END} {BLUE}{padded_file_line}{END} {level_color}%(levelname)-8s {END} %(message)s"
+        log_format = f"{GREEN}{self.formatTime(record, self.datefmt)}{END} {BLUE}{padded_file_line}{END} {level_colour}%(levelname)-8s {END} %(message)s"
         if self.no_ansi:
             log_format = f"{self.formatTime(record, self.datefmt)} {padded_file_line} %(levelname)-8s %(message)s"
         

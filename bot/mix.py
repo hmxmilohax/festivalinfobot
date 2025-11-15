@@ -19,7 +19,7 @@ class MixHandler():
             embed = discord.Embed(
                title="No Matches Found",
                description=embed_description,
-               color=0x8927A1
+               colour=constants.ACCENT_COLOUR
             )
 
             await interaction.response.send_message(embed=embed)
@@ -37,7 +37,7 @@ class MixHandler():
             embed = discord.Embed(
                 title=embed_title,
                 description=f"Choose any of these Jam Tracks for a seamless mix!",
-                color=0x8927A1
+                colour=constants.ACCENT_COLOUR
             )
 
             tracks_chunk = matched_tracks[i:i + self.elements_per_page]

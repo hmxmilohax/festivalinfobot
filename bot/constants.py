@@ -112,6 +112,8 @@ PRO_DRUMS_EMOJI = '<:drums:1349038567502123128>'
 PRO_VOCALS_EMOJI = '<:vocals:1349038596841279539>'
 PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 
+ACCENT_COLOUR = 0x7C5AF7
+
 EVENT_NAMES = {
     'added': "Track Added",
     'removed': "Track Removed",
@@ -639,7 +641,7 @@ def create_track_embeds(track_list, title, chunk_size=10):
     embeds = []
 
     for i in range(0, len(track_list), chunk_size):
-        embed = discord.Embed(title=title, color=0x8927A1)
+        embed = discord.Embed(title=title, colour=ACCENT_COLOUR)
         chunk = track_list[i:i + chunk_size]
 
         for track in chunk:

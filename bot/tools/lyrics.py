@@ -297,7 +297,7 @@ class LyricsHandler():
             font_path="bot/data/Fonts/InterTight-Bold.ttf",
             album_art_path=album_art_path,
             line_spacing=10,
-            text_color=(255, 255, 255),
+            text_colour=(255, 255, 255),
             song_name=song_name, artist_name=artist_name
         )
             
@@ -313,10 +313,10 @@ class LyricsHandler():
         separation=50, 
         line_spacing=5, 
         margin=45,
-        num_dominant_colors=8, 
+        num_dominant_colours=8, 
         block_size=180, 
         blur_radius=200,
-        text_color=(0, 0, 0),
+        text_colour=(0, 0, 0),
         song_name: str = 'Llorarás',
         artist_name: str = 'Oscar D\'León'):
         max_width = 720
@@ -389,7 +389,7 @@ class LyricsHandler():
         
         final_image_height = y_offset + margin + 100 # Add bottom margin
 
-        # --- Background Generation (from create_blurred_color_grid_background) ---
+        # --- Background Generation (from create_blurred_colour_grid_background) ---
         try:
             album_art = Image.open(album_art_path).convert("RGB")
         except FileNotFoundError:
@@ -399,10 +399,10 @@ class LyricsHandler():
             print(f"Error opening album art: {e}")
             return None
 
-        # Step 1: Extract Dominant Colors from 8 sections of the album art
+        # Step 1: Extract Dominant colours from 8 sections of the album art
         small_album_art = album_art.resize((256, 256))
         
-        dominant_colors = []
+        dominant_colours = []
         section_width = small_album_art.width // 4
         section_height = small_album_art.height // 2
 
@@ -414,50 +414,50 @@ class LyricsHandler():
                 bottom = top + section_height
                 
                 section = small_album_art.crop((left, top, right, bottom))
-                section_colors = list(section.getdata())
+                section_colours = list(section.getdata())
                 
-                if not section_colors:
+                if not section_colours:
                     continue
 
                 # Check if the section is mostly dark
-                total_r = sum(c[0] for c in section_colors)
-                total_g = sum(c[1] for c in section_colors)
-                total_b = sum(c[2] for c in section_colors)
-                num_pixels = len(section_colors)
+                total_r = sum(c[0] for c in section_colours)
+                total_g = sum(c[1] for c in section_colours)
+                total_b = sum(c[2] for c in section_colours)
+                num_pixels = len(section_colours)
                 avg_r = total_r / num_pixels
                 avg_g = total_g / num_pixels
                 avg_b = total_b / num_pixels
 
                 if avg_r < 5 and avg_g < 5 and avg_b < 5:
-                    # If section is dark, find the brightest color
-                    brightest_color = max(section_colors, key=lambda c: sum(c))
-                    dominant_colors.append(brightest_color)
+                    # If section is dark, find the brightest colour
+                    brightest_colour = max(section_colours, key=lambda c: sum(c))
+                    dominant_colours.append(brightest_colour)
                     continue
 
-                # Group similar colors
-                color_counts = Counter(section_colors)
-                sorted_colors = sorted(color_counts.keys(), key=lambda c: color_counts[c], reverse=True)
+                # Group similar colours
+                colour_counts = Counter(section_colours)
+                sorted_colours = sorted(colour_counts.keys(), key=lambda c: colour_counts[c], reverse=True)
                 
                 clusters = []
-                processed_colors = set()
+                processed_colours = set()
 
-                for color in sorted_colors:
-                    if color in processed_colors:
+                for colour in sorted_colours:
+                    if colour in processed_colours:
                         continue
                     
-                    current_cluster = {'colors': [color], 'count': color_counts[color]}
-                    processed_colors.add(color)
+                    current_cluster = {'colours': [colour], 'count': colour_counts[colour]}
+                    processed_colours.add(colour)
 
-                    # Find similar colors to add to the current cluster
-                    for other_color in sorted_colors:
-                        if other_color in processed_colors:
+                    # Find similar colours to add to the current cluster
+                    for other_colour in sorted_colours:
+                        if other_colour in processed_colours:
                             continue
                         
-                        # Check if colors are similar (e.g., within a threshold of 10 for each channel)
-                        if all(abs(c1 - c2) <= 10 for c1, c2 in zip(color, other_color)):
-                            current_cluster['colors'].append(other_color)
-                            current_cluster['count'] += color_counts[other_color]
-                            processed_colors.add(other_color)
+                        # Check if colours are similar (e.g., within a threshold of 10 for each channel)
+                        if all(abs(c1 - c2) <= 10 for c1, c2 in zip(colour, other_colour)):
+                            current_cluster['colours'].append(other_colour)
+                            current_cluster['count'] += colour_counts[other_colour]
+                            processed_colours.add(other_colour)
                     
                     clusters.append(current_cluster)
 
@@ -465,20 +465,20 @@ class LyricsHandler():
                     # Find the largest cluster
                     largest_cluster = max(clusters, key=lambda c: c['count'])
                     
-                    # Calculate the average color of the largest cluster
-                    avg_r = sum(c[0] for c in largest_cluster['colors']) // len(largest_cluster['colors'])
-                    avg_g = sum(c[1] for c in largest_cluster['colors']) // len(largest_cluster['colors'])
-                    avg_b = sum(c[2] for c in largest_cluster['colors']) // len(largest_cluster['colors'])
+                    # Calculate the average colour of the largest cluster
+                    avg_r = sum(c[0] for c in largest_cluster['colours']) // len(largest_cluster['colours'])
+                    avg_g = sum(c[1] for c in largest_cluster['colours']) // len(largest_cluster['colours'])
+                    avg_b = sum(c[2] for c in largest_cluster['colours']) // len(largest_cluster['colours'])
                     
-                    dominant_colors.append((avg_r, avg_g, avg_b))
+                    dominant_colours.append((avg_r, avg_g, avg_b))
 
-        if not dominant_colors:
-            print("Could not extract any dominant colors. Using default colors for background.")
-            dominant_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), 
+        if not dominant_colours:
+            print("Could not extract any dominant colours. Using default colours for background.")
+            dominant_colours = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), 
                                 (0, 255, 255), (255, 0, 255), (128, 128, 128), (0, 0, 0)]
             
-        dominant_colors = [self.darken_color(color, 45) for color in dominant_colors]
-        print(dominant_colors)
+        dominant_colours = [self.darken_colour(colour, 45) for colour in dominant_colours]
+        # print(dominant_colours)
 
         # Step 2: Generate Grid Pattern (dynamically adjust height)
         grid_width = max_width
@@ -496,8 +496,8 @@ class LyricsHandler():
 
         for y_chunk_start in range(0, blocks_down, 2):
             for x_chunk_start in range(0, blocks_across, 4):
-                current_chunk_colors = random.sample(dominant_colors, min(len(dominant_colors), 8))
-                color_index = 0
+                current_chunk_colours = random.sample(dominant_colours, min(len(dominant_colours), 8))
+                colour_index = 0
 
                 for y_offset in range(2):
                     for x_offset in range(4):
@@ -505,13 +505,13 @@ class LyricsHandler():
                         current_block_y = (y_chunk_start + y_offset) * block_size
 
                         if current_block_x < grid_width and current_block_y < grid_height:
-                            color_to_use = current_chunk_colors[color_index % len(current_chunk_colors)]
+                            colour_to_use = current_chunk_colours[colour_index % len(current_chunk_colours)]
                             draw_grid.rectangle(
                                 [current_block_x, current_block_y, 
                                 current_block_x + block_size, current_block_y + block_size],
-                                fill=color_to_use
+                                fill=colour_to_use
                             )
-                            color_index += 1
+                            colour_index += 1
 
         # Step 3: Apply Gaussian Blur
         blurred_grid = grid_image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
@@ -591,18 +591,18 @@ class LyricsHandler():
         y_start = int(y_center - total_h / 2)
 
         if title:
-            draw_text.text((text_x, y_start), title, font=font_title, fill=text_color)
+            draw_text.text((text_x, y_start), title, font=font_title, fill=text_colour)
         if artist:
             # draw artist semi-transparent (0.8 alpha)
-            artist_rgba = (text_color[0], text_color[1], text_color[2], int(0.8 * 255))
+            artist_rgba = (text_colour[0], text_colour[1], text_colour[2], int(0.8 * 255))
             draw_overlay.text((text_x, y_start + title_h + (spacing if title and artist else 0)), artist, font=font_artist, fill=artist_rgba)
         
         # Draw a 1px tall semi-transparent white separator at (45,225) width 675
         sep_x = 45
         sep_y = 235
         sep_w = 675
-        sep_color = (255, 255, 255, int(0.5 * 255))
-        draw_overlay.rectangle([(sep_x, sep_y), (sep_w, sep_y)], fill=sep_color)
+        sep_colour = (255, 255, 255, int(0.5 * 255))
+        draw_overlay.rectangle([(sep_x, sep_y), (sep_w, sep_y)], fill=sep_colour)
 
         # Start drawing lyrics at absolute y=256 (ensured by header_height calculation)
         y_position = 265
@@ -629,14 +629,14 @@ class LyricsHandler():
                     text = event_map.get(text.lower(), text)
                     is_section = True
 
-                cur_colour = text_color
+                cur_colour = text_colour
                 if is_section:
                     # draw section header semi-transparent via overlay
                     section_rgba = (255, 255, 255, int(0.75 * 255))
                     draw_overlay.text((x_position, y_position), text, font=font_to_use, fill=section_rgba)
                 elif is_overdrive:
-                    # We'll render gradient text instead of solid color
-                    def draw_gradient_text(base_img, pos, text, font_obj, color_start, color_end):
+                    # We'll render gradient text instead of solid colour
+                    def draw_gradient_text(base_img, pos, text, font_obj, colour_start, colour_end):
                         # compute bbox and size
                         bbox = font_obj.getbbox(text)
                         x0, y0, x1, y1 = bbox
@@ -653,9 +653,9 @@ class LyricsHandler():
                         gd = ImageDraw.Draw(grad)
                         for ix in range(w):
                             t = ix / (w - 1) if w > 1 else 0
-                            r = int(color_start[0] + (color_end[0] - color_start[0]) * t)
-                            g = int(color_start[1] + (color_end[1] - color_start[1]) * t)
-                            b = int(color_start[2] + (color_end[2] - color_start[2]) * t)
+                            r = int(colour_start[0] + (colour_end[0] - colour_start[0]) * t)
+                            g = int(colour_start[1] + (colour_end[1] - colour_start[1]) * t)
+                            b = int(colour_start[2] + (colour_end[2] - colour_start[2]) * t)
                             gd.line([(ix, 0), (ix, h)], fill=(r, g, b, 255))
 
                         # paste gradient using text mask
@@ -715,13 +715,13 @@ class LyricsHandler():
             text_h = text_bbox[3] - text_bbox[1]
             text_x = max_width - 45 - text_w
             text_y = int(footer_top + (100 - text_h) / 2)
-            draw_footer.text((text_x, text_y), footer_text, font=font_wmark, fill=text_color)
+            draw_footer.text((text_x, text_y), footer_text, font=font_wmark, fill=text_colour)
         except Exception:
             pass
 
         return composed
     
-    def darken_color(self, rgb_tuple, percentage):
+    def darken_colour(self, rgb_tuple, percentage):
         if not (0 <= percentage <= 100):
             raise ValueError("Percentage must be between 0 and 100.")
 
@@ -730,5 +730,5 @@ class LyricsHandler():
         g = int(rgb_tuple[1] * darken_factor)
         b = int(rgb_tuple[2] * darken_factor)
         
-        # Ensure color components stay within the valid 0-255 range
+        # Ensure colour components stay within the valid 0-255 range
         return (max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b)))

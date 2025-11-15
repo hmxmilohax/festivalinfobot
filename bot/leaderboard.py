@@ -442,7 +442,7 @@ class LeaderboardEmbedHandler():
     # normal leaderboard entries
     def leaderboard_entries(self, entries: list, title: str, account_usernames: dict, selected_player: int = 0, updated_ts: datetime = None):
         # ALL IN EPIC FORMAT
-        embed = discord.Embed(title=title, color=0x8927A1)
+        embed = discord.Embed(title=title, colour=constants.ACCENT_COLOUR)
         embed.add_field(name="Last Updated", value=discord.utils.format_dt(updated_ts, 'R') if updated_ts else 'Unknown', inline=False)
         field_text = '```'
 
@@ -518,7 +518,7 @@ class LeaderboardEmbedHandler():
     # band leaderboard entries
     def band_leaderboard_entries(self, entries: list, title: str, account_usernames: dict, selected_player: int = 0, updated_ts: datetime = None):
         # ALL IN EPIC FORMAT
-        embed = discord.Embed(title=title, color=0x8927A1)
+        embed = discord.Embed(title=title, colour=constants.ACCENT_COLOUR)
         embed.add_field(name="Last Updated", value=discord.utils.format_dt(updated_ts, 'R') if updated_ts else 'Unknown', inline=False)
         field_text = '```'
 
@@ -638,7 +638,7 @@ class LeaderboardEmbedHandler():
         embeds = []
 
         for i in range(0, len(entries), chunk_size):
-            embed = discord.Embed(title=title, color=0x8927A1)
+            embed = discord.Embed(title=title, colour=constants.ACCENT_COLOUR)
             chunk = entries[i:i + chunk_size]
             field_text = '```'
             for entry in chunk:
@@ -669,7 +669,7 @@ class LeaderboardEmbedHandler():
     def generate_leaderboard_embed(self, track_data, entry_data, instrument):
         track = track_data['track']
         title = track['tt']
-        embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", color=0x8927A1)
+        embed = discord.Embed(title="", description=f"**{title}** - *{track['an']}*", colour=constants.ACCENT_COLOUR)
 
         # Best Run information
         difficulty = ['Easy', 'Medium', 'Hard', 'Expert'][entry_data['best_run']['difficulty']]

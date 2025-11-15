@@ -110,7 +110,8 @@ class HistoryHandler():
         try:
             for idx, json_file in enumerate(json_files):
                 file_path = os.path.join(constants.LOCAL_JSON_FOLDER, json_file)
-                file_content = constants.load_json_from_file(file_path)
+                load_action = functools.partial(constants.load_json_from_file, file_path)
+                file_content = await self.bot.loop.run_in_executor(None, load_action)
                 if not file_content:
                     logging.warning(f"Failed to load content from {file_path}, skipping to next file.")
                     continue
@@ -221,7 +222,7 @@ class HistoryHandler():
                         'last_modified_new': last_modified_new_str,
                         'shortname': track_name
                     }, list_of_images)
-        return None
+        return ({}, [])
 
     def fetch_local_history(self):
         json_files = []
@@ -262,7 +263,9 @@ class HistoryHandler():
             await interaction.edit_original_response(embed=constants.common_error_embed("No local history files found."))
             return
 
-        metadata_changes = self.track_meta_changes(json_files, shortname, session_hash)
+        job = functools.partial(self.track_meta_changes, json_files, shortname, session_hash)
+        metadata_changes = await self.bot.loop.run_in_executor(None, job) # prevents it from shitting itself
+        
         if len(metadata_changes.keys()) <= 1: # You won't be able to get here
             await interaction.edit_original_response(embed=constants.common_error_embed(f"No changes detected for the song **{actual_title}** - *{actual_artist}*\nOnly one version of the metadata exists."))
             return
@@ -285,7 +288,8 @@ class HistoryHandler():
                 prev_date = prev[0]
                 prev_properties = prev[1]
 
-                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n{discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date), style='R')} to {discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(date), style='R')}", color=0x8927A1)
+                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n{discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date), style='R')} to {discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(date), style='R')}", colour=constants.ACCENT_COLOUR)
+                embed.set_thumbnail(url=album_art_url)
 
                 for pk, pv in properties_that_changed.items():
                     previous_property = None
@@ -319,7 +323,18 @@ class HistoryHandler():
                                         inline=False
                                     )
                     else:
-                        embed.add_field(name=field_name, value=f"```Old: {previous_property}\nNew: {pv}```", inline=False)
+                        if pk == 'dn':
+                            # duration field
+                            previous_s = previous_property // 60
+                            previous_m = previous_property % 60
+                            current_s = pv // 60
+                            current_m = pv % 60
+                            prev_val = f"{previous_s}m {previous_m}s"
+                            cur_val = f"{current_s}m {current_m}s"
+                            embed.add_field(name=field_name, value=f"```Old: \"{previous_property}\" ({prev_val})\nNew: \"{pv}\" ({cur_val})```", inline=False)
+                            continue
+
+                        embed.add_field(name=field_name, value=f"```Old: \"{previous_property}\"\nNew: \"{pv}\"```", inline=False)
 
                 embed_list.append(embed)
 
@@ -608,7 +623,7 @@ class LoopCheckHandler():
                                 discord.ui.MediaGallery(
                                     *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in files]
                                 ),
-                                accent_colour=0x8927A1
+                                accent_colour=constants.ACCENT_COLOUR
                             )
                         )
 

@@ -99,7 +99,7 @@ class TestCog(commands.Cog):
             embeds = []
             for i in range(0, len(chs), 10):
                 print(i)
-                embed = discord.Embed(title="Results", color=0x8927A1)
+                embed = discord.Embed(title="Results", colour=constants.ACCENT_COLOUR)
                 chunk = chs[i:i + 10]
                 embed.add_field(name="Subscriptions", value=f"{len(chs)} channel(s)", inline=False)
                 txt = ''
@@ -136,7 +136,7 @@ class TestCog(commands.Cog):
         if len(failed) != 0:
             embeds = []
             for i in range(0, len(failed), 10):
-                embed = discord.Embed(title="Validation Results", color=0x8927A1)
+                embed = discord.Embed(title="Validation Results", colour=constants.ACCENT_COLOUR)
                 chunk = failed[i:i + 10]
                 embed.add_field(name="Failed", value=f"{len(failed)} user(s)", inline=False)
                 embed.add_field(name="List", value="```" + "\n".join([str(id) for id in chunk]) + "```", inline=False)
@@ -180,7 +180,7 @@ class TestCog(commands.Cog):
         if len(failed) != 0:
             embeds = []
             for i in range(0, len(failed), 10):
-                embed = discord.Embed(title="Validation Results", color=0x8927A1)
+                embed = discord.Embed(title="Validation Results", colour=constants.ACCENT_COLOUR)
                 chunk = failed[i:i + 10]
                 embed.add_field(name="Failed", value=f"{len(failed)} channel(s)", inline=False)
                 embed.add_field(name="List", value="```" + "\n".join([str(id) for id in chunk]) + "```", inline=False)

@@ -65,7 +65,7 @@ class GraphCommandsHandler():
         image_path = f'{short_name}_pdi_graph_{session_hash}.png'
         GraphingFuncs().generate_no_notes_pdi_chart(midi_path=midi_file, path=image_path, song_name=track_title, song_artist=artist_title)
         
-        embed = discord.Embed(title=f"Note counts for\n**{track_title}** - *{artist_title}*", color=0x8927A1)
+        embed = discord.Embed(title=f"Note counts for\n**{track_title}** - *{artist_title}*", colour=constants.ACCENT_COLOUR)
         file = discord.File(os.path.join(constants.TEMP_FOLDER, image_path), filename=image_path)
         embed.set_image(url=f"attachment://{image_path}")
         embed.set_thumbnail(url=album_art_url)
@@ -103,7 +103,7 @@ class GraphCommandsHandler():
         image_path = f'{short_name}_lift_graph_{session_hash}.png'
         GraphingFuncs().generate_no_notes_pdi_chart(midi_path=midi_file, path=image_path, song_name=track_title, song_artist=artist_title, lifts=True)
         
-        embed = discord.Embed(title=f"Lift counts for\n**{track_title}** - *{artist_title}*", color=0x8927A1)
+        embed = discord.Embed(title=f"Lift counts for\n**{track_title}** - *{artist_title}*", colour=constants.ACCENT_COLOUR)
         file = discord.File(os.path.join(constants.TEMP_FOLDER, image_path), filename=image_path)
         embed.set_image(url=f"attachment://{image_path}")
         embed.set_thumbnail(url=album_art_url)
@@ -144,7 +144,7 @@ class GraphCommandsHandler():
         image_path = f'{short_name}_nps_graph_{session_hash}.png'
         GraphingFuncs().generate_nps_chart(midi_path=midi_file, path=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)
         
-        embed = discord.Embed(title=f"NPS Graph for\n**{track_title}** - *{artist_title}*", color=0x8927A1)
+        embed = discord.Embed(title=f"NPS Graph for\n**{track_title}** - *{artist_title}*", colour=constants.ACCENT_COLOUR)
         file = discord.File(os.path.join(constants.TEMP_FOLDER, image_path), filename=image_path)
         embed.set_image(url=f"attachment://{image_path}")
         embed.set_thumbnail(url=album_art_url)
@@ -186,7 +186,7 @@ class GraphCommandsHandler():
         image_path = f'{short_name}_lanes_graph_{session_hash}.png'
         GraphingFuncs().generate_lanes_chart(midi_path=midi_file, spath=image_path, inst=chosen_instrument, diff=chosen_diff, song_name=track_title, song_artist=artist_title)
         
-        embed = discord.Embed(title=f"Notes per lane graph for\n**{track_title}** - *{artist_title}*", color=0x8927A1)
+        embed = discord.Embed(title=f"Notes per lane graph for\n**{track_title}** - *{artist_title}*", colour=constants.ACCENT_COLOUR)
         file = discord.File(os.path.join(constants.TEMP_FOLDER, image_path), filename=image_path)
         embed.set_image(url=f"attachment://{image_path}")
         embed.set_thumbnail(url=album_art_url)

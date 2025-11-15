@@ -126,7 +126,7 @@ class SetlistHandler():
             container.add_item(discord.ui.MediaGallery(
                 discord.MediaGalleryItem(f"attachment://{setlist_id}.png")
             ))
-            container.accent_colour = 0x8927A1
+            container.accent_colour = constants.ACCENT_COLOUR
 
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.TextDisplay(f"-# Festival Tracker"))

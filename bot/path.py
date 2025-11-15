@@ -155,7 +155,7 @@ class PathCommandHandler():
             embed = discord.Embed(
                 title=f"Path for **{track_title}** - *{artist_title}*",
                 description=description,
-                color=0x8927A1
+                colour=constants.ACCENT_COLOUR
             )
             embed.add_field(name="CHOpt output", value=f"```{filtered_output}```", inline=False)
 

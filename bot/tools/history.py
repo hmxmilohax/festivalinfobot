@@ -39,7 +39,7 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
         self.data = list(filter(lambda d: d is not None, data))
         self.track_data = track_data
 
-        self.total_pages = len(data)
+        self.total_pages = len(self.data)
 
         self.action_row = None
 
@@ -59,16 +59,16 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
             discord.ui.Section(
                 discord.ui.TextDisplay(f"**{self.track_data['track']['tt']}** - *{self.track_data['track']['an']}*"),
                 discord.ui.TextDisplay(f"Detected {len(_attchs)} track change(s) in v{self.current_page + 2}"),
-                discord.ui.TextDisplay(f"From {pdata['last_modified_old']}\n" +
-                                       f"To {pdata['last_modified_new']}\n" + 
-                                       f"Since {pdata['last_modified_new'].replace('D', 'R')}"),
+                discord.ui.TextDisplay(f"From {pdata.get('last_modified_old', 'Unknown')}\n" +
+                                       f"To {pdata.get('last_modified_new', 'Unknown')}\n" + 
+                                       f"Since {pdata.get('last_modified_new', 'Unknown').replace('D', 'R')}"),
                 accessory=discord.ui.Thumbnail(self.track_data['track']['au'])
             ),
             discord.ui.MediaGallery(
                 *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in attchs]
-            ),
+            ) if len(attchs) > 1 else discord.utils.MISSING,
             discord.ui.TextDisplay(f"-# Festival Tracker" + (f" · {len(_attchs) - 10} more image(s) not shown" if len(_attchs) > 10 else "")),
-            accent_colour=0x8927A1
+            accent_colour=constants.ACCENT_COLOUR
         )
 
         self.add_item(container)

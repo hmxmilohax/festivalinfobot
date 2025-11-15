@@ -206,7 +206,7 @@ class StatusHandler():
         )
         view.add_item(ctr)
 
-        embed = discord.Embed(title="Fortnite Festival Active Players", color=0x8927A1)
+        embed = discord.Embed(title="Fortnite Festival Active Players", colour=constants.ACCENT_COLOUR)
         embed.add_field(name="Total", value=total_ccu, inline=False)
         # embed.add_field(name="Jam Stage", value=jam_stage['globalCCU'])
         embed.add_field(name="Battle Stage", value=battle_stage['globalCCU'])

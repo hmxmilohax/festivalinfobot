@@ -46,7 +46,7 @@ class SubscriptionsView(discord.ui.View):
         self.add_item(problems)
 
     async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Subscription Manager", description="Manage your subscriptions to Festival Tracker.", color=0x8927A1)
+        embed = discord.Embed(title=f"Subscription Manager", description="Manage your subscriptions to Festival Tracker.", colour=constants.ACCENT_COLOUR)
         embed.add_field(name="", value="To continue, please select the type of subscription to manage.")
         await message.edit(embed=embed, view=self)
         self.message = message
@@ -109,7 +109,7 @@ class ServerSubscriptionsView(discord.ui.View):
         self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
 
     async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscriptions for {message.guild.name}", color=0x8927A1)
+        embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscriptions for {message.guild.name}", colour=constants.ACCENT_COLOUR)
 
         channels_subscribed: List[config.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
         channel_text = ""
@@ -163,7 +163,7 @@ class UserSubscriptionsView(discord.ui.View):
         self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
 
     async def reply_to_initial(self, message: discord.Message, user: discord.User):
-        embed = discord.Embed(title=f"My Subscription", description=f"Manage your subscription.", color=0x8927A1)
+        embed = discord.Embed(title=f"My Subscription", description=f"Manage your subscription.", colour=constants.ACCENT_COLOUR)
 
         embed.add_field(name="Managing", value="Select or deselect Jam Track events to be subscribed to.", inline=False)
         embed.add_field(name="Information", value="You must share at least one (1) mutual server with Festival Tracker to receive subscription messages.", inline=False)
@@ -248,7 +248,7 @@ class CreateServerSubscriptionView(discord.ui.View):
         self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
     
     async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe a channel", color=0x8927A1)
+        embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe a channel", colour=constants.ACCENT_COLOUR)
 
         channels_subscribed: List[config.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
 
@@ -275,9 +275,12 @@ class ServerSubscribableChannelsDropdown(discord.ui.Select):
             if channel.id in [ch.id for ch in candidates]:
                 candidates.remove(discord.utils.find(lambda ch: ch.id == channel.id, candidates))
 
+        is_more_than_25 = len(candidates) > 25
+        candidates = candidates[:25]  # Discord only allows 25 options max
+
         # Set the options that will be presented inside the dropdown
         options = [discord.SelectOption(label=f'#{ch.name}', value=str(ch.id)) for ch in candidates]
-        super().__init__(placeholder='Select channel...', min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=f"Select channel... {'[Truncated to 25 max.]' if is_more_than_25 else ''}", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = self.values[0]
@@ -352,7 +355,7 @@ class ChannelSetupView(discord.ui.View):
             await view.reply_to_initial(self.message)
 
     async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe {self.channel.mention} to Festival Tracker", color=0x8927A1)
+        embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe {self.channel.mention} to Festival Tracker", colour=constants.ACCENT_COLOUR)
 
         embed.add_field(name="Select subscription events", value="Select or unselect the subscription events you wish to configure for this subscription.", inline=False)
         embed.add_field(name="Select roles to mention", value="Select roles to mention on subscription messages.", inline=False)
@@ -389,7 +392,7 @@ class SubscriptionSetupConfirmationView(discord.ui.View):
         await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} subscribed')
 
         await self.bot.config._channel_add(self.channel, self.event_types, self.role_ids)
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"{self.channel.mention} has been subscribed successfully.", color=0x8927A1)
+        embed = discord.Embed(title=f"Server Subscriptions", description=f"{self.channel.mention} has been subscribed successfully.", colour=constants.ACCENT_COLOUR)
         await message.edit(embed=embed, view=self)
         self.message = message
 
@@ -418,7 +421,7 @@ class GuildManageChannelView(discord.ui.View):
 
     async def reply_to_initial(self, message: discord.Message):
         self.message = message
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscription for {self.channel.mention}", color=0x8927A1)
+        embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscription for {self.channel.mention}", colour=constants.ACCENT_COLOUR)
         channel_subscription: config.SubscriptionChannel = await self.bot.config._channel(self.channel)
 
         embed.add_field(name="Subscription types", value=", ".join(channel_subscription.events), inline=False)

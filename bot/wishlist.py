@@ -39,7 +39,7 @@ class WishlistManager():
                     # we notify the user that the track is no longer in rotation
                     embed = discord.Embed(
                         title="A Jam Track from your wishlist has left rotation!",
-                        color=0x8927A1
+                        colour=constants.ACCENT_COLOUR
                     )
                     embed.add_field(
                         name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is no longer available in rotation!",
@@ -72,7 +72,7 @@ class WishlistManager():
 
             embed = discord.Embed(
                 title="A Jam Track from your wishlist is in rotation!",
-                color=0x8927A1
+                colour=constants.ACCENT_COLOUR
             )
             embed.add_field(
                 name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is now available in rotation.",
@@ -107,7 +107,7 @@ class WishlistManager():
                     # we notify the user that the track is no longer in shop
                     embed = discord.Embed(
                         title="A Jam Track from your wishlist has left the Item Shop!",
-                        color=0x8927A1
+                        colour=constants.ACCENT_COLOUR
                     )
                     embed.add_field(
                         name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is no longer available in the shop!",
@@ -136,7 +136,7 @@ class WishlistManager():
             print(f"Track {track['track']['sn']} is in shop, notifying user {entry.user.id}")
             embed = discord.Embed(
                 title="A Jam Track from your wishlist is in the Item Shop!",
-                color=0x8927A1
+                colour=constants.ACCENT_COLOUR
             )
             embed.add_field(
                 name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is now available in the shop.",
@@ -171,7 +171,7 @@ class WishlistManager():
 
         view = discord.ui.LayoutView(timeout=60)
         
-        container = discord.ui.Container(accent_colour=0x8927A1)
+        container = discord.ui.Container(accent_colour=constants.ACCENT_COLOUR)
         view.add_item(container)
 
         entries = await self.config._get_wishlist_of_user(interaction.user)

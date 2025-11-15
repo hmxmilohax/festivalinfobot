@@ -79,7 +79,7 @@ class SearchEmbedHandler:
         else:
             title = ""
 
-        embed = discord.Embed(title=title, description=f"**{track['tt']}** - *{track['an']}*", color=0x8927A1)
+        embed = discord.Embed(title=title, description=f"**{track['tt']}** - *{track['an']}*", colour=constants.ACCENT_COLOUR)
         embed.add_field(name="\n", value="", inline=False)
 
         # ----------
@@ -278,7 +278,7 @@ class SearchEmbedHandler:
             discord.ui.Section(
                 discord.ui.TextDisplay(f"Track Modified:\n**{new_track_data['tt']}** - *{new_track_data['an']}*")
                 , accessory=discord.ui.Thumbnail(new_track_data['au'])
-            ), accent_colour=0x8927A1
+            ), accent_colour=constants.ACCENT_COLOUR
         )
         container._view = discord.ui.LayoutView() # STUPID HACK TO MAKE IT WORK
 
@@ -293,6 +293,24 @@ class SearchEmbedHandler:
                 container.add_item(
                     discord.ui.TextDisplay(f"{name} changed"),
                 )
+
+                if value == 'dn':
+                    # duration field
+                    old = old_track_data.get(value, 0)
+                    new = new_track_data.get(value, 0)
+                    previous_s = old // 60
+                    previous_m = old % 60
+                    current_s = new // 60
+                    current_m = new % 60
+                    prev_val = f"{previous_s}m {previous_m}s"
+                    cur_val = f"{current_s}m {current_m}s"
+                    container.add_item(
+                        discord.ui.TextDisplay(
+                            f"```Old: \"{old}\" ({prev_val})\nNew: \"{new}\" ({cur_val})```"
+                        )
+                    )
+                    continue
+
                 container.add_item(
                     discord.ui.TextDisplay(
                         f"```Old: \"{old_track_data.get(value, '[N/A]')}\"\nNew: \"{new_track_data.get(value, '[N/A]')}\"```"
