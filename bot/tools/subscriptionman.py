@@ -275,12 +275,12 @@ class ServerSubscribableChannelsDropdown(discord.ui.Select):
             if channel.id in [ch.id for ch in candidates]:
                 candidates.remove(discord.utils.find(lambda ch: ch.id == channel.id, candidates))
 
-        is_more_than_25 = len(candidates) > 25
-        candidates = candidates[:25]  # Discord only allows 25 options max
+        is_more_than_25 = len(candidates) > 24
+        candidates = candidates[:24]  # Discord only allows 25 options max
 
         # Set the options that will be presented inside the dropdown
         options = [discord.SelectOption(label=f'#{ch.name}', value=str(ch.id)) for ch in candidates]
-        super().__init__(placeholder=f"Select channel... {'[Truncated to 25 max.]' if is_more_than_25 else ''}", min_values=1, max_values=25, options=options)
+        super().__init__(placeholder=f"Select channel... {'[Truncated to 24 max.]' if is_more_than_25 else ''}", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = self.values[0]
