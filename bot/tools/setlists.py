@@ -79,7 +79,15 @@ class SetlistHandler():
 
         for setlist_id, shortnames in available_setlists.items():
             container = discord.ui.Container()
-            container.add_item(discord.ui.TextDisplay("# Main Stage Setlists"))
+
+            setlist_names = ['Daily Vibes', 'Spotlight', 'Festival Selects']
+            idx = int(setlist_id.split('_')[-1]) - 1
+            if idx > len(setlist_names) - 1:
+                setlist_title = f"Setlist {idx + 1}"
+            else:
+                setlist_title = setlist_names[idx]
+
+            container.add_item(discord.ui.TextDisplay(f"# {setlist_title}"))
 
             songsstr = ''
             length_secs = 0
