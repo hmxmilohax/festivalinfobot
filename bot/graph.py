@@ -36,7 +36,7 @@ class GraphCommandsHandler():
         self.midi_tool = MidiArchiveTools()
 
     async def handle_pdi_interaction(self, interaction:discord.Interaction, song:str):
-        tracklist = self.jam_track_handler.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         if not tracklist:
             await interaction.response.send_message(embed=const.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
@@ -75,7 +75,7 @@ class GraphCommandsHandler():
         constants.delete_session_files(session_hash)
 
     async def handle_lift_interaction(self, interaction:discord.Interaction, song:str):
-        tracklist = self.jam_track_handler.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         if not tracklist:
             await interaction.response.send_message(embed=const.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
@@ -116,7 +116,7 @@ class GraphCommandsHandler():
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
         chosen_diff = constants.Difficulties[str(difficulty).replace('Difficulties.', '')].value
 
-        tracklist = self.jam_track_handler.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         if not tracklist:
             await interaction.response.send_message(embed=const.common_error_embed('Could not get tracks.'), ephemeral=True)
             return
@@ -157,7 +157,7 @@ class GraphCommandsHandler():
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
         chosen_diff = constants.Difficulties[str(difficulty).replace('Difficulties.', '')].value
 
-        tracklist = self.jam_track_handler.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         if not tracklist:
             await interaction.response.send_message(embed=const.common_error_embed('Could not get tracks.'), ephemeral=True)
             return

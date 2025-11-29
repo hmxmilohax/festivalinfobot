@@ -520,7 +520,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def count_command(interaction: discord.Interaction, detail: bool = False):
-            track_list = JamTrackHandler().get_jam_tracks()
+            track_list = constants.get_jam_tracks(use_cache=False)
             if not track_list:
                 await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
                 return
@@ -608,8 +608,8 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def metadata_command(interaction: discord.Interaction, song:str):
-            track_handler = JamTrackHandler()
-            track_list = track_handler.get_jam_tracks()
+            track_handler = JamTrackHandler(self)
+            track_list = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
             if not track_list:
                 await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
                 return

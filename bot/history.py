@@ -239,7 +239,7 @@ class HistoryHandler():
         session_hash = constants.generate_session_hash(user_id, song)
         logging.debug(f"Generated session hash: {session_hash} for user: {user_id}")
 
-        tracks = self.jam_track_handler.get_jam_tracks()
+        tracks = constants.get_jam_tracks()
         if not tracks:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'))
             return
@@ -369,7 +369,7 @@ class HistoryHandler():
         session_hash = constants.generate_session_hash(user_id, song)
         logging.info(f"Generated session hash: {session_hash} for user: {user_id}")
 
-        tracks = self.jam_track_handler.get_jam_tracks()
+        tracks = constants.get_jam_tracks()
         if not tracks:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'))
             return

@@ -36,6 +36,9 @@ class OAuthManager:
         self.refresh_task: tasks.Loop = self.refresh_session
         self.bot = bot
 
+        self._spotify_session_data = None
+        self._spotify_access_token:str = None
+
     def _create_token(self):
         logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token (create)')
         url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token'
@@ -58,6 +61,24 @@ class OAuthManager:
 
         # print(self._access_token)
 
+    def _create_spotify_token(self):
+        url = "https://accounts.spotify.com/api/token"
+        logging.debug(f'[POST] {url}')
+
+        creds = base64.b64encode(f'{constants.SPOTIFY_CLIENT_ID}:{constants.SPOTIFY_CLIENT_PASS}').decode('utf-8')
+
+        authorize = requests.post(url, data=f"grant_type=client_credentials", 
+            headers={
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': f'Basic {creds}'
+            })
+        
+        authorize.raise_for_status()
+        data = authorize.json()
+
+        self._spotify_session_data = data
+        self._spotify_access_token = self._spotify_session_data['access_token']
+
     async def create_session(self, skip_create: bool = False):
         try:
             self._create_token()
@@ -72,6 +93,17 @@ class OAuthManager:
                     self.verify_session.start()
                 except RuntimeError as e:
                     logging.debug(f'The task was already running... ({e})')
+
+            self._create_spotify_token()
+            logging.info('Spotify token created successfully.')
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'Spotify session started successfully.')
+
+            if not skip_create:
+                try:
+                    self.refresh_spotify_session.start()
+                except RuntimeError as e:
+                    logging.debug(f'The task was already running... ({e})')
+            
         except Exception as e:
             logging.critical(f'Cannot create token: {e}')
             await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be started because of {e}')
@@ -99,6 +131,14 @@ class OAuthManager:
         except Exception as e:
             logging.critical(f'Device auth session cannot be refreshed because of {e}')
             await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be refreshed because of {e}')
+
+    @tasks.loop(seconds=3500)
+    async def refresh_spotify_session(self):
+        try:
+            self._create_spotify_token()
+        except Exception as e:
+            logging.critical(f'Spotify token cannot be refreshed because of {e}')
+            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Spotify token cannot be refreshed because of {e}')
 
     @tasks.loop(seconds=60)
     async def verify_session(self):

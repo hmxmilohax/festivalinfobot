@@ -771,7 +771,7 @@ class LeaderboardCommandHandler:
             await interaction.response.send_message(embed=constants.common_error_embed(f"Instrument \"{chosen_instrument.english}\" cannot be used for leaderboards."))
             return
 
-        tracklist = self.jam_track_handler.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
         if not tracklist:
             await interaction.response.send_message(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
             return
@@ -796,7 +796,7 @@ class LeaderboardCommandHandler:
 
         chosen_band_type = constants.BandTypes[str(band_type).replace('BandTypes.', '')].value
 
-        tracklist = constants.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
         if not tracklist:
             await interaction.response.send_message(embed=constants.common_error_embed("Could not get tracks."), ephemeral=True)
             return
@@ -819,7 +819,7 @@ class LeaderboardCommandHandler:
 
         chosen_instrument = constants.AllTimeLBTypes[str(type).replace('AllTimeLBTypes.', '')].value
 
-        tracklist = constants.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
         if not tracklist:
             await interaction.response.send_message(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
             return

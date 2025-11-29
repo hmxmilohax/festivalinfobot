@@ -56,7 +56,7 @@ class MixHandler():
         chosen_key = constants.KeyTypes[str(key).replace('KeyTypes.', '')].value
         chosen_mode = constants.ModeTypes[str(mode).replace('ModeTypes.', '')].value
 
-        track_list = self.jam_track_handler.get_jam_tracks()
+        track_list = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
 
         if not track_list:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
@@ -67,7 +67,7 @@ class MixHandler():
 
     async def handle_keymode_match_from_song(self, interaction: discord.Interaction, song:str):
         view: ResultsJamTracks
-        track_list = self.jam_track_handler.get_jam_tracks()
+        track_list = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
 
         if not track_list:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)

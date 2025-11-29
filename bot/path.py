@@ -97,7 +97,7 @@ class PathCommandHandler():
             await interaction.edit_original_response(embed=constants.common_error_embed(f"Paths are not supported for {chosen_instrument.english}. Please use a different instrument."))
             return
 
-        tracklist = self.jam_track_handler.get_jam_tracks()
+        tracklist = constants.get_jam_tracks(use_cache=False) # no caching for path generation
         if not tracklist:
             await interaction.edit_original_response(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
             return

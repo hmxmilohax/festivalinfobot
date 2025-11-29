@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from difflib import get_close_matches
 import json
@@ -16,8 +17,8 @@ from bot.tools.wishlistpersist import WishlistButton
 from bot.tools.previewpersist import PreviewButton
 
 class JamTrackHandler:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, bot: commands.Bot = None) -> None:
+        self.bot: commands.Bot = bot    
 
     def remove_punctuation(self, text):
         return text.translate(str.maketrans('', '', string.punctuation.replace('_', '')))
@@ -164,14 +165,12 @@ class JamTrackHandler:
             if track not in result_unique: result_unique.append(track) 
         return result_unique
     
-    def get_spotify_link(self, isrc: str, session : str):
-        url = "https://accounts.spotify.com/api/token"
-        logging.debug(f'[POST] {url}')
-
-        authorize = requests.post(url, data=f"grant_type=client_credentials&client_id={constants.SPOTIFY_CLIENT_ID}&client_secret={constants.SPOTIFY_CLIENT_PASS}&state={session}", headers={'Content-Type': 'application/x-www-form-urlencoded'})
+    def get_spotify_link(self, isrc: str):
+        if not self.bot:
+            raise ValueError('Bot instance is required to get Spotify link.')
 
         song_url = f'https://api.spotify.com/v1/search?q=isrc%3A{isrc}&type=track&limit=1&offset=0'
-        client_token = authorize.json()['access_token']
+        client_token = self.bot.oauth_manager._spotify_access_token
         logging.debug(f'[GET] {song_url}')
         link = requests.get(song_url, headers={'Authorization': f'Bearer {client_token}'})
 
@@ -203,7 +202,9 @@ class JamTrackHandler:
         result = odesli.json()
         return f'https://{result["type"]}.link/s/{result["id"]}'
 
+    # deprecated
     def get_jam_tracks(self):
+        logging.critical('JamTrackHandler.get_jam_tracks is deprecated. Use constants.get_jam_tracks instead.')
         return constants.get_jam_tracks()
 
     def get_matching_key_mode_jam_tracks(self, tracks:list, key:str, mode:str):
@@ -214,7 +215,7 @@ class JamTrackHandler:
 
 class SearchCommandHandler:
     def __init__(self, bot: commands.Bot) -> None:
-        self.jam_track_handler = JamTrackHandler()
+        self.jam_track_handler = JamTrackHandler(bot)
         self.bot : commands.Bot = bot
         self.embed_handler = embeds.SearchEmbedHandler()
         self.daily_handler = helpers.DailyCommandHandler(bot)
@@ -280,7 +281,7 @@ class SearchCommandHandler:
             await self.handle_imacat_search(interaction=interaction)
             return
 
-        tracks = self.jam_track_handler.get_jam_tracks()
+        tracks = constants.get_jam_tracks(use_cache=False)
         if not tracks:
             await interaction.edit_original_response(embed=constants.common_error_embed('Could not get Jam Tracks.'))
             return
