@@ -5,6 +5,7 @@ from discord.ext import commands
 import logging
 from bot import constants
 from bot.groups.oauthmanager import OAuthManager
+import aiohttp
 
 import requests
 
@@ -15,15 +16,19 @@ class StatusHandler():
         self.oauth: OAuthManager = bot.oauth_manager
 
     async def handle_fortnitestatus_interaction(self, interaction: discord.Interaction):
+        session = aiohttp.ClientSession()
+
         lightswitch_url = 'http://lightswitch-public-service-prod.ol.epicgames.com/lightswitch/api/service/Fortnite/status'
         logging.debug(f'[GET] {lightswitch_url}')
 
         await interaction.response.defer()
 
-        response = requests.get(lightswitch_url, headers={
+        response = await session.get(lightswitch_url, headers={
             'Authorization': self.oauth.session_token    
         })
-        data = response.json()
+        data = await response.json()
+
+        await session.close()
 
         is_fortnite_online = data['status'] == 'UP'
         status_unknown = False
