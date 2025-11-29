@@ -18,7 +18,7 @@ class StatusHandler():
     async def handle_fortnitestatus_interaction(self, interaction: discord.Interaction):
         session = aiohttp.ClientSession()
 
-        lightswitch_url = 'http://lightswitch-public-service-prod.ol.epicgames.com/lightswitch/api/service/Fortnite/status'
+        lightswitch_url = 'https://lightswitch-public-service-prod06.ol.epicgames.com/lightswitch/api/service/bulk/status?serviceId=Fortnite'
         logging.debug(f'[GET] {lightswitch_url}')
 
         await interaction.response.defer()
@@ -27,12 +27,14 @@ class StatusHandler():
             'Authorization': self.oauth.session_token    
         })
         data = await response.json()
+        # print(data)
 
         await session.close()
 
-        is_fortnite_online = data['status'] == 'UP'
+        fortnite_data = data[0]
+        is_fortnite_online = fortnite_data['status'] == 'UP'
         status_unknown = False
-        if data['status'] not in ['UP', 'DOWN']:
+        if fortnite_data['status'] not in ['UP', 'DOWN']:
             is_fortnite_online = True
             status_unknown = True
 
@@ -42,7 +44,7 @@ class StatusHandler():
         if status_unknown:
             colour = 0xff7a08 # orange (perhaps)
 
-        embed = discord.Embed(title="Festival Status", description=data['message'], colour=colour)
+        embed = discord.Embed(title="Festival Status", description=fortnite_data['message'], colour=colour)
 
         await interaction.edit_original_response(embed=embed)
 
