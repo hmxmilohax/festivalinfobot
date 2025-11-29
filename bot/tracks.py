@@ -326,7 +326,7 @@ class SearchCommandHandler:
                 return
             
             if track['track'].get('isrc', None):
-                spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'], str(interaction.user.id))
+                spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'])
 
                 if not spotify:
                     return

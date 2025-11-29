@@ -72,9 +72,9 @@ class TestCog(commands.Cog):
                         png.seek(0)
                     await channel.send(content=text_content, file=discord.File(png, filename=fname) if png else None)
                 except Exception as e:
-                    logging.error(f"Error sending message to {subscribed_channel.type} {channel.mention}", exc_info=e)
+                    logging.warning(f"Error sending message to {subscribed_channel.type} {channel.mention}", exc_info=e)
             else:
-                logging.error(f"{subscribed_channel.type} with ID {subscribed_channel.id} not found.")
+                logging.warning(f"{subscribed_channel.type} with ID {subscribed_channel.id} not found.")
                 
         result_files = [discord.File(io.StringIO(text_content), "content.txt")]
         if png: 
@@ -357,7 +357,7 @@ class TestCog(commands.Cog):
                 app_commands.Choice(name='No results, please type your entire username.', value='NORESULTS')
             ]
         except Exception as e:
-            logging.error(f'Account {current} not found', exc_info=e)
+            logging.warning(f'Account {current} not found', exc_info=e)
             return [
                 app_commands.Choice(name='No results, please type your entire username.', value='NORESULTS')
             ]
@@ -418,7 +418,7 @@ class TestCog(commands.Cog):
     async def isrc(self, interaction: discord.Interaction, isrc: str):
         await interaction.response.defer()
         jt_handler = JamTrackHandler()
-        link = jt_handler.get_spotify_link(isrc, str(interaction.user.id))
+        link = jt_handler.get_spotify_link(isrc)
         if not link:
             link = 'invalid'
 
@@ -447,7 +447,7 @@ class TestCog(commands.Cog):
             elif ch.type == 'channel':
                 chan = self.bot.get_channel(ch.id)
                 if not chan:
-                    logging.info(f'[Suball] Channel {ch.id} not found')
+                    logging.warning(f'[Suball] Channel {ch.id} not found')
                     continue
 
                 await conf._channel_edit_events(chan, events)

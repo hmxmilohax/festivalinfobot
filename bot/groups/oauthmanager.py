@@ -63,9 +63,9 @@ class OAuthManager:
 
     def _create_spotify_token(self):
         url = "https://accounts.spotify.com/api/token"
-        logging.debug(f'[POST] {url}')
+        logging.debug(f'[POST] {url} (spotify)')
 
-        creds = base64.b64encode(f'{constants.SPOTIFY_CLIENT_ID}:{constants.SPOTIFY_CLIENT_PASS}').decode('utf-8')
+        creds = base64.b64encode(f'{constants.SPOTIFY_CLIENT_ID}:{constants.SPOTIFY_CLIENT_PASS}'.encode('utf-8')).decode('utf-8')
 
         authorize = requests.post(url, data=f"grant_type=client_credentials", 
             headers={
@@ -92,7 +92,7 @@ class OAuthManager:
                     self.refresh_task.start()
                     self.verify_session.start()
                 except RuntimeError as e:
-                    logging.debug(f'The task was already running... ({e})')
+                    logging.debug(f'The task was already running...', exc_info=e)
 
             self._create_spotify_token()
             logging.info('Spotify token created successfully.')
@@ -102,10 +102,10 @@ class OAuthManager:
                 try:
                     self.refresh_spotify_session.start()
                 except RuntimeError as e:
-                    logging.debug(f'The task was already running... ({e})')
+                    logging.debug(f'The task was already running...', exc_info=e)
             
         except Exception as e:
-            logging.critical(f'Cannot create token: {e}')
+            logging.critical(f'Cannot create token:', exc_info=e)
             await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be started because of {e}')
 
     @tasks.loop(seconds=6900)

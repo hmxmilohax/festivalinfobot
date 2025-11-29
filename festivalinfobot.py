@@ -358,6 +358,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             if not (ctx.author.id in constants.BOT_OWNERS):
                 return
             
+            await self.analytics_task()
             await ctx.message.add_reaction("✅")
 
             python_executable = sys.executable
