@@ -280,7 +280,7 @@ class ServerSubscribableChannelsDropdown(discord.ui.Select):
 
         # Set the options that will be presented inside the dropdown
         options = [discord.SelectOption(label=f'#{ch.name}', value=str(ch.id)) for ch in candidates]
-        super().__init__(placeholder=f"Select channel... {'[Truncated to 25 max.]' if is_more_than_25 else ''}", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=f"Select channel... {'[Truncated to 25 max.]' if is_more_than_25 else ''}", min_values=1, max_values=25, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = self.values[0]

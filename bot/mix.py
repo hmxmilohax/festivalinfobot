@@ -48,7 +48,8 @@ class MixHandler():
             embed_array.append(embed)
 
         view = constants.PaginatorView(embed_array, interaction.user.id)
-        await interaction.response.send_message(embed=view.get_embed(), view=view)
+        message = await interaction.response.send_message(embed=view.get_embed(), view=view)
+        view.message = message
 
     async def handle_keymode_match(self, interaction: discord.Interaction, key:constants.KeyTypes, mode:constants.ModeTypes):
         # Convert our key and mode string into an Enum value
