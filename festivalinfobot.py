@@ -127,7 +127,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
         tree_commands_payload = [cmd.to_dict(tree=self.tree) for cmd in self.tree._get_all_commands()]
         tree_commands_hash = hashlib.sha256(json.dumps(tree_commands_payload, indent=0).encode('utf-8')).hexdigest()
 
-        logging.debug(f'{command_tree_hash} | {tree_commands_hash}')
+        logging.debug('Command tree hashes: Old')
+        logging.debug(f'Old: {command_tree_hash}')
+        logging.debug(f'New: {tree_commands_hash}')
 
         if command_tree_hash != tree_commands_hash:
             logging.debug("Syncing slash command tree...")
@@ -137,7 +139,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
         tree_commands_payload = [cmd.to_dict(tree=self.tree) for cmd in self.tree._get_all_commands(guild=discord.Object(constants.TEST_GUILD))]
         tree_commands_hash_test = hashlib.sha256(json.dumps(tree_commands_payload, indent=0).encode('utf-8')).hexdigest()
 
-        logging.debug(f'{command_tree_hash} | {tree_commands_hash_test}')
+        logging.debug(f'Test command tree hashes:')
+        logging.debug(f'Old: {command_tree_hash}')
+        logging.debug(f'New: {tree_commands_hash_test}')
 
         if command_tree_hash != tree_commands_hash_test:
             logging.debug("Syncing slash command tree... [test guild]")
