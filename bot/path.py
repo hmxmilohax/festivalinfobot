@@ -22,8 +22,11 @@ class PathCommandHandler():
             # Sir Reginald's Jolly Good Rock 'n' Roll Ensemble Extravaganza: The Third Installment of Harmonious Merriment and Musical Shenanigans
             # this guy is broken
 
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'CHOpt.exe')
+
         chopt_command = [
-            'chopt.exe', 
+            chopt_exe, 
             '-f', midi_file, 
             '--engine', engine, 
             '--squeeze', str(squeeze_percent),
