@@ -18,15 +18,15 @@ from bot import constants
 from bot import config
 from bot.config import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
-from bot.midi import MidiArchiveTools
+from bot.tools.midi import MidiArchiveTools
 from bot.tools import history as history_tools
-from bot.tools.previewpersist import PreviewButton
-from bot.tools.wishlistpersist import WishlistButton
+from bot.views.previewpersist import PreviewButton
+from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler
 
 import bot.tools.compare_midi as midi_comparison
 
-import bot.sparks_tracks as sparks_tracks
+import bot.tools.sparks_tracks as sparks_tracks
 # import cloudscraper # FUCK YOU CLOUDFLARE (jk i love you)
 
 def save_known_songs(songs):

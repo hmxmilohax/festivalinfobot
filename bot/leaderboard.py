@@ -6,7 +6,7 @@ import re
 import requests
 import bot.constants as constants
 import discord
-from bot.groups.oauthmanager import OAuthManager
+from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 
 # a custom view for leaderboards so they load fast as shit

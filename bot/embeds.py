@@ -5,7 +5,7 @@ import subprocess
 import discord
 import numpy
 import requests
-from bot.midi import MidiArchiveTools
+from bot.tools.midi import MidiArchiveTools
 
 from bot import constants
     

@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 
 from bot import config, constants
-from bot.graph import GraphCommandsHandler
+from bot.tools.graph import GraphCommandsHandler
 
 class GraphCog(commands.Cog):
     def __init__(self, bot: commands.Bot):

@@ -18,29 +18,29 @@ from configparser import ConfigParser
 
 from bot.constants import OneButtonSimpleView, OneButton
 from bot import config, constants, embeds
-from bot.groups.fortnitecog import FortniteCog
+from bot.groups.festival import FortniteCog
 from bot.groups.graphs import GraphCog
 from bot.groups.history import HistoryCog
-from bot.groups.lb import LeaderboardCog
+from bot.groups.leaderboard import LeaderboardCog
 from bot.tools.log import setup as setup_log
 from bot.tools.log import CustomHandler
-from bot.groups.admin import TestCog
-from bot.groups.randomcog import RandomCog
+from bot.groups.devtest import TestCog
+from bot.groups.random import RandomCog
 from bot.config import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler
-from bot.groups.suggestions import SuggestionModal
+from bot.views.suggestions import SuggestionModal
 from bot.tools.lyrics import LyricsHandler
-from bot.tools.previewpersist import PreviewButton
-from bot.tools.setlists import SetlistHandler
-from bot.tools.subscriptionman import SubscriptionManager
-from bot.tools.wishlistpersist import WishlistButton
+from bot.views.previewpersist import PreviewButton
+from bot.setlists import SetlistHandler
+from bot.tools.subscriptionmanager import SubscriptionManager
+from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
-from bot.graph import GraphCommandsHandler
+from bot.tools.graph import GraphCommandsHandler
 from bot.mix import MixHandler
-from bot.groups.oauthmanager import OAuthManager
+from bot.tools.oauthmanager import OAuthManager
 
 import traceback
 import hashlib

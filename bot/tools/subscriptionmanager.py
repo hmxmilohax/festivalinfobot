@@ -9,8 +9,8 @@ from discord.ext import commands
 import requests
 
 from bot import config, constants
-from bot.groups.oauthmanager import OAuthManager
-from bot.groups.suggestions import SuggestionModal
+from bot.tools.oauthmanager import OAuthManager
+from bot.views.suggestions import SuggestionModal
 from bot.tracks import JamTrackHandler
 from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 

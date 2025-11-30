@@ -12,7 +12,7 @@ from bot import constants
 from bot.constants import OneButtonSimpleView
 from discord.ext import commands
 from bot.embeds import SearchEmbedHandler
-from bot.midi import MidiArchiveTools
+from bot.tools.midi import MidiArchiveTools
 
 class WeeklySongsDisplay(discord.ui.Container):
     def __init__(self, tracks):

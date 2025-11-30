@@ -3,7 +3,7 @@ import os
 import discord
 
 from bot import constants
-from bot.midi import MidiArchiveTools
+from bot.tools.midi import MidiArchiveTools
 from bot.tracks import JamTrackHandler
 import os
 import bot.constants as const

@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 import logging
 from bot import constants
-from bot.groups.oauthmanager import OAuthManager
+from bot.tools.oauthmanager import OAuthManager
 import aiohttp
 
 import requests

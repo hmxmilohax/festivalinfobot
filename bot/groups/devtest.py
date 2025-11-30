@@ -9,7 +9,7 @@ from discord.ext import commands
 import requests
 
 from bot import config, constants
-from bot.groups.oauthmanager import OAuthManager
+from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 

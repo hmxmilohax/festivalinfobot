@@ -12,9 +12,9 @@ from bot import config, embeds
 import bot.constants as constants
 from bot.constants import Button, ButtonedView
 from bot import helpers
-from bot.tools.vmhandler import PreviewAudioMgr
-from bot.tools.wishlistpersist import WishlistButton
-from bot.tools.previewpersist import PreviewButton
+from bot.tools.voicemessages import PreviewAudioMgr
+from bot.views.wishlistpersist import WishlistButton
+from bot.views.previewpersist import PreviewButton
 
 class JamTrackHandler:
     def __init__(self, bot: commands.Bot = None) -> None:

@@ -6,7 +6,7 @@ import requests
 from PIL import Image
 import io
 import bot.constants as constants
-from bot.tools.setlists_views import SetlistView
+from bot.views.setlists_views import SetlistView
 from PIL import ImageFilter, ImageEnhance
 
 class SetlistHandler():

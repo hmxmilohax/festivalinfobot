@@ -1,6 +1,6 @@
 import re
 import discord
-import bot.tools.vmhandler as vmhandler
+import bot.tools.voicemessages as voicemessages
 import bot.constants as constants
 
 class PreviewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'persistent_preview:sn:(?P<id>[a-zA-Z0-9_]+)'):
@@ -31,5 +31,5 @@ class PreviewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'persis
             await interaction.edit_original_response(content='Track not found.', view=None)
             return
         
-        preview_audio_mgr = vmhandler.PreviewAudioMgr(interaction.client, track, interaction)
+        preview_audio_mgr = voicemessages.PreviewAudioMgr(interaction.client, track, interaction)
         await preview_audio_mgr.reply_to_interaction_message()

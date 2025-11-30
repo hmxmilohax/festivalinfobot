@@ -2,7 +2,7 @@ import logging
 import discord
 from bot import config, constants
 from bot.helpers import DailyCommandHandler, ShopCommandHandler
-from bot.tools.wishlistpersist import WishlistButton
+from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler
 
 class AlreadyInWishlistError(Exception):

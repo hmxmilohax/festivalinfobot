@@ -2,7 +2,7 @@ import os
 
 import discord
 import requests
-from bot import constants, midi
+from bot import constants
 import mido
 from mido.midifiles.tracks import _to_abstime
 import PIL
@@ -12,6 +12,7 @@ import random
 
 import textwrap
 
+from bot.tools import midi
 from bot.tracks import JamTrackHandler
 
 class LyricsError(Exception):
