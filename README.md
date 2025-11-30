@@ -76,10 +76,10 @@ This is currently only targetted to run for Windows as that is the environment i
 
 To be able to fetch and generate paths you will need two things:
 
-- [CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the bot folder.
+- [CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the `bot/data/Binaries` folder. Please create the Binaries folder, it is not created for you.
 
-    For newer CHOpt versions, Qt6 .dlls may be required to be copied as well. These files are present in the .gitignore.
+    For newer CHOpt versions, Qt6 .dlls may be required to be copied as well. These files are also present in the .gitignore, so you won't have to worry about committing these.
 
-To be able to produce audio previews, any builds of FFmpeg and FFprobe (executables) in the root are required.
+To be able to produce Jam Track audio previews, any builds of FFmpeg and FFprobe (executables) in the root are required.
 
-Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key. You WILL experience errors if the key is not provided.
+Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key. You WILL experience a LOT of errors if the key is not provided.
