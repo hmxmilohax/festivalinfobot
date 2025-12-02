@@ -19,7 +19,17 @@ class MidiArchiveTools:
     def decrypt_bytes(self, dat_bytes) -> bytes:
         midi_key = base64.b64decode(constants.SPARKS_MIDI_KEY)
         cipher = AES.new(midi_key, AES.MODE_ECB)
-        decrypted_data = cipher.decrypt(dat_bytes)
+        try:
+            decrypted_data = cipher.decrypt(dat_bytes)
+        except ValueError as e:
+            logging.warning(f"Decryption error: {e}")
+            # check if its already midi
+            if dat_bytes[0:4] == b'MThd':
+                logging.info("Data is already in MIDI format, skipping decryption.")
+                return dat_bytes
+            else:
+                raise e
+
         return decrypted_data
 
     async def save_chart(self, chart_url:str, decrypt:bool = True, log: bool = True) -> str:

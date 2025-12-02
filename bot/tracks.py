@@ -231,7 +231,7 @@ class SearchCommandHandler:
         async def selected(new_interaction: discord.Interaction):
             if new_interaction:
                 if new_interaction.user.id != interaction.user.id:
-                    await new_interaction.response.send_message("", embed=constants.common_error_embed("This is not your session. Please start your own session."), ephmeral=True)
+                    await new_interaction.response.send_message(embed=constants.common_error_embed("This is not your session. Please start your own session."), ephemeral=True)
                     return
 
                 await new_interaction.response.defer()
