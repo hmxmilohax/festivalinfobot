@@ -614,21 +614,24 @@ class LoopCheckHandler():
                         files = chart_diffs_data[1]
 
                         track_data = discord.utils.find(lambda x: x['track']['sn'] == song_data['shortname'], tracks)
-                        view.add_item(
-                            discord.ui.Container(
+                        container = discord.ui.Container(
                                 discord.ui.Section(
                                     discord.ui.TextDisplay(f'**{track_data["track"]["tt"]}** - *{track_data["track"]["an"]}*\nDetected changes between:\n{song_data['last_modified_old']} and {song_data['last_modified_new']}',),
                                     accessory=discord.ui.Thumbnail(track_data['track']['au'])
                                 ),
                                 discord.ui.MediaGallery(
-                                    *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in files]
+                                    *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in files[:10]]
                                 ),
                                 accent_colour=constants.ACCENT_COLOUR
                             )
+                        if len(files) > 10:
+                            container.add_item(discord.ui.TextDisplay(f"*{len(files) - 10} more images not included*"))
+                        view.add_item(
+                            container   
                         )
 
                     try:
-                        message = await channel.send(view=view, files=[discord.File(fpath) for fpath in files] if files else None)
+                        message = await channel.send(view=view, files=[discord.File(fpath) for fpath in files[:10]] if files else None)
 
                     except discord.Forbidden as e:
                         logging.warning(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
