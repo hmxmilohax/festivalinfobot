@@ -476,7 +476,7 @@ def extract_session_id(file_name):
         return match.group(1)  # Return the hash
     return None
 
-def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name):
+def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -500,14 +500,17 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     notes = []
     actions = []
 
+    mid = mido.MidiFile(midi_file2)
+    ppqn = mid.ticks_per_beat
+
     # Plot note changes
     for time, removed, added in differences:
         for note in removed:
-            times.append(time)
+            times.append(time/ppqn)
             notes.append(note[0])  # Use the raw MIDI note number for plotting
             actions.append('removed')
         for note in added:
-            times.append(time)
+            times.append(time/ppqn)
             notes.append(note[0])  # Use the raw MIDI note number for plotting
             actions.append('added')
 
@@ -517,7 +520,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     text_changes = []
     
     for time, text1, text2 in text_differences:
-        text_times.append(time)
+        text_times.append(time/ppqn)
         text_events.append(f"{text1} >\n{text2}")
         text_changes.append('changed')
 
@@ -542,7 +545,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
         for i, txt in enumerate(text_events):
             ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=6)
 
-    ax.set_xlabel('Time')
+    ax.set_xlabel('Beat (Time)')
     ax.set_ylabel('MIDI Note/Text')
     ax.set_title(f'{track_name} Track Diff. ({song_name})')
     
@@ -735,7 +738,7 @@ def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)
         
         if differences or text_differences:
             #logging.debug(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name)
+            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2)
         else:
             logging.debug(f"'{track_name}' unchanged")
     return True

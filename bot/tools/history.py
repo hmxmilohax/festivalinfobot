@@ -61,10 +61,10 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
                 discord.ui.TextDisplay(f"Detected {len(_attchs)} track change(s) in v{self.current_page + 2}"),
                 discord.ui.TextDisplay(f"From {pdata.get('last_modified_old', 'Unknown')}\n" +
                                        f"To {pdata.get('last_modified_new', 'Unknown')}\n" + 
-                                       f"Since {pdata.get('last_modified_new', 'Unknown').replace('D', 'R')}"),
-                accessory=discord.ui.Thumbnail(self.track_data['track']['au']),
-                accent_colour=constants.ACCENT_COLOUR
-            )
+                                       f"Since {pdata.get('last_modified_new', 'Unknown').replace('F', 'R')}"),
+                accessory=discord.ui.Thumbnail(self.track_data['track']['au'])
+            ),
+            accent_colour=constants.ACCENT_COLOUR
         )
         if len(attchs) > 1: 
             container.add_item(discord.ui.MediaGallery(
