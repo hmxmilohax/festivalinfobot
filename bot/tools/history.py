@@ -62,14 +62,15 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
                 discord.ui.TextDisplay(f"From {pdata.get('last_modified_old', 'Unknown')}\n" +
                                        f"To {pdata.get('last_modified_new', 'Unknown')}\n" + 
                                        f"Since {pdata.get('last_modified_new', 'Unknown').replace('D', 'R')}"),
-                accessory=discord.ui.Thumbnail(self.track_data['track']['au'])
-            ),
-            discord.ui.MediaGallery(
-                *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in attchs]
-            ) if len(attchs) > 1 else discord.utils.MISSING,
-            discord.ui.TextDisplay(f"-# Festival Tracker" + (f" · {len(_attchs) - 10} more image(s) not shown" if len(_attchs) > 10 else "")),
-            accent_colour=constants.ACCENT_COLOUR
+                accessory=discord.ui.Thumbnail(self.track_data['track']['au']),
+                accent_colour=constants.ACCENT_COLOUR
+            )
         )
+        if len(attchs) > 1: 
+            container.add_item(discord.ui.MediaGallery(
+                *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in attchs]
+            ))
+        container.add_item(discord.ui.TextDisplay(f"-# Festival Tracker" + (f" · {len(_attchs) - 10} more image(s) not shown" if len(_attchs) > 10 else "")))
 
         self.add_item(container)
 

@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 from discord.ext import commands, tasks
 import discord
 from discord import app_commands
@@ -437,6 +437,10 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await ctx.send("<@957611254590087189>")
 
         @self.command()
+        async def clover(ctx: commands.Context):
+            await ctx.send("<@658385928653504523>")
+
+        @self.command()
         async def sex(ctx: commands.Context):
             await ctx.send("https://x.com/FNFestival/status/1731398051242086714")
 
@@ -851,11 +855,12 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
         @self.tree.command(name="lyrics", description="View the lyrics of a Jam Track (if it supports Pro Vocals).")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
+        @app_commands.describe(plaintext = "Whether to send the lyrics formatted neatly in a text file (.txt).")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def lyrics_command(interaction: discord.Interaction, song: str):
+        async def lyrics_command(interaction: discord.Interaction, song: str, plaintext: Literal['No', 'Yes', 'Yes (Include Overdrive)'] = 'No'):
             lyrics_handler = LyricsHandler()
-            await lyrics_handler.handle_interaction(interaction, song)
+            await lyrics_handler.handle_interaction(interaction, song, pt=plaintext)
 
     async def setup_cogs(self):
         test_cog = TestCog(self)

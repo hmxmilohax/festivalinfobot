@@ -1,4 +1,6 @@
+import io
 import os
+from typing import Literal
 
 import discord
 import requests
@@ -40,7 +42,7 @@ class LyricsHandler():
         self.midi_tool = midi.MidiArchiveTools()
         self.jam_track_handler = JamTrackHandler()
 
-    async def handle_interaction(self, interaction: discord.Interaction, query: str):
+    async def handle_interaction(self, interaction: discord.Interaction, query: str, pt: Literal['No', 'Yes', 'Yes (Include Overdrive)']):
         await interaction.response.defer(thinking=True)
 
         track_list = constants.get_jam_tracks(use_cache=True)
@@ -56,12 +58,40 @@ class LyricsHandler():
         track = matched_tracks[0]
 
         try:
-            fname = await self.load_lyrics(track)
-            await interaction.edit_original_response(attachments=[discord.File(fname)])
+            if pt == 'No':
+                fname = await self.load_lyrics(track)
+                await interaction.edit_original_response(attachments=[discord.File(fname)])
+            else:
+                content = await self.load_lyrics(track, plain_text=True)
+                str_list = content.split('\n')
+                final_list = []
+                for line in str_list:
+                    if line.startswith('[[OD]]'):
+                        if pt == 'Yes (Include Overdrive)':
+                            line = '**' + line.replace('[[OD]]', '') + '**'
+                        else:
+                            line = line.replace('[[OD]]', '')
+                    if '[[' in line and ']]' in line:
+                        section_name = line.replace('[[', '').replace(']]', '')
+                        # remove symbols
+                        section_name = ''.join(filter(str.isalnum, section_name))
+                        real_name = event_map.get(section_name.lower(), section_name)
+                        line = f"\n[{real_name}]"
+                    final_list.append(line)
+
+                final_list.append("\n- Made by Festival Tracker")
+                content = '\n'.join(final_list)
+
+                # remove any new lines at the start of the content
+                content = content.lstrip('\n')
+
+                await interaction.edit_original_response(content=f"**{track['track']['tt']}** - *{track['track']['an']}*", attachments=[
+                    discord.File(io.StringIO(content), filename=f"{track['track']['sn']}_lyrics_festival_tracker.txt")
+                ])
         except LyricsError as e:
             await interaction.edit_original_response(embed=constants.common_error_embed(str(e)))
 
-    async def load_lyrics(self, track):
+    async def load_lyrics(self, track, plain_text: bool = False) -> str:
         midi = track['track']['mu']
         midi_path = await self.midi_tool.save_chart(midi)
         
@@ -293,14 +323,17 @@ class LyricsHandler():
         song_name = track['track'].get('tt')
         artist_name = track['track'].get('an')
 
-        image = self.draw_lyrics(
-            sentences=sentences, 
-            font_path="bot/data/Fonts/InterTight-Bold.ttf",
-            album_art_path=album_art_path,
-            line_spacing=10,
-            text_colour=(255, 255, 255),
-            song_name=song_name, artist_name=artist_name
-        )
+        if not plain_text:
+            image = self.draw_lyrics(
+                sentences=sentences, 
+                font_path="bot/data/Fonts/InterTight-Bold.ttf",
+                album_art_path=album_art_path,
+                line_spacing=10,
+                text_colour=(255, 255, 255),
+                song_name=song_name, artist_name=artist_name
+            )
+        else:
+            return '\n'.join(sentences)
             
         # Save the image
         image.save(fname)
@@ -318,8 +351,8 @@ class LyricsHandler():
         block_size=180, 
         blur_radius=200,
         text_colour=(0, 0, 0),
-        song_name: str = 'Llorarás',
-        artist_name: str = 'Oscar D\'León'):
+        song_name: str = 'Por El Asterisco',
+        artist_name: str = 'Faraon Love Shady'):
         max_width = 720
         text_area_width = max_width - (2 * margin)
         

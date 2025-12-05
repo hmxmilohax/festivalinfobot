@@ -273,7 +273,7 @@ class SearchCommandHandler:
         view.message = message
         await message.edit(embed=embed, view=view)
 
-    async def handle_interaction(self, interaction: discord.Interaction, query:str, detail:bool = False):
+    async def handle_interaction(self, interaction: discord.Interaction, query:str, detail: bool = False):
         await interaction.response.defer() # edit_original_response
 
         # meow case for im a cat
