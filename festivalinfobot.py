@@ -62,7 +62,16 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @tasks.loop(minutes=self.UTILITY_TASK_INTERVAL)
         async def utility_task():
             await self.wishlist_handler.handle_wishlists()
-            await self.check_handler.handle_task()
+            # self.check_handler.handle_task() is now a background task
+            # so it doesn't block the loop interval
+            task = asyncio.create_task(self.check_handler.handle_task())
+            def _log_task_error(t):
+                try:
+                    t.result()
+                except Exception as e:
+                    logging.error("Error in utility_task execution:", exc_info=e)
+            
+            task.add_done_callback(_log_task_error)
 
         self.utility_loop_task = utility_task
 
