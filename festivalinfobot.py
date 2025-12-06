@@ -301,6 +301,23 @@ class FestivalInfoBot(commands.AutoShardedBot):
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)
 
+    async def on_command_error(self, context, exception):
+        if isinstance(exception, commands.errors.CommandNotFound):
+            return
+
+        if self.extra_events.get('on_command_error', None):
+            return
+
+        command = context.command
+        if command and command.has_error_handler():
+            return
+
+        cog = context.cog
+        if cog and cog.has_error_handler():
+            return
+
+        await self.custom_on_error(self, None, exception)
+
     # CUSTOM ERROR HANDLER
     async def custom_on_error(self, interaction: discord.Interaction, error: Exception, is_piped: bool = False):
         command = interaction.command if interaction else None
