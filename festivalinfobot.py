@@ -468,7 +468,7 @@ class FestivalInfoBot(commands.AutoShardedBot):
             
         @self.command()
         async def equinox(ctx: commands.Context):
-            await ctx.send("<@493168706688647189>")
+            await ctx.send("<@493168706688647189>", file=discord.File('bot/data/EasterEgg/Equinox.png', filename="Equinox.png"))
         
         @self.command()
         async def sex(ctx: commands.Context):
