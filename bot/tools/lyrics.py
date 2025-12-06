@@ -151,6 +151,21 @@ class LyricsHandler():
         cur_sung = {}
         for s in messages_only_sung:
             if s.type == 'note_on':
+                if cur_sung.get(s.note): 
+                    # this note is already active
+                    # cause: midi errors on festival midis
+                    # note off (0x80) events in midis are saved as note on (0x90)
+                    # notes:
+                    # - this will probably never be fixed server side
+                    # accounting for it is neccessary
+                    cur_sung[s.note]['end'] = s.time
+                    sung.append(cur_sung[s.note])
+                    cur_sung[s.note] = None
+
+                    # do not bother creating a new note
+                    # I SPENT ONE HOUR DEBUGGING THIS
+                    continue
+
                 cur_sung[s.note] = {
                     'start': s.time,
                     'end': None,

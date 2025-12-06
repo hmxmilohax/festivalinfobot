@@ -1,0 +1,10 @@
+discord.py
+requests
+mido
+matplotlib
+pandas
+aiosqlite
+pycryptodome
+pydub
+xmltodict
+numpy
