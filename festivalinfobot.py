@@ -465,7 +465,11 @@ class FestivalInfoBot(commands.AutoShardedBot):
         @self.command()
         async def clover(ctx: commands.Context):
             await ctx.send("<@658385928653504523>")
-
+            
+        @self.command()
+        async def equinox(ctx: commands.Context):
+            await ctx.send("<@493168706688647189>")
+        
         @self.command()
         async def sex(ctx: commands.Context):
             await ctx.send("https://x.com/FNFestival/status/1731398051242086714")
