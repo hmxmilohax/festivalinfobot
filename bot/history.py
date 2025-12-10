@@ -12,6 +12,9 @@ from typing import List, Union
 import concurrent
 import discord
 from discord.ext import commands
+import concurrent.futures
+import discord
+from discord.ext import commands
 import requests
 
 from bot import constants
@@ -99,6 +102,7 @@ class HistoryHandler():
         self.midi_handler = MidiArchiveTools()
         self.search_embed_handler = SearchEmbedHandler()
         self.bot: commands.Bot = bot
+        self.process_executor = concurrent.futures.ProcessPoolExecutor()
         pass
 
     async def track_midi_changes(self, json_files, shortname, session_hash):
@@ -190,7 +194,7 @@ class HistoryHandler():
             shutil.copy(old_midi_file, old_midi_out_path)
             shutil.copy(new_midi_file, new_midi_out_path)
 
-            comparison = functools.partial(self.comparison_process, old_midi_out_path, new_midi_out_path, session_hash, track_name)
+            comparison = functools.partial(midi_comparison.run_comparison, old_midi_out_path, new_midi_out_path, session_hash, track_name)
 
             # comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash, track_name]
             # result = subprocess.run(comparison_command, capture_output=True, text=True)
@@ -198,7 +202,7 @@ class HistoryHandler():
             # if result.returncode != 0:
             #     return None
 
-            comparison_result = await self.bot.loop.run_in_executor(None, comparison)
+            comparison_result = await self.bot.loop.run_in_executor(self.process_executor, comparison)
 
             # Check for the completion flag in the output
             if comparison_result == True:
@@ -518,6 +522,18 @@ class LoopCheckHandler():
         session_hashes_all = [session_hash]
 
         modified_songs_data = [] # [(modified metadata CV2 container, ( dict, list(file) ))]
+
+        # here we encounter a bug
+        # handle_task can run for over 90 minutes
+        # that's why its in a separate ""thread""
+        # but unfortunately, this means that the underlying functions
+        # (process_chart_url_change > comparison_process > run_comparison)
+        # that use matplotlib will experience race conditions
+        # if multiple batches are processed at the same time
+        # plots rendered by matplotlib (which takes a while)
+        # will be cleared or end up malformed
+        # so we "can't have" two songs processing at the same time or else we risk
+        # malformed plots
         for old_song, new_song in modified_songs:
             # session_hash = constants.generate_session_hash(self.bot.start_time, self.bot.start_time)
             session_hash = constants.generate_session_hash(self.bot.start_time, datetime.now().timestamp())

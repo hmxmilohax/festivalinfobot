@@ -64,6 +64,9 @@ class FestivalInfoBot(commands.AutoShardedBot):
             await self.wishlist_handler.handle_wishlists()
             # self.check_handler.handle_task() is now a background task
             # so it doesn't block the loop interval
+
+            # this can take over 90 minutes to complete
+            # so it is like this to allow this task loop to run exactly every minute
             task = asyncio.create_task(self.check_handler.handle_task())
             def _log_task_error(t):
                 try:
@@ -991,4 +994,5 @@ class FestivalInfoBot(commands.AutoShardedBot):
         self.last_analytic = datetime.now()
 
 
-bot = FestivalInfoBot()
+if __name__ == "__main__":
+    bot = FestivalInfoBot()
