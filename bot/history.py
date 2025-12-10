@@ -10,8 +10,6 @@ import shutil
 import subprocess
 from typing import List, Union
 import concurrent
-import discord
-from discord.ext import commands
 import concurrent.futures
 import discord
 from discord.ext import commands
