@@ -224,8 +224,8 @@ class SearchCommandHandler:
     async def prompt_user_for_selection(self, interaction:discord.Interaction, matched_tracks):
         view: ResultsJamTracks
 
-        if len(matched_tracks) > 25:
-            await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"There are too many results. ({len(matched_tracks)}/25) Please try another query, or use </tracklist filter artist:1287199873116143628>."))
+        if len(matched_tracks) > 20:
+            await interaction.edit_original_response(content="", embed=constants.common_error_embed(f"There are too many results. ({len(matched_tracks)}/20) Please try another query, or use </tracklist filter artist:1287199873116143628>."))
             return None
 
         async def selected(new_interaction: discord.Interaction):
