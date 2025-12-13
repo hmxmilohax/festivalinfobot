@@ -275,12 +275,12 @@ class ServerSubscribableChannelsDropdown(discord.ui.Select):
             if channel.id in [ch.id for ch in candidates]:
                 candidates.remove(discord.utils.find(lambda ch: ch.id == channel.id, candidates))
 
-        is_more_than_25 = len(candidates) > 24
-        candidates = candidates[:24]  # Discord only allows 25 options max
+        is_more_than_25 = len(candidates) > 20
+        candidates = candidates[:20]  # Discord only allows 25 options max
 
         # Set the options that will be presented inside the dropdown
         options = [discord.SelectOption(label=f'#{ch.name}', value=str(ch.id)) for ch in candidates]
-        super().__init__(placeholder=f"Select channel... {'[Truncated to 24 max.]' if is_more_than_25 else ''}", min_values=1, max_values=1, options=options)
+        super().__init__(placeholder=f"Select channel... {'[Truncated to 20 max.]' if is_more_than_25 else ''}", min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         channel_id = self.values[0]
@@ -508,7 +508,7 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         options = [discord.SelectOption(label=f'@{role["name"]}', value=str(role["id"]), default=role["default"]) for role in allowed_roles]
         if len(options) == 0:
             options = [discord.SelectOption(label='No mentionable roles', value='none', default=True, description="I can't mention any roles in your server.")]
-        if len(options) > 25:
+        if len(options) > 20:
             options = [discord.SelectOption(label='Too many roles', value='none', default=True, description="Your server has too many roles.")]
 
         super().__init__(placeholder='Select roles to mention...', min_values=0, max_values=len(options), options=options)
