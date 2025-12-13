@@ -1,0 +1,9 @@
+CHOpt binaries go in "CHOpt" folder
+https://github.com/GenericMadScientist/CHOpt/releases/
+Download "CHOpt.CLI.VERSION.x64.Windows.zip"
+
+FFmpeg binaries go in "FFmpeg" folder
+https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest
+Download "ffmpeg-master-latest-win64-lgpl.zip"
+
+Tipically, FFmpeg binaries are in "bin" folder, this folder must be present in the "FFmpeg" folder.

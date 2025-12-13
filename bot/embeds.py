@@ -27,7 +27,10 @@ class StatsCommandEmbedHandler():
             return None
         
     def get_remote_url(self):
-        return subprocess.check_output(['git', 'config', '--get', 'remote.origin.url']).strip().decode('utf-8')
+        try:
+            return subprocess.check_output(['git', 'config', '--get', 'remote.origin.url']).strip().decode('utf-8')
+        except Exception:
+            return "Unknown"
 
     # Convert uptime to a more human-readable format
     def format_uptime(self, seconds):

@@ -5,32 +5,49 @@ prefixes.json
 # configuration
 config.ini
 # tracking
+
 known_songs.json
 known_tracks.json
+
 # digital mistery
 fnf-midcrypt.py
 # folders
+
 out
 json
 midi_files
 cache
 temp
+
 # pycache & vscode
 **/__pycache__
 **/.vscode
-# chopt stuff
-CHOpt.exe
-Qt6Core.dll
-Qt6Gui.dll
+
 # logs
 logs
 # databases
 *.db*
+
+# syncthing
 .stfolder/
-ffmpeg.exe
-ffprobe.exe
+
 # virtual enviroment
 ft_venv/
 
 debug_frames/
 bot/tools/brand.py
+
+# macos
+**/.DS_Store
+
+# binaries
+ffmpeg.exe
+ffprobe.exe
+CHOpt.exe
+Qt6Core.dll
+Qt6Gui.dll
+
+bot/data/Binaries/Linux/CHOpt/
+bot/data/Binaries/Linux/FFmpeg/
+bot/data/Binaries/Windows/CHOpt/
+bot/data/Binaries/Windows/FFmpeg/

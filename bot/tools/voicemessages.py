@@ -66,13 +66,25 @@ class PreviewAudioMgr:
         self.output_path = output_path
 
     def _get_ffmpeg_path(self) -> str:
-        ffmpeg_path = Path('ffmpeg.exe')
+        if os.name == 'nt':
+            ffmpeg_path = Path('bot/data/Binaries/Windows/FFmpeg/bin/ffmpeg.exe')
+        else:
+             ffmpeg_path = Path('bot/data/Binaries/Linux/FFmpeg/bin/ffmpeg')
+             if not ffmpeg_path.exists():
+                 import shutil
+                 return shutil.which('ffmpeg')
 
         if Path.exists(ffmpeg_path):
             return str(ffmpeg_path.resolve()).replace('\\', '/')
         
     def _get_ffprobe_path(self) -> str:
-        ffprobe_path = Path('ffprobe.exe')
+        if os.name == 'nt':
+            ffprobe_path = Path('bot/data/Binaries/Windows/FFmpeg/bin/ffprobe.exe')
+        else:
+             ffprobe_path = Path('bot/data/Binaries/Linux/FFmpeg/bin/ffprobe')
+             if not ffprobe_path.exists():
+                 import shutil
+                 return shutil.which('ffprobe')
 
         if Path.exists(ffprobe_path):
             return str(ffprobe_path.resolve()).replace('\\', '/')

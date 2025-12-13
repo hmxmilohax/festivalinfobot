@@ -33,6 +33,8 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/)
 - `xmltodict`
 - `numpy`
 
+OR in `requirements.txt` file
+
 ### Installation
 
 1. Clone this repository:
@@ -54,6 +56,24 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/)
 
     To view `discord.py`'s DEBUG level logs, you can add `-discord-debug` to your arguments.
 
+### Dependencies
+
+Festival Tracker is intended to run primarily on Windows, but it can run on Linux/Docker.
+
+    To run in Docker, use `docker-compose up -d --build`
+
+You can create a virtual environment to run the bot in, but it is not required.
+
+To be able to fetch and generate paths you will need two things:
+
+- [CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary in the `bot/data/Binaries/` folder. Follow instructions there.
+
+    For newer CHOpt versions, Qt6 .dlls may be required to be copied as well. These files are also present in the .gitignore, so you won't have to worry about committing these.
+
+- FFmpeg and FFprobe (binaries) in the `bot/data/Binaries/` folder. Follow instructions there.
+
+Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key. You **WILL** experience a LOT of errors if the key is not provided.
+
 ## Commands
 
 - Run `/help` to view a list of all available commands.
@@ -69,17 +89,3 @@ If you want to contribute to this project, feel free to fork the repository and 
 ## Issues
 
 If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you can send us feedback (`/feedback`).
-
-# Dependencies
-
-This is currently only targetted to run for Windows as that is the environment it is developed and tested in.
-
-To be able to fetch and generate paths you will need two things:
-
-- [CHOpt](https://github.com/GenericMadScientist/CHOpt) CLI binary (CHOpt.exe) in the `bot/data/Binaries` folder. Please create the Binaries folder, it is not created for you.
-
-    For newer CHOpt versions, Qt6 .dlls may be required to be copied as well. These files are also present in the .gitignore, so you won't have to worry about committing these.
-
-To be able to produce Jam Track audio previews, any builds of FFmpeg and FFprobe (executables) in the root are required.
-
-Aditionally, the bot is unable to decrypt Festival MIDIs without the correct key. You WILL experience a LOT of errors if the key is not provided.

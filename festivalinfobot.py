@@ -47,7 +47,7 @@ import hashlib
 
 from bot.wishlist import WishlistManager
 
-class FestivalInfoBot(commands.AutoShardedBot):
+class FestivalTracker(commands.AutoShardedBot):
     async def setup_hook(self):
         logging.info("Creating SQLite connection...")
         await self.config.initialize()
@@ -340,14 +340,18 @@ class FestivalInfoBot(commands.AutoShardedBot):
                 exc_text += f'\n- Command: /{command.qualified_name}'
             onetry = ''.join(traceback.format_exception(error))
 
-            err_f = onetry.replace(os.environ.get("USERNAME"), '-' * len(os.environ.get("USERNAME")))
+            uname = os.environ.get("USERNAME")
+            if not uname:
+                uname = "Docker"
+
+            err_f = onetry.replace(uname, '-' * len(uname))
             await self.get_partial_messageable(constants.ERR_CHANNEL).send(content=exc_text, file=discord.File(io.StringIO(err_f), filename='error.txt'))
             # await self.get_partial_messageable(constants.ERR_CHANNEL).send()
 
             err_text: str = str(error)
             err_text = err_text.replace(constants.SPARKS_MIDI_KEY, constants.rand_hex(constants.SPARKS_MIDI_KEY))
             err_text = err_text.replace(constants.EPIC_ACCOUNT_ID, constants.rand_hex(constants.EPIC_ACCOUNT_ID))
-            uname = os.environ.get("USERNAME")
+            
             if uname:
                 err_text = err_text.replace(uname, '-' * len(uname))
 
@@ -995,4 +999,4 @@ class FestivalInfoBot(commands.AutoShardedBot):
 
 
 if __name__ == "__main__":
-    bot = FestivalInfoBot()
+    bot = FestivalTracker()

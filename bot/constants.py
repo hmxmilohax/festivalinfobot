@@ -44,9 +44,6 @@ LOG_CHANNEL: int = int(config.get('bot', 'event_channel'))
 SUG_CHANNEL: int = int(config.get('bot', 'suggest_channel'))
 ANALYTICS_CHANNEL: int = int(config.get('bot', 'analytics_channel'))
 
-SERVER_URL: str = config.get('bot', 'server_url')
-BOT_TOKEN: str = config.get('bot', 'bot_token')
-
 SPOTIFY_CLIENT_ID: str = config.get('bot', 'spotify_api_client')
 SPOTIFY_CLIENT_PASS: str = config.get('bot', 'spotify_api_secret')
 

@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.gitignore
+.env
+venv/
+Dockerfile
+.dockerignore
+LICENSE
+README.md

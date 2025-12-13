@@ -23,7 +23,11 @@ class PathCommandHandler():
             # this guy is broken
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'CHOpt.exe')
+        
+        if os.name == 'nt':
+            chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Windows', 'CHOpt', 'CHOpt.exe')
+        else:
+            chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Linux', 'CHOpt', 'CHOpt.sh')
 
         chopt_command = [
             chopt_exe, 

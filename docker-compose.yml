@@ -1,0 +1,9 @@
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+      # Exclude the virtual environment and bin folder from being overwritten by the host
+      # (though if they are in .dockerignore, they won't be in the image initially anyway, but mounting . causes host files to overlay)
+      # We usually want to avoid syncing venv if possible, but the internal one is system-wide.
