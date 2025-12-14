@@ -3,7 +3,7 @@ from discord import app_commands
 import discord
 from discord.ext import commands
 
-from bot import config, constants
+from bot import constants, database
 from bot.helpers import GamblingHandler
 
 class RandomCog(commands.Cog):

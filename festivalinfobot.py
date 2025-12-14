@@ -17,7 +17,7 @@ from discord import app_commands
 from configparser import ConfigParser
 
 from bot.constants import OneButtonSimpleView, OneButton
-from bot import config, constants, embeds
+from bot import constants, database, embeds
 from bot.groups.festival import FortniteCog
 from bot.groups.graphs import GraphCog
 from bot.groups.history import HistoryCog
@@ -26,7 +26,7 @@ from bot.tools.log import setup as setup_log
 from bot.tools.log import CustomHandler
 from bot.groups.devtest import TestCog
 from bot.groups.random import RandomCog
-from bot.config import Config
+from bot.database import Config
 from bot.history import HistoryHandler, LoopCheckHandler
 from bot.leaderboard import LeaderboardCommandHandler
 from bot.path import PathCommandHandler

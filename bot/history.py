@@ -16,8 +16,8 @@ from discord.ext import commands
 import requests
 
 from bot import constants
-from bot import config
-from bot.config import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
+from bot import database
+from bot.database import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.tools.midi import MidiArchiveTools
 from bot.tools import history as history_tools
@@ -499,7 +499,7 @@ class LoopCheckHandler():
                 if current_track != known_track:
                     modified_songs.append((known_track, current_track))
 
-        bot_config: config.Config = self.bot.config
+        bot_config: database.Config = self.bot.config
         combined_channels: list[SubscriptionObject] = await bot_config.get_all()
         target_id = 1328391774720229517
         obj = discord.utils.find(lambda x: x.id == target_id, combined_channels)

@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 import requests
 
-from bot import config, constants
+from bot import constants, database
 from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
@@ -50,7 +50,7 @@ class TestCog(commands.Cog):
         png = io.BytesIO(requests.get(image.url).content) if image else None
         fname = image.filename if image else None
 
-        bot_config: config.Config = self.bot.config
+        bot_config: database.Config = self.bot.config
         all_channels = await bot_config.get_all()
 
         # Send a test message to all subscribed users
@@ -91,7 +91,7 @@ class TestCog(commands.Cog):
         
         await interaction.response.defer()
 
-        bot_config: config.Config = self.bot.config
+        bot_config: database.Config = self.bot.config
 
         chs = await bot_config.get_all()
 
@@ -105,7 +105,7 @@ class TestCog(commands.Cog):
                 txt = ''
                 for sub in chunk:
                     txt += f"\nType {sub.type} ID {sub.id} Events {sub.events}"
-                    if isinstance(sub, config.SubscriptionChannel):
+                    if isinstance(sub, database.SubscriptionChannel):
                         txt += f' Roles {sub.roles}'
                 
                 embed.add_field(name="List", value=f'```{txt}```', inline=False)
@@ -124,7 +124,7 @@ class TestCog(commands.Cog):
         
         await interaction.response.defer()
 
-        bot_config: config.Config = self.bot.config
+        bot_config: database.Config = self.bot.config
 
         all_users = await bot_config._users()
         failed = []
@@ -168,7 +168,7 @@ class TestCog(commands.Cog):
         
         await interaction.response.defer()
 
-        bot_config: config.Config = self.bot.config
+        bot_config: database.Config = self.bot.config
 
         all_channels = await bot_config._channels()
         failed = []
@@ -432,7 +432,7 @@ class TestCog(commands.Cog):
 
         await interaction.response.defer()
 
-        conf: config.Config = self.bot.config
+        conf: database.Config = self.bot.config
 
         mod_count = 0
 

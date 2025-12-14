@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 import requests
 
-from bot import config, constants
+from bot import constants, database
 from bot.tools.oauthmanager import OAuthManager
 from bot.views.suggestions import SuggestionModal
 from bot.tracks import JamTrackHandler
@@ -111,7 +111,7 @@ class ServerSubscriptionsView(discord.ui.View):
     async def reply_to_initial(self, message: discord.Message):
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscriptions for {message.guild.name}", colour=constants.ACCENT_COLOUR)
 
-        channels_subscribed: List[config.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
+        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
         channel_text = ""
 
         for sub_channel in channels_subscribed:
@@ -168,19 +168,19 @@ class UserSubscriptionsView(discord.ui.View):
         embed.add_field(name="Managing", value="Select or deselect Jam Track events to be subscribed to.", inline=False)
         embed.add_field(name="Information", value="You must share at least one (1) mutual server with Festival Tracker to receive subscription messages.", inline=False)
 
-        sub_user: config.SubscriptionUser = await self.bot.config._user(user)
+        sub_user: database.SubscriptionUser = await self.bot.config._user(user)
         self.add_item(UserSubscriptionTypesDropdown(self.bot, message, sub_user))
 
         await message.edit(embed=embed, view=self)
         self.message = message
 
 class UserSubscriptionTypesDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, message: discord.Message, sub_user: config.SubscriptionUser):
+    def __init__(self, bot: commands.Bot, message: discord.Message, sub_user: database.SubscriptionUser):
         self.bot = bot
         self.message = message
         self.sub_user = sub_user
 
-        all_events = config.JamTrackEvents.get_all_events()
+        all_events = database.JamTrackEvents.get_all_events()
 
         # Set the options that will be presented inside the dropdown
         options = [
@@ -215,7 +215,7 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
         await new_view.reply_to_initial(self.message, interaction.user)
 
 class GuildManageableSubscriptionChannelsDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, subscribed_channels: List[config.SubscriptionChannel] = []):
+    def __init__(self, bot: commands.Bot, subscribed_channels: List[database.SubscriptionChannel] = []):
 
         self.bot = bot
 
@@ -250,7 +250,7 @@ class CreateServerSubscriptionView(discord.ui.View):
     async def reply_to_initial(self, message: discord.Message):
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe a channel", colour=constants.ACCENT_COLOUR)
 
-        channels_subscribed: List[config.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
+        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
 
         embed.add_field(name="Select Channel", value="Please select a channel from the dropdown to continue.", inline=False)
         embed.add_field(name="Required Permissions", value="- View Channel\n- Send Messages\n- Embed Links\n- Attach Files", inline=False)
@@ -261,7 +261,7 @@ class CreateServerSubscriptionView(discord.ui.View):
         self.message = message
 
 class ServerSubscribableChannelsDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, subscribed_channels: List[config.SubscriptionChannel] = [], guild: discord.Guild = None):
+    def __init__(self, bot: commands.Bot, subscribed_channels: List[database.SubscriptionChannel] = [], guild: discord.Guild = None):
 
         self.bot = bot
 
@@ -296,7 +296,7 @@ class SubscriptionEventTypesDropdown(discord.ui.Select):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-        all_events = config.JamTrackEvents.get_all_events()
+        all_events = database.JamTrackEvents.get_all_events()
 
         # Set the options that will be presented inside the dropdown
         options = [
@@ -422,7 +422,7 @@ class GuildManageChannelView(discord.ui.View):
     async def reply_to_initial(self, message: discord.Message):
         self.message = message
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscription for {self.channel.mention}", colour=constants.ACCENT_COLOUR)
-        channel_subscription: config.SubscriptionChannel = await self.bot.config._channel(self.channel)
+        channel_subscription: database.SubscriptionChannel = await self.bot.config._channel(self.channel)
 
         embed.add_field(name="Subscription types", value=", ".join(channel_subscription.events), inline=False)
 
@@ -442,12 +442,12 @@ class GuildManageChannelView(discord.ui.View):
         await message.edit(embed=embed, view=self)
 
 class ChannelManageEventTypesSelect(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, message: discord.Message, channel: discord.TextChannel, sub_channel: config.SubscriptionObject):
+    def __init__(self, bot: commands.Bot, message: discord.Message, channel: discord.TextChannel, sub_channel: database.SubscriptionObject):
         self.bot = bot
         self.message = message
         self.channel = channel
 
-        all_events = config.JamTrackEvents.get_all_events()
+        all_events = database.JamTrackEvents.get_all_events()
 
         # Set the options that will be presented inside the dropdown
         valid_options = [
@@ -471,7 +471,7 @@ class ChannelManageEventTypesSelect(discord.ui.Select):
         await new_view.reply_to_initial(self.message)
 
 class ChannelManageMentionableRolesSelect(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, message: discord.Message, channel: discord.TextChannel, sub_channel: config.SubscriptionChannel):
+    def __init__(self, bot: commands.Bot, message: discord.Message, channel: discord.TextChannel, sub_channel: database.SubscriptionChannel):
         self.bot = bot
         self.message = message
         self.channel = channel

@@ -8,7 +8,7 @@ import string
 import discord
 from discord.ext import commands
 import requests
-from bot import config, embeds
+from bot import database, embeds
 import bot.constants as constants
 from bot.constants import Button, ButtonedView
 from bot import helpers
@@ -97,7 +97,8 @@ class JamTrackHandler:
                 'gimmechocolate',
                 'frommetou'
             ],
-            'oiia': ['oiiaoiia']
+            'oiia': ['oiiaoiia'],
+            'sky': ['sky']
         }
 
         if search_term in custom_results.keys():
@@ -256,7 +257,7 @@ class SearchCommandHandler:
         return await selected(None)
     
     async def handle_imacat_search(self, interaction: discord.Interaction):
-        with open('bot/imacat.json', 'r') as imacat_file:
+        with open('bot/data/Archive/imacat.json', 'r') as imacat_file:
             imacat_data = json.load(imacat_file)
         embed = await self.embed_handler.generate_track_embed(imacat_data)
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)

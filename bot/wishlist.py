@@ -1,6 +1,6 @@
 import logging
 import discord
-from bot import config, constants
+from bot import constants, database
 from bot.helpers import DailyCommandHandler, ShopCommandHandler
 from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler
@@ -14,12 +14,12 @@ class NotInWishlistError(Exception):
 class WishlistManager():
     def __init__(self, bot: discord.Client):
         self.bot = bot
-        self.config: config.Config = self.bot.config
+        self.config: database.Config = self.bot.config
         self.daily_handler = DailyCommandHandler(self.bot)
         self.shop_handler = ShopCommandHandler(self.bot)
 
     async def handle_wishlists(self):
-        all_wishlists: list[config.WishlistEntry] = await self.config._get_all_wishlists()
+        all_wishlists: list[database.WishlistEntry] = await self.config._get_all_wishlists()
         logging.info('Processing wishlists...')
         all_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         rotation = self.daily_handler.fetch_daily_shortnames()
