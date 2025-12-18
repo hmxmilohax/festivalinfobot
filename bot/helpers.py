@@ -278,7 +278,7 @@ class DailyCommandHandler:
 
             return daily_tracks
         except Exception as e:
-            logging.error(exc_info=e)
+            logging.error("Unable to fetch rotation", exc_info=e)
             return []
         
     async def handle_interaction(self, interaction: discord.Interaction):
