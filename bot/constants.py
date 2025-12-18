@@ -52,6 +52,8 @@ GITHUB_PAT: str = config.get('bot', 'github_pat')
 EPIC_ACCOUNT_ID: str = config.get('bot', 'epic_account_id')
 EPIC_DEVICE_ID: str = config.get('bot', 'epic_device_id')
 EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
+EPIC_DEVICE_AUTH_CLIENT_ID: str = config.get('bot', 'epic_device_auth_client_id')
+EPIC_DEVICE_AUTH_CLIENT_SECRET: str = config.get('bot', 'epic_device_auth_client_secret')
 
 SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
 

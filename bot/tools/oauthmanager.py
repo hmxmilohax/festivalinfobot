@@ -38,12 +38,13 @@ class OAuthManager:
 
         self._spotify_session_data = None
         self._spotify_access_token:str = None
+        self.epic_client_token = base64.b64encode(f'{constants.EPIC_DEVICE_AUTH_CLIENT_ID}:{constants.EPIC_DEVICE_AUTH_CLIENT_SECRET}'.encode('utf-8')).decode('utf-8')
 
     def _create_token(self):
         logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token (create)')
         url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token'
         headers = {
-            'Authorization': 'Basic OThmN2U0MmMyZTNhNGY4NmE3NGViNDNmYmI0MWVkMzk6MGEyNDQ5YTItMDAxYS00NTFlLWFmZWMtM2U4MTI5MDFjNGQ3', # fortniteNewSwitchGameClient
+            'Authorization': f'Basic {self.epic_client_token}',
             'Content-Type': 'application/x-www-form-urlencoded'
         }
         data = {
@@ -54,12 +55,12 @@ class OAuthManager:
             'token_type': 'eg1'
         }
         response = requests.post(url, headers=headers, data=data)
+        print(response.json())
         response.raise_for_status()
         self._session_data = response.json()
         self._access_token = self._session_data['access_token']
         self._refresh_token = self._session_data['refresh_token']
 
-        # print(self._access_token)
 
     def _create_spotify_token(self):
         url = "https://accounts.spotify.com/api/token"
@@ -114,7 +115,7 @@ class OAuthManager:
         try:
             url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token'
             headers = {
-                'Authorization': 'Basic OThmN2U0MmMyZTNhNGY4NmE3NGViNDNmYmI0MWVkMzk6MGEyNDQ5YTItMDAxYS00NTFlLWFmZWMtM2U4MTI5MDFjNGQ3', # fortniteNewSwitchGameClient
+                'Authorization': f'Basic {self.epic_client_token}',
                 'Content-Type': 'application/x-www-form-urlencoded'
             }
             data = {
