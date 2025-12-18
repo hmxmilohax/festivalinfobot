@@ -1,3 +1,4 @@
+import json
 import re
 import discord
 import bot.tools.voicemessages as voicemessages
@@ -28,8 +29,11 @@ class PreviewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'persis
         track = discord.utils.find(lambda t: t['track']['sn'] == self.shortname, track_list)
 
         if track is None:
-            await interaction.edit_original_response(content='Track not found.', view=None)
-            return
+            if self.shortname == 'imacat':
+                track = json.load(open('bot/data/Archive/imacat.json', 'r'))
+            else:    
+                await interaction.edit_original_response(content='Track not found.', view=None)
+                return
         
         preview_audio_mgr = voicemessages.PreviewAudioMgr(interaction.client, track, interaction)
         await preview_audio_mgr.reply_to_interaction_message()

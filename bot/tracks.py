@@ -263,14 +263,8 @@ class SearchCommandHandler:
         embed.add_field(name="Status", value="Removed from API. This song has never been officially obtainable.", inline=False)
         message = await interaction.edit_original_response(embed=embed)
 
-        async def something(interaction: discord.Interaction):
-            view.buttons[0].disabled = True
-            view.add_buttons()
-            await interaction.message.edit(view=view)
-            preview_audio_mgr = PreviewAudioMgr(self.bot, imacat_data, interaction)
-            await preview_audio_mgr.reply_to_interaction_message()
-
-        view: ButtonedView = ButtonedView(interaction.user.id, [Button(something, label="Preview")])
+        view: discord.ui.View = discord.ui.View(timeout=None)
+        view.add_item(PreviewButton(imacat_data['track']['sn']))
         view.message = message
         await message.edit(embed=embed, view=view)
 
