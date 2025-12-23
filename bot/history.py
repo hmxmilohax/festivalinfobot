@@ -440,7 +440,9 @@ class LoopCheckHandler():
             state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']}",
         )
 
-        await self.bot.change_presence(activity=activity, status=discord.Status.online)
+        activity = discord.Game("IMPORTANT-Read bio")
+
+        await self.bot.change_presence(activity=activity, status=discord.Status.idle)
 
         logging.info("Presence updated successfully.")
 
