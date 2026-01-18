@@ -200,27 +200,7 @@ class WishlistManager():
 
         for wishlist_entry in chunk_entries:
             track = discord.utils.find(lambda x: x['track']['sn'] == wishlist_entry.shortname, all_tracks)
-            title = track['track']['tt']
-            artist = track['track']['an']
-
-            btn = discord.ui.Button(label="Unwishlist", emoji="🗑️")
-            async def cb(i: discord.Interaction):
-                await i.response.defer(ephemeral=True, thinking=True)
-
-                user = i.user
-                shortname = track['track']['sn']
-
-                if not await self.config._already_in_wishlist(user, shortname):
-                    await i.edit_original_response(embed=constants.common_error_embed(f"**{title}** - *{artist}* is not in your wishlist."))
-                else:
-                    await self.config._remove_from_wishlist(user, shortname)
-                    await i.edit_original_response(embed=constants.common_success_embed(f"Removed **{title}** - *{artist}* from your wishlist."))
-
-                if i.user.id == interaction.user.id:
-                    await self.handle_display(interaction, page)
-
-            btn.callback = cb
-            btn.style = discord.ButtonStyle.secondary
+            btn = WishlistButton(track['track']['sn'], "remove", interaction.user.id)
 
             container.add_item(
                 discord.ui.Section(
@@ -269,6 +249,18 @@ class WishlistManager():
         if page == last_page:
             nxt_btn.disabled = True
 
+        rfr_btn = discord.ui.Button(label="", emoji='<:e541f62450f233be:1462293429437333649>', style=discord.ButtonStyle.secondary)
+        async def rfr(i: discord.Interaction):
+
+            if i.user.id != interaction.user.id:
+                await i.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+                return
+
+            await i.response.defer()
+            await self.handle_display(interaction, page)
+
+        rfr_btn.callback = rfr
+
         add_track_btn = discord.ui.Button(label="Add to Wishlist", emoji=constants.SEARCH_EMOJI)
         async def add(i: discord.Interaction):
             modal = discord.ui.Modal(title="Add to Wishlist")
@@ -303,7 +295,7 @@ class WishlistManager():
 
         container.add_item(
             discord.ui.ActionRow(
-                prev_btn, nxt_btn, add_track_btn                
+                prev_btn, nxt_btn, rfr_btn, add_track_btn                
             )
         )
 

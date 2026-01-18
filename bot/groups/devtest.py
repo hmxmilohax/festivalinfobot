@@ -468,3 +468,30 @@ class TestCog(commands.Cog):
         f.close()
 
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(data), 'subscriptions.db')])
+
+    @test_group.command(name="pm", description="Send a private message to a user")
+    async def pm(self, interaction: discord.Interaction, user_id: str, message: discord.Attachment):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+        
+        await interaction.response.defer()
+        user = self.bot.get_user(int(user_id))
+        if not user:
+            await interaction.edit_original_response(content=f"User with ID {user_id} not found.")
+            return
+        logging.debug(f'[GET] {message.url}')
+        text_content = requests.get(message.url).text
+
+        try:
+            embed = discord.Embed(title="Festival Tracker Message", description="Hello, this is a message from a Festival Tracker developer:", colour=constants.ACCENT_COLOUR)
+            embed.add_field(name="", value=text_content, inline=False)
+
+            embed.set_thumbnail(url=interaction.client.user.display_avatar.url)
+            embed.set_footer(text="Festival Tracker")
+
+            await user.send(embed=embed)
+            await interaction.edit_original_response(content=f"Message sent to {user.mention}")
+        except Exception as e:
+            logging.warning(f"Error sending message to User {user.mention}", exc_info=e)
+            await interaction.edit_original_response(content=f"Failed to send message to {user.mention}")
