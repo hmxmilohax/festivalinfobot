@@ -476,7 +476,7 @@ class TestCog(commands.Cog):
             return
         
         await interaction.response.defer()
-        user = self.bot.get_user(int(user_id))
+        user = await self.bot.fetch_user(int(user_id))
         if not user:
             await interaction.edit_original_response(content=f"User with ID {user_id} not found.")
             return
