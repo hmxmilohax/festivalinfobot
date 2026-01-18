@@ -12,7 +12,7 @@ class PreviewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'persis
                 style=discord.ButtonStyle.blurple,
                 custom_id=f'persistent_preview:sn:{shortname}',
                 emoji='🔊',
-                disabled=True
+                disabled=False
             )
         )
         self.shortname: str = shortname

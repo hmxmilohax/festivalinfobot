@@ -105,25 +105,27 @@ class PreviewAudioMgr:
         data = xmltodict.parse(mpd)
         mpd_node = data['MPD']
 
+        # print(json.dumps(mpd_node, indent=4))
+
         base_url = mpd_node['BaseURL']
         audio_duration = float(mpd_node['@mediaPresentationDuration'].replace('PT', '').replace('S', ''))
 
         self.audio_duration = audio_duration
 
-        segment_duration = float(mpd_node['@maxSegmentDuration'].replace('PT', '').replace('S', ''))
+        # segment_duration = float(mpd_node['@maxSegmentDuration'].replace('PT', '').replace('S', ''))
 
-        num_segments = math.ceil(audio_duration / segment_duration)
+        # num_segments = math.ceil(audio_duration / segment_duration)
 
         representation = mpd_node['Period']['AdaptationSet']['Representation']
-        repr_id = int(representation['@id'])
-        sample_rate = int(representation['@audioSamplingRate'])
+        # repr_id = int(representation['@id'])
+        # sample_rate = int(representation['@audioSamplingRate'])
 
-        init_template = representation['SegmentTemplate']['@initialization']
-        segment_template = representation['SegmentTemplate']['@media']
-        segment_start = int(representation['SegmentTemplate']['@startNumber'])
+        # init_template = representation['SegmentTemplate']['@initialization']
+        # segment_template = representation['SegmentTemplate']['@media']
+        # segment_start = int(representation['SegmentTemplate']['@startNumber'])
 
         output = f'temp/streaming_{self.hash}_'
-        init_file = init_template.replace('$RepresentationID$', str(repr_id))
+        init_file = representation['BaseURL']
         init_path = output + init_file
         init_url = base_url + init_file
         logging.info(f'[GET] {init_url}')
@@ -132,34 +134,34 @@ class PreviewAudioMgr:
         with open(init_path, 'wb') as init_file_io:
             init_file_io.write(init_data.content)
 
-        segments = []
+        # segments = []
             
-        def download_segment(segment_id):
-            segment_file = segment_template.replace('$RepresentationID$', str(repr_id)).replace('$Number$', str(segment_id))
-            segment_path = output + segment_file
-            segment_url = base_url + segment_file
+        # def download_segment(segment_id):
+        #     segment_file = segment_template.replace('$RepresentationID$', str(repr_id)).replace('$Number$', str(segment_id))
+        #     segment_path = output + segment_file
+        #     segment_url = base_url + segment_file
 
-            logging.info(f'[GET] {segment_url}')
+        #     logging.info(f'[GET] {segment_url}')
 
-            segment_data = requests.get(segment_url)
-            with open(segment_path, 'wb') as segment_file_io:
-                segment_file_io.write(segment_data.content)
-                segments.append(segment_path)
+        #     segment_data = requests.get(segment_url)
+        #     with open(segment_path, 'wb') as segment_file_io:
+        #         segment_file_io.write(segment_data.content)
+        #         segments.append(segment_path)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
-            futures = [executor.submit(download_segment, idx) for idx in range(segment_start, num_segments + 1)]
-            concurrent.futures.wait(futures)
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
+        #     futures = [executor.submit(download_segment, idx) for idx in range(segment_start, num_segments + 1)]
+        #     concurrent.futures.wait(futures)
 
-        segments.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
+        # segments.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
 
         master_file = output + 'master_audio.mp4'
         with open(master_file, 'wb') as master:
             master.write(open(init_path, 'rb').read())
             os.remove(init_path)
 
-            for segment in segments:
-                master.write(open(segment, 'rb').read())
-                os.remove(segment)
+            # for segment in segments:
+            #     master.write(open(segment, 'rb').read())
+            #     os.remove(segment)
 
         return master_file
     
