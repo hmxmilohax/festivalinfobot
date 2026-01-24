@@ -20,7 +20,7 @@ class JamTrackEvents(enum.Enum):
     Removed = JamTrackEvent('removed', 'Jam Track Removed', desc='A Jam Track has been removed from the API.')
     Announcements = JamTrackEvent('announcements', 'Announcements', desc='Important Festival Tracker announcements and bugfixes. (Recommended)')
 
-    def get_all_events():
+    def get_all_events(): # type: ignore
         return list(JamTrackEvents.__members__.values())
 
 class SubscriptionObject():
@@ -45,7 +45,7 @@ class SubscriptionUser(SubscriptionObject):
         self.type = 'user'
 
 class WishlistEntry():
-    def __init__(self, user: discord.User, shortname: str, created_at: datetime, lock_rotation_active: bool = False, lock_shop_active: bool = False) -> None:
+    def __init__(self, user: discord.Object, shortname: str, created_at: datetime, lock_rotation_active: bool = False, lock_shop_active: bool = False) -> None:
         self.user = user
         self.shortname = shortname
         self.created_at = created_at
@@ -56,7 +56,7 @@ class Config:
     def __init__(self) -> None:
         self.channels: list[SubscriptionChannel] = []
         self.users: list[SubscriptionUser] = []
-        self.db: aiosqlite.Connection = None
+        self.db: aiosqlite.Connection
         # jolly good golly im NOT getting errors now, you silly wonkie toots!
         self.lock = asyncio.Lock()
 
@@ -102,7 +102,7 @@ class Config:
             )
             await self.db.commit()
 
-    async def _channel(self, channel: discord.TextChannel) -> SubscriptionChannel:
+    async def _channel(self, channel: discord.TextChannel) -> SubscriptionChannel | None:
         async with self.lock:
             async with self.db.execute(
                 "SELECT channel_id, events, roles FROM channel_subscriptions WHERE guild_id = ? AND channel_id = ?",
@@ -161,7 +161,7 @@ class Config:
             )
             await self.db.commit()
 
-    async def _user(self, user: discord.User) -> SubscriptionUser:
+    async def _user(self, user: discord.User) -> SubscriptionUser | None:
         async with self.lock:
             async with self.db.execute(
                 "SELECT user_id, events FROM user_subscriptions WHERE user_id = ?",
@@ -236,12 +236,12 @@ class Config:
 
         return channels
             
-    async def _del_channels_with_query(self, query: str) -> int:
+    async def _del_channels_with_query(self, query: str):
         async with self.lock:
             await self.db.execute(f"DELETE FROM channel_subscriptions {query}")
             await self.db.commit()
             
-    async def _del_users_with_query(self, query: str) -> int:
+    async def _del_users_with_query(self, query: str):
         async with self.lock:
             await self.db.execute(f"DELETE FROM user_subscriptions {query}")
             await self.db.commit()
@@ -280,7 +280,7 @@ class Config:
                 rows = await cursor.fetchall()
                 return [
                     WishlistEntry(
-                        user,
+                        discord.Object(user.id),
                         row[0],
                         datetime.fromisoformat(row[1]),
                         bool(row[2]),
@@ -289,7 +289,7 @@ class Config:
                     for row in rows
                 ] if rows else []
             
-    async def _get_all_wishlists(self) -> List[tuple[int, str]]:
+    async def _get_all_wishlists(self) -> List[WishlistEntry]:
         async with self.lock:
             async with self.db.execute("SELECT user_id, shortname, created_at, lock_rotation_active, lock_shop_active FROM wishlists") as cursor:
                 rows = await cursor.fetchall()
