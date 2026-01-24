@@ -10,6 +10,14 @@ import discord
 import requests
 import secrets
 
+from discord.ext import commands
+from bot import database
+
+class BotExt(commands.Bot):
+    def __init__(self, *args, **kwargs):
+        self.config: database.Config
+        super().__init__(*args, **kwargs)
+
 RAW_JAM_TRACK_CACHE = None
 JAM_TRACK_CACHE = None
 JAM_TRACK_CACHED_AT: datetime = datetime.now(timezone.utc)

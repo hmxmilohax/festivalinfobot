@@ -174,7 +174,7 @@ class Config:
                     return SubscriptionUser(int(user_id), events)
                 return None
 
-    async def _user_edit_events(self, user: discord.User, events: list[str]) -> None:
+    async def _user_edit_events(self, user: discord.User | discord.Object, events: list[str]) -> None:
         async with self.lock:
             async with self.db.execute(
             "SELECT user_id FROM user_subscriptions WHERE user_id = ?",

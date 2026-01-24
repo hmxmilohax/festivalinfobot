@@ -18,25 +18,15 @@ from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTi
 
 # jnack and tpose's personal commands
 class TestCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: constants.BotExt):
         self.bot = bot
 
     # Define the base 'admin' group command
     test_group = app_commands.Group(name="test", description="Test commands", guild_only=True, guild_ids=[constants.TEST_GUILD])
 
-    @test_group.command(name="suggestions", description="Change if suggestions are enabled or not.")
-    async def set_suggestions_command(self, interaction: discord.Interaction, enabled: bool):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        text = f"Suggestions are now turned {'ON' if enabled else 'OFF'}. Previously, they were {'ON' if self.bot.suggestions_enabled else 'OFF'}."
-        self.bot.suggestions_enabled = enabled
-        await interaction.response.send_message(content=text, ephemeral=True)
-
-    @test_group.command(name="emit", description="Emit a message to all subscribed users. With a desired feed.")
+    @test_group.command(name="announcement", description="Announce a message to all subscribed users.")
     @app_commands.describe(message = "A text file. This contains the message content.")
-    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None, feed: Literal["added", "modified", "removed", "announcements"] = None):
+    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None, feed: Literal["added", "modified", "removed", "announcements"] = None) : # type: ignore
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -58,11 +48,13 @@ class TestCog(commands.Cog):
 
         # Send a test message to all subscribed users
         for subscribed_channel in all_channels:
-            channel: Union[discord.User, discord.TextChannel] = None
+            channel: discord.User | discord.TextChannel | None = None
             if subscribed_channel.type == 'user':
                 channel = self.bot.get_user(subscribed_channel.id)
             else:
-                channel = self.bot.get_channel(subscribed_channel.id)
+                _channel = self.bot.get_channel(subscribed_channel.id)
+                if isinstance(_channel, discord.TextChannel):
+                    channel = _channel
 
             if feed:
                 if not (feed in subscribed_channel.events):
@@ -73,13 +65,15 @@ class TestCog(commands.Cog):
                 try:
                     if png:
                         png.seek(0)
-                    await channel.send(content=text_content, file=discord.File(png, filename=fname) if png else None)
+                        await channel.send(content=text_content, file=discord.File(png, filename=fname))
+                    else:
+                        await channel.send(content=text_content)
                 except Exception as e:
                     logging.warning(f"Error sending message to {subscribed_channel.type} {channel.mention}", exc_info=e)
             else:
                 logging.warning(f"{subscribed_channel.type} with ID {subscribed_channel.id} not found.")
                 
-        result_files = [discord.File(io.StringIO(text_content), "content.txt")]
+        result_files = [discord.File(io.BytesIO(text_content.encode('utf-8')), "content.txt")]
         if png: 
             png.seek(0)
             result_files.append(discord.File(png, filename=fname))
@@ -153,7 +147,7 @@ class TestCog(commands.Cog):
             return
 
         def check(m: discord.Message):
-            return (m.author.id in constants.BOT_OWNERS) and (m.channel.id == interaction.channel.id) and m.content == 'delete'
+            return (m.author.id in constants.BOT_OWNERS) and (interaction.channel is not None and m.channel.id == interaction.channel.id) and m.content == 'delete'
 
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
@@ -197,7 +191,7 @@ class TestCog(commands.Cog):
             return
             
         def check(m: discord.Message):
-            return (m.author.id in constants.BOT_OWNERS) and (m.channel.id == interaction.channel.id) and m.content == 'delete'
+            return (m.author.id in constants.BOT_OWNERS) and (interaction.channel is not None and m.channel.id == interaction.channel.id) and m.content == 'delete'
 
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
@@ -214,7 +208,7 @@ class TestCog(commands.Cog):
             return
         
         await interaction.response.defer()
-        await self.bot.analytics_task()
+        await self.bot.analytics_task() # type: ignore
         await interaction.edit_original_response(content="Analytics have been run.")
 
     @test_group.command(name="server_list_csv", description="Get all guilds joined as a csv file")
@@ -230,7 +224,7 @@ class TestCog(commands.Cog):
         for guild in guilds:
             csv += f"{guild.id},{guild.name},{guild.member_count},{guild.me.joined_at}\n"
 
-        await interaction.edit_original_response(content="", attachments=[discord.File(io.StringIO(csv), "servers.csv")])
+        await interaction.edit_original_response(content="", attachments=[discord.File(io.BytesIO(csv.encode()), "servers.csv")])
 
     @test_group.command(name="leave_guild", description="Leave a guild")
     @app_commands.describe(guild_id = "The ID of the guild to leave")
@@ -240,6 +234,10 @@ class TestCog(commands.Cog):
             return
         
         guild = self.bot.get_guild(guild_id)
+        if not guild:
+            await interaction.response.send_message(content=f"Guild with ID {guild_id} not found.", ephemeral=True)
+            return
+        
         await guild.leave()
         await interaction.edit_original_response(content=f"Successfully left {guild.name} (`{guild.id}`)")
 
@@ -250,15 +248,15 @@ class TestCog(commands.Cog):
             return
         
         text = "Tasks debug"
-        check: tasks.Loop = self.bot.utility_loop_task
+        check: tasks.Loop = self.bot.utility_loop_task # type: ignore
         text += f"\nUtility: \n{check.minutes = }m\n{check.is_running() = }\n{check.current_loop = }"
-        activity: tasks.Loop = self.bot.activity_task
+        activity: tasks.Loop = self.bot.activity_task # type: ignore
         text += f"\nActivity: \n{activity.minutes = }m\n{activity.is_running() = }\n{activity.current_loop = }"
-        analytic: tasks.Loop = self.bot.analytic_loop
+        analytic: tasks.Loop = self.bot.analytic_loop # type: ignore
         text += f"\nAnalytic: \n{analytic.minutes = }m\n{analytic.is_running() = }\n{analytic.current_loop = }"
-        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session
+        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session # type: ignore
         text += f"\nOauth Refresh: \n{oauth_refresh.seconds = }s\n{oauth_refresh.is_running() = }\n{oauth_refresh.current_loop = }"
-        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session
+        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session # type: ignore
         text += f"\nOauth Verify: \n{oauth_verify.seconds = }s\n{oauth_verify.is_running() = }\n{oauth_verify.current_loop = }"
         
         await interaction.response.send_message(content=text)
@@ -289,7 +287,7 @@ class TestCog(commands.Cog):
         await interaction.response.send_message(content=f"Task \"{task}\" stopped")
 
     @test_group.command(name="start_task", description="Start a task")
-    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
+    async def start_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -314,7 +312,7 @@ class TestCog(commands.Cog):
         await interaction.response.send_message(content=f"Task \"{task}\" started")
 
     @test_group.command(name="restart_task", description="Restart a task (only reinitates it, doesnt start it if cancelled)")
-    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
+    async def restart_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -337,7 +335,7 @@ class TestCog(commands.Cog):
         await interaction.response.send_message(content=f"Task \"{task}\" restarted")
 
     @test_group.command(name="error", description="Invoke an error")
-    async def stop_task(self, interaction: discord.Interaction):
+    async def error(self, interaction: discord.Interaction):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
@@ -402,7 +400,7 @@ class TestCog(commands.Cog):
         ini += f'delay = \n'
         ini += f'loading_phrase = \n'
 
-        await interaction.edit_original_response(attachments=[discord.File(io.StringIO(ini), 'song.ini')])
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(ini.encode()), 'song.ini')])
 
     @test_group.command(name="logdump", description="Get the last 100 lines of the log file")
     async def logdump(self, interaction: discord.Interaction):
@@ -415,7 +413,7 @@ class TestCog(commands.Cog):
         with open('cache/logs/FESTIVALTRACKERLOGS_V3.log', 'r', encoding='utf-8') as f:
             lines = f.readlines()[-100:]
 
-        await interaction.edit_original_response(attachments=[discord.File(io.StringIO(''.join(lines)), 'log.txt')])
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(''.join(lines).encode()), 'log.txt')])
 
     @test_group.command(name="isrc", description="Get the spotify link from an isrc query")
     async def isrc(self, interaction: discord.Interaction, isrc: str):
