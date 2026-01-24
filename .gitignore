@@ -51,3 +51,4 @@ bot/data/Binaries/Linux/CHOpt/
 bot/data/Binaries/Linux/FFmpeg/
 bot/data/Binaries/Windows/CHOpt/
 bot/data/Binaries/Windows/FFmpeg/
+.env

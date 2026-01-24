@@ -401,7 +401,7 @@ class ButtonedView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Instrument:
-    def __init__(self, english:str = "Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True, path_enabled: bool = True) -> None:
+    def __init__(self, english:str = "Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True, path_enabled: bool = True, emoji: str = None) -> None:
         """Creates an instrument, for easier internal handling.
 
         Properties:
@@ -422,9 +422,10 @@ class Instrument:
         self.replace = replace
         self.lb_enabled = lb_enabled
         self.path_enabled = path_enabled
+        self.emoji = emoji
 
     def __str__(self) -> str:
-        return f"Instrument({self.english=}, {self.lb_code=}, {self.plastic=}, {self.chopt=}, {self.midi=}, {self.replace=}, {self.lb_enabled=})".replace('self.', '')
+        return f"Instrument({self.english=}, {self.lb_code=}, {self.plastic=}, {self.chopt=}, {self.midi=}, {self.replace=}, {self.lb_enabled=}, {self.path_enabled=}, {self.emoji=})".replace('self.', '')
     
 class Difficulty:
     def __init__(self, english:str = "Expert", chopt:str = "expert", pitch_ranges = [96, 100], diff_4k:bool = False) -> None:
@@ -479,14 +480,14 @@ class ModeType:
         return f"ModeType({self.english=}, {self.code=})".replace('self.', '')
 
 class Instruments(enum.Enum):
-    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR")
-    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS")
-    ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", replace="PART DRUMS", lb_enabled=False)
-    ProVocals = Instrument(english="Pro Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=False, path_enabled=False)
-    Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS")
-    Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR")
-    Drums = Instrument(english="Drums", lb_code="Solo_Drums", chopt="drums", midi="PART DRUMS")
-    Vocals = Instrument(english="Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS")
+    Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR", emoji="<:guitar:1327742677856420003>")
+    Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS", emoji="<:bass:1327742687025168555>")
+    Drums = Instrument(english="Drums", lb_code="Solo_Drums", chopt="drums", midi="PART DRUMS", emoji="<:drums:1327742563762835598>")
+    Vocals = Instrument(english="Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS", emoji="<:vocals:1327742697695350936>")
+    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR", emoji="<:proguitar:1327742543571583179>")
+    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS", emoji="<:probass:1327742553558093858>")
+    ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", replace="PART DRUMS", lb_enabled=False, emoji="<:prodrums:1464755636796526776>")
+    ProVocals = Instrument(english="Pro Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=False, path_enabled=False, emoji="<:provocals:1464755018052931708>")
 
     # The @classmethod decorator just works!
     @classmethod
