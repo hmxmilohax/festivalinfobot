@@ -74,8 +74,9 @@ class PathCommandHandler():
 
         return sum_phrases, sum_overlaps
 
-    async def handle_interaction(self, interaction:discord.Interaction, song:str, instrument:constants.Instruments, extra_args:list, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
-        await interaction.response.defer()
+    async def handle_interaction(self, interaction:discord.Interaction, song:str, instrument:constants.Instruments, extra_args:list[bool], squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
+        if not interaction.response.is_done():
+            await interaction.response.defer()
 
         extra_arguments = []
         field_argument_descriptors = []
@@ -159,13 +160,24 @@ class PathCommandHandler():
 
         if os.path.exists(os.path.join(constants.TEMP_FOLDER, output_image)):
             file = discord.File(os.path.join(constants.TEMP_FOLDER, output_image), filename=output_image)
-            embed = discord.Embed(
-                title=f"Path for **{track_title}** - *{artist_title}*",
-                description=description,
-                colour=constants.ACCENT_COLOUR
-            )
-            embed.add_field(name="CHOpt output", value=f"```{filtered_output}```", inline=False)
 
+            container = discord.ui.Container()
+            container.accent_colour = constants.ACCENT_COLOUR
+            
+            container.add_item(
+                discord.ui.Section(
+                    discord.ui.TextDisplay("# Path"),
+                    discord.ui.TextDisplay(f"**{track_title}** - *{artist_title}*"),
+                    discord.ui.TextDisplay(description),
+                    accessory=discord.ui.Thumbnail(album_art_url)
+                )
+            )
+            # container.add_item()
+            container.add_item(discord.ui.Separator())
+
+            # container.add_item(discord.ui.TextDisplay(""))
+
+            # container.add_item(discord.ui.Separator())
             acts = filtered_output.split('\n')[0].replace('Path: ', '').split('-')
             total_acts = len(acts)
             phrases, overlaps = self.process_acts(acts)
@@ -173,16 +185,51 @@ class PathCommandHandler():
             no_sp_score = filtered_output.split('\n')[1].split(' ').pop()
             total_score = filtered_output.split('\n')[2].split(' ').pop()
 
-            embed.add_field(name="Phrases", value=phrases)
-            embed.add_field(name="Activations", value=total_acts)
-            embed.add_field(name="Overlaps", value=overlaps)
-            embed.add_field(name="No OD Score", value=no_sp_score)
-            embed.add_field(name="Total Score", value=total_score)
-            embed.set_footer(text="Festival Tracker")
+            stats_text = f"**Phrases:** {phrases}\n**Activations:** {total_acts}\n**Overlaps:** {overlaps}\n**No OD Score:** {no_sp_score}\n**Total Score:** {total_score}"
+            # container.add_item(
 
-            embed.set_image(url=f"attachment://{output_image}")
-            embed.set_thumbnail(url=album_art_url)
-            await interaction.edit_original_response(embed=embed, attachments=[file])
+            container.add_item(discord.ui.Section(
+                discord.ui.TextDisplay(stats_text),
+                accessory=discord.ui.Thumbnail(f'attachment://{output_image}')
+            ))
+
+            container.add_item(discord.ui.TextDisplay(f"CHOpt Output\n```{filtered_output}```"))
+
+            instrument_drop_down = discord.ui.Select()
+            for instrument in constants.Instruments.__members__.values():
+                if instrument.value.path_enabled:
+                    instrument_drop_down.add_option(
+                        label=instrument.value.english,
+                        value=instrument.value.lb_code,
+                        emoji=instrument.value.emoji,
+                        default=(instrument.value.lb_code == chosen_instrument.lb_code)
+                    )
+
+            async def on_select(new_interaction: discord.Interaction):
+                if interaction.user.id != new_interaction.user.id:
+                    await new_interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+                    return
+
+                new_selected_instrument = None
+                for instr in constants.Instruments.__members__.values():
+                    if instr.value.lb_code == instrument_drop_down.values[0]:
+                        new_selected_instrument = instr
+                        break
+
+                await self.handle_interaction(new_interaction, song, new_selected_instrument, extra_args, squeeze_percent, difficulty)
+            instrument_drop_down.callback = on_select
+
+            action_row = discord.ui.ActionRow(instrument_drop_down)
+
+            container.add_item(action_row)
+
+            container.add_item(discord.ui.Separator())
+            container.add_item(discord.ui.TextDisplay("-# Festival Tracker"))
+    
+            view = discord.ui.LayoutView()
+            view.add_item(container)
+
+            await interaction.edit_original_response(view=view, attachments=[file])
         else:
             await interaction.edit_original_response(embed=constants.common_error_embed(f"Failed to generate the path image for '{track_title}'."))
 
