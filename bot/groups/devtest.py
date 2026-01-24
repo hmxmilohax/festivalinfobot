@@ -1,4 +1,6 @@
 import asyncio
+import time
+import cloudscraper
 import discord.ext.tasks as tasks
 import io
 import logging
@@ -7,6 +9,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import requests
+from bs4 import BeautifulSoup
 
 from bot import constants, database
 from bot.tools.oauthmanager import OAuthManager
@@ -468,7 +471,6 @@ class TestCog(commands.Cog):
         f.close()
 
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(data), 'subscriptions.db')])
-
     @test_group.command(name="pm", description="Send a private message to a user")
     async def pm(self, interaction: discord.Interaction, user_id: str, message: discord.Attachment):
         if not (interaction.user.id in constants.BOT_OWNERS):
@@ -495,3 +497,120 @@ class TestCog(commands.Cog):
         except Exception as e:
             logging.warning(f"Error sending message to User {user.mention}", exc_info=e)
             await interaction.edit_original_response(content=f"Failed to send message to {user.mention}")
+
+    @test_group.command(name="bestsellers", description="Get the best selling Jam Tracks for all countries")
+    async def bestsellers(self, interaction: discord.Interaction):
+        embed = discord.Embed(colour=0xfcba03, title="Processing...")
+        embed.add_field(name="Status", value="Starting...", inline=False)
+
+        await interaction.response.send_message(embed=embed)
+
+        client = cloudscraper.create_scraper()
+
+        url = "https://fortnite.gg/shop?bestsellers"
+        print( f"[GET] {url} ")
+        response = client.get(url)
+        html_content = response.text
+
+        soup = BeautifulSoup(html_content, 'html.parser')
+        country_select = soup.find('select', {'id': 'country'})
+        options = country_select.find_all('option')
+
+        countries_kv = {}
+        for option in options:
+            if option['value'] == '':
+                continue
+
+            country_code = option['value']
+            country_name = option.text.strip()
+            countries_kv[country_code] = country_name
+
+        country_data = {}
+        total_countries = len(countries_kv)
+
+        last_update_time = time.time()
+
+        for index, (country_code, country_name) in enumerate(countries_kv.items()):
+            country_url = f"{url}&country={country_code}"
+            try:
+                print(f"[GET] {country_url}")
+                response = client.get(country_url)
+                country_data[country_code] = response.text
+            except Exception as e:
+                logging.warning(f"Error fetching country {country_name}", exc_info=e)
+
+            cooldown = 1  # seconds
+
+            if time.time() > (last_update_time + cooldown):  # Update embed every 3 countries
+                percentage = int((index / total_countries) * 100)
+                embed.clear_fields()
+                embed.add_field(name="Status", value=f"Fetching {country_name}...", inline=False)
+                embed.add_field(name="Progress", value=f"{percentage}% ({index}/{total_countries})", inline=False)
+                await interaction.edit_original_response(embed=embed)
+                last_update_time = time.time()
+
+        embed.clear_fields()
+        embed.add_field(name="Status", value="Complete", inline=False)
+        embed.add_field(name="Countries Processed", value=f"{total_countries}", inline=False)
+        await interaction.edit_original_response(embed=embed)
+
+        print(f"[GET] https://fortnite.gg/api/items.json")
+        fngg_items = requests.get('https://fortnite.gg/api/items.json')
+        # this is a dictionary
+        fngg_items_json = fngg_items.json()
+
+        def is_jam_track(item_id: str) -> tuple[bool, str]:
+            if item_id not in fngg_items_json.values():
+                return False, ""
+
+            for real_id, mapped_id in fngg_items_json.items():
+                if mapped_id == item_id:
+                    if real_id.startswith('SID_Placeholder_'):
+                        return True, real_id
+
+            return False, ""
+        
+        jamtrack_bestellers = {}
+
+        for country_code, data in country_data.items():
+            country_name = countries_kv[country_code]
+            
+            country_html = data
+            soup = BeautifulSoup(country_html, 'html.parser')
+            country_bestselling_items = soup.find_all('div', {'class': 'fn-item'})
+            for index, item in enumerate(country_bestselling_items):
+                item_fngg_id = item.find('a', {'class': 'fn-item-wrap'})['data-id']
+                is_jam, jam_track_id = is_jam_track(item_fngg_id)
+                if is_jam:
+                    # print(f"Country {country_name} has Jam Track {jam_track_id} as bestseller rank {index + 1}")
+                    if jam_track_id not in jamtrack_bestellers:
+                        jamtrack_bestellers[jam_track_id] = []
+
+                    jamtrack_bestellers[jam_track_id].append({
+                        'country_code': country_code,
+                        'country_name': country_name,
+                        'rank': index + 1
+                    })
+
+        all_jam_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=300)
+
+        # final embed
+        embed = discord.Embed(colour=constants.ACCENT_COLOUR, title="Jam Track Bestsellers")
+        for jam_track_id, appearances in jamtrack_bestellers.items():
+            track_info = discord.utils.find(lambda t: t['track']['ti'] == f'SparksSong:{jam_track_id.lower()}', all_jam_tracks)
+            if not track_info:
+                continue
+
+            track_name = track_info['track']['tt']
+            artist_name = track_info['track']['an']
+
+            appearance_text = ''
+            for appearance in appearances:
+                r = appearance['rank']
+                suffix = "tsnrhtdd"[((r//10%10!=1)*(r%10<4)*r%10)::4]
+
+                appearance_text += f"\n- {appearance['country_name']}: {appearance['rank']}{suffix}"
+
+            embed.add_field(name=f"**{track_name}** - *{artist_name}*", value=appearance_text, inline=False)
+
+        await interaction.edit_original_response(embed=embed)
