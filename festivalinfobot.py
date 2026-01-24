@@ -37,7 +37,7 @@ from bot.setlists import SetlistHandler
 from bot.tools.subscriptionmanager import SubscriptionManager
 from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
-from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler, ProVocalsHandler
+from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.tools.graph import GraphCommandsHandler
 from bot.mix import MixHandler
 from bot.tools.oauthmanager import OAuthManager
@@ -272,7 +272,6 @@ class FestivalTracker(commands.AutoShardedBot):
         self.history_handler = HistoryHandler(self)
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
-        self.pro_vocals_handler = ProVocalsHandler(self)
         self.mix_handler = MixHandler()
         self.wishlist_handler = WishlistManager(self)
         self.setlist_handler = SetlistHandler(self)
@@ -582,7 +581,31 @@ class FestivalTracker(commands.AutoShardedBot):
 
             embed.add_field(name="Epic Games", value=f"**{len(epic)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
-            provocals_data = self.pro_vocals_handler.get_pro_vocals_counts()
+            def get_pro_vocals_counts() -> tuple[list, list, list]:
+                tracks = constants.get_jam_tracks(use_cache=True)
+
+                all_midi = [{'mid': f'{track['track']['mu'].split('/')[3].split('.')[0]}.mid', 'sn': track['track']['sn']} for track in tracks]
+                missing_midi = []
+
+                songs_with_pro_vocals = []
+                songs_without_pro_vocals = []
+
+                for t in all_midi:
+                    midi = t['mid']
+                    if not os.path.exists(constants.MIDI_FOLDER + midi):
+                        missing_midi.append(midi)
+                    else:
+                        mid = open(constants.MIDI_FOLDER + midi, 'rb')
+                        pro_vocals_track = b'PRO VOCALS' in mid.read() # the easiest way
+                        mid.close()
+                        if pro_vocals_track:
+                            songs_with_pro_vocals.append(t)
+                        else:
+                            songs_without_pro_vocals.append(t)
+
+                return (songs_with_pro_vocals, songs_without_pro_vocals, missing_midi)
+
+            provocals_data = get_pro_vocals_counts()
 
             songs_with, songs_without, missing_midi = provocals_data
             percentage = round((len(songs_with) / len(track_list)) * 100, 2)

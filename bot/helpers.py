@@ -529,30 +529,3 @@ class GamblingHandler:
 
         await re_roll()
 
-class ProVocalsHandler:
-    def __init__(self, bot) -> None:
-        self.bot = bot
-
-    def get_pro_vocals_counts(self):
-        tracks = constants.get_jam_tracks(use_cache=True)
-
-        all_midi = [{'mid': f'{track['track']['mu'].split('/')[3].split('.')[0]}.mid', 'sn': track['track']['sn']} for track in tracks]
-        missing_midi = []
-
-        songs_with_pro_vocals = []
-        songs_without_pro_vocals = []
-
-        for t in all_midi:
-            midi = t['mid']
-            if not os.path.exists(constants.MIDI_FOLDER + midi):
-                missing_midi.append(midi)
-            else:
-                mid = open(constants.MIDI_FOLDER + midi, 'rb')
-                pro_vocals_track = b'PRO VOCALS' in mid.read() # the easiest way
-                mid.close()
-                if pro_vocals_track:
-                    songs_with_pro_vocals.append(t)
-                else:
-                    songs_without_pro_vocals.append(t)
-
-        return (songs_with_pro_vocals, songs_without_pro_vocals, missing_midi)
