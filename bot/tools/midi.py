@@ -99,7 +99,7 @@ class MidiArchiveTools:
 
         mid.tracks = new_tracks
 
-        output_folder = 'out'
+        output_folder = constants.MIDI_FOLDER
         midi_file_name = os.path.basename(midi_file)
         modified_midi_file_name = f"{shortname}_{session_hash}.mid"
         modified_midi_file = os.path.join(output_folder, modified_midi_file_name)
