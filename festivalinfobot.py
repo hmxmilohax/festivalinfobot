@@ -680,11 +680,21 @@ class FestivalTracker(commands.AutoShardedBot):
         @app_commands.describe(no_bpms = "If set to True, CHOpt will not draw BPMs.")
         @app_commands.describe(no_solos = "If set to True, CHOpt will not draw Solo Sections.")
         @app_commands.describe(no_time_signatures = "If set to True, CHOpt will not draw Time Signatures.")
-        async def path_command(interaction: discord.Interaction, song:str, instrument:constants.Instruments, difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
+        @app_commands.choices(
+            instrument=[
+                app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values()
+            ]
+        )
+        async def path_command(interaction: discord.Interaction, song:str, instrument:app_commands.Choice[str], difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
+
+            real_instrument: constants.Instruments = None
+            values = constants.Instruments.__members__.values()
+            real_instrument = discord.utils.find(lambda v: v.value.lb_code == instrument.value, values)
+
             await self.path_handler.handle_interaction(
                 interaction,
                 song=song,
-                instrument=instrument,
+                instrument=real_instrument,
                 squeeze_percent=squeeze_percent,
                 difficulty=difficulty,
                 extra_args=[
