@@ -229,6 +229,16 @@ class PathCommandHandler():
             view = discord.ui.LayoutView()
             view.add_item(container)
 
+            async def disable_view():
+                for item in action_row.children:
+                    item.disabled = True
+                try:
+                    await interaction.edit_original_response(view=view)
+                except Exception as e:
+                    logging.error(f"Failed to disable view:", exc_info=e)
+
+            view.on_timeout = disable_view
+
             await interaction.edit_original_response(view=view, attachments=[file])
         else:
             await interaction.edit_original_response(embed=constants.common_error_embed(f"Failed to generate the path image for '{track_title}'."))
