@@ -66,7 +66,7 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
             ),
             accent_colour=constants.ACCENT_COLOUR
         )
-        if len(attchs) > 1: 
+        if len(attchs) > 0: 
             container.add_item(discord.ui.MediaGallery(
                 *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in attchs]
             ))
