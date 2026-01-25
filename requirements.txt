@@ -8,3 +8,6 @@ pycryptodome
 pydub
 xmltodict
 numpy
+cloudscraper
+beautifulsoup4
+pycountry
