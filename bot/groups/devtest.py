@@ -10,6 +10,7 @@ from typing import List, Literal, Union
 import discord
 from discord import app_commands
 from discord.ext import commands
+import pycountry
 import requests
 from bs4 import BeautifulSoup
 
@@ -506,99 +507,68 @@ class TestCog(commands.Cog):
 
         await interaction.response.send_message(embed=embed)
 
-        client = cloudscraper.create_scraper()
-
-        url = "https://fortnite.gg/shop?bestsellers"
+        url = "https://cdn2.unrealengine.com/fn_bsdata/ebb74910-dd35-44b8-b826-d58dc16c6456.json"
         print( f"[GET] {url} ")
-        response = client.get(url)
-        html_content = response.text
+        response = requests.get(url)
+        bestsellers_data = response.json()
 
-        soup = BeautifulSoup(html_content, 'html.parser')
-        country_select = soup.find('select', {'id': 'country'})
-        options = country_select.find_all('option')
+        country_best_sellers = {}
 
-        countries_kv = {}
-        for option in options:
-            if option['value'] == '':
-                continue
+        for country, data in bestsellers_data.items():
+            if country.startswith('bestsellers_list_'): # is a country
+                offer_ids = data['offer_list']
+                country_code = country.replace('bestsellers_list_', '')
+                country_best_sellers[country_code] = offer_ids
 
-            country_code = option['value']
-            country_name = option.text.strip()
-            countries_kv[country_code] = country_name
+        total_countries = len(country_best_sellers)
 
-        country_data = {}
-        total_countries = len(countries_kv)
+        logging.debug(f'[GET] {constants.SHOP_API}')
+        headers = {
+            'Authorization': self.bot.oauth_manager.session_token
+        }
+        response = requests.get(constants.SHOP_API, headers=headers)
+        if response.status_code == 401 or response.status_code == 403:
+            self.bot.oauth_manager._create_token()
+            raise Exception('Please try again.')
+        
+        data = response.json()
 
-        last_update_time = time.time()
+        storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
+        shop_tracks = storefront['catalogEntries']
 
-        for index, (country_code, country_name) in enumerate(countries_kv.items()):
-            country_url = f"{url}&country={country_code}"
-            try:
-                print(f"[GET] {country_url}")
-                response = client.get(country_url)
-                country_data[country_code] = response.text
-            except Exception as e:
-                logging.warning(f"Error fetching country {country_name}", exc_info=e)
-
-            cooldown = 1  # seconds
-
-            if time.time() > (last_update_time + cooldown):  # Update embed every 3 countries
-                percentage = int((index / total_countries) * 100)
-                embed.clear_fields()
-                embed.add_field(name="Status", value=f"Fetching {country_name}...", inline=False)
-                embed.add_field(name="Progress", value=f"{percentage}% ({index}/{total_countries})", inline=False)
-                await interaction.edit_original_response(embed=embed)
-                last_update_time = time.time()
-
-        embed.clear_fields()
-        embed.add_field(name="Status", value="Complete", inline=False)
-        embed.add_field(name="Countries Processed", value=f"{total_countries}", inline=False)
-        await interaction.edit_original_response(embed=embed)
-
-        print(f"[GET] https://fortnite.gg/api/items.json")
-        fngg_items = requests.get('https://fortnite.gg/api/items.json')
-        # this is a dictionary
-        fngg_items_json = fngg_items.json()
-
-        def is_jam_track(item_id: str) -> tuple[bool, str]:
-            if item_id not in fngg_items_json.values():
-                return False, ""
-
-            for real_id, mapped_id in fngg_items_json.items():
-                if mapped_id == item_id:
-                    if real_id.startswith('SID_Placeholder_'):
-                        return True, real_id
-
-            return False, ""
+        # open('shop_data.json', 'w', encoding='utf-8').write(json.dumps(shop_tracks, indent=4))
         
         jamtrack_bestellers = {}
 
-        for country_code, data in country_data.items():
-            country_name = countries_kv[country_code]
-            
-            country_html = data
-            soup = BeautifulSoup(country_html, 'html.parser')
-            country_bestselling_items = soup.find_all('div', {'class': 'fn-item'})
-            for index, item in enumerate(country_bestselling_items):
-                item_fngg_id = item.find('a', {'class': 'fn-item-wrap'})['data-id']
-                is_jam, jam_track_id = is_jam_track(item_fngg_id)
-                if is_jam:
-                    # print(f"Country {country_name} has Jam Track {jam_track_id} as bestseller rank {index + 1}")
-                    if jam_track_id not in jamtrack_bestellers:
-                        jamtrack_bestellers[jam_track_id] = []
+        for country_code, data in country_best_sellers.items():
+            country_name = pycountry.countries.get(alpha_2=country_code).name
 
-                    jamtrack_bestellers[jam_track_id].append({
-                        'country_code': country_code,
-                        'country_name': country_name,
-                        'rank': index + 1
-                    })
+            for offer_id in data:
+                offer_info = discord.utils.find(lambda item: item['offerId'] == offer_id, shop_tracks)
+                if not offer_info:
+                    continue
+
+                jam_track_id = offer_info['meta']['templateId']
+                if not jam_track_id.startswith('SparksSong:'):
+                    continue
+
+                rank = data.index(offer_id) + 1
+
+                if jam_track_id not in jamtrack_bestellers:
+                    jamtrack_bestellers[jam_track_id] = []
+
+                jamtrack_bestellers[jam_track_id].append({
+                    'country_code': country_code,
+                    'country_name': country_name,
+                    'rank': rank
+                })
 
         all_jam_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=300)
 
         # final embed
         embed = discord.Embed(colour=constants.ACCENT_COLOUR, title="Jam Track Bestsellers")
         for jam_track_id, appearances in jamtrack_bestellers.items():
-            track_info = discord.utils.find(lambda t: t['track']['ti'] == f'SparksSong:{jam_track_id.lower()}', all_jam_tracks)
+            track_info = discord.utils.find(lambda t: t['track']['ti'] == jam_track_id, all_jam_tracks)
             if not track_info:
                 continue
 
