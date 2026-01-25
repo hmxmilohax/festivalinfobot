@@ -1,38 +1,33 @@
-# Use an official Python runtime as a parent image
-FROM python:3.12-slim
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies
-# ffmpeg: required for audio processing (fallback if local binary missing)
-# libgl1-mesa-glx: often required for Qt apps (like CHOpt) to run, even headlessly
 RUN apt-get update && apt-get install -y \
+    python3 python3-venv python3-pip \
     git \
     ffmpeg \
     libgl1 \
     libopengl0 \
     libegl1 \
     libglib2.0-0 \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure git to trust the /app directory (fixes "dubious ownership" error in Docker)
 RUN git config --global --add safe.directory /app
 
-# Copy the requirements file into the container at /app
-COPY requirements.txt ./
+# Create a virtual environment for pip installs (PEP 668-safe)
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Install any needed packages specified in requirements.txt
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the current directory contents into the container at /app
 COPY . .
 
-# Grant execution permissions to the Linux CHOpt script
-# Adjust the path if your structure is different, but this matches the user's setup
-RUN chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt.sh
-RUN chmod +x bot/data/Binaries/Linux/FFmpeg/bin/ffmpeg
-RUN chmod +x bot/data/Binaries/Linux/FFmpeg/bin/ffprobe
+RUN chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt.sh \
+ && chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt \
+ && chmod +x bot/data/Binaries/Linux/FFmpeg/bin/ffmpeg \
+ && chmod +x bot/data/Binaries/Linux/FFmpeg/bin/ffprobe
 
-# Run the bot
 CMD ["python", "festivalinfobot.py"]
