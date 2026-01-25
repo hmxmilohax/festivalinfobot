@@ -1,4 +1,6 @@
 import asyncio
+import json
+import os
 import time
 import cloudscraper
 import discord.ext.tasks as tasks
@@ -12,6 +14,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from bot import constants, database
+from bot.tools.midi import MidiArchiveTools
 from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
@@ -612,3 +615,28 @@ class TestCog(commands.Cog):
             embed.add_field(name=f"**{track_name}** - *{artist_name}*", value=appearance_text, inline=False)
 
         await interaction.edit_original_response(embed=embed)
+
+    @test_group.command(name="pro_vocals_json", description="Get all pro vocals songs as a JSON array")
+    async def pro_vocals_json(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=300)
+        midi_tool = MidiArchiveTools()
+
+        filtered_tracks = []
+        for track in tracks:
+            midi_url = track['track'].get('mu', '')
+            if midi_url:
+                midi_file = await midi_tool.save_chart(track['track']['mu'])
+                if os.path.exists(midi_file):
+                    with open(midi_file, 'rb') as mf:
+                        if b'PRO VOCALS' in mf.read():
+                            filtered_tracks.append(track)
+
+        tracks = filtered_tracks
+
+        track_list_json = []
+        for track in tracks:
+            track_list_json.append(track['track']['sn'])
+        
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(json.dumps(track_list_json, indent=4).encode()), 'pro_vocals_tracks.json')])
