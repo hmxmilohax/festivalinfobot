@@ -12,7 +12,6 @@ from bot import constants, database
 from bot.tools.oauthmanager import OAuthManager
 from bot.views.suggestions import SuggestionModal
 from bot.tracks import JamTrackHandler
-from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 
 class SubscriptionManager():
     def __init__(self, bot: commands.Bot):

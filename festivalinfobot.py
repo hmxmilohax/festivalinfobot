@@ -28,18 +28,18 @@ from bot.groups.devtest import TestCog
 from bot.groups.random import RandomCog
 from bot.database import Config
 from bot.history import HistoryHandler, LoopCheckHandler
-from bot.leaderboard import LeaderboardCommandHandler
-from bot.path import PathCommandHandler
+from bot.commands.leaderboard import LeaderboardCommandHandler
+from bot.commands.path import PathCommandHandler
 from bot.views.suggestions import SuggestionModal
 from bot.tools.lyrics import LyricsHandler
 from bot.views.previewpersist import PreviewButton
-from bot.setlists import SetlistHandler
+from bot.commands.setlists import SetlistHandler
 from bot.tools.subscriptionmanager import SubscriptionManager
 from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.tools.graph import GraphCommandsHandler
-from bot.mix import MixHandler
+from bot.commands.mix import MixHandler
 from bot.tools.oauthmanager import OAuthManager
 
 import traceback

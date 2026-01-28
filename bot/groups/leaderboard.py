@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 
 from bot import constants, database
-from bot.leaderboard import LeaderboardCommandHandler
+from bot.commands.leaderboard import LeaderboardCommandHandler
 
 class LeaderboardCog(commands.Cog):
     def __init__(self, bot: commands.Bot):

@@ -18,7 +18,6 @@ from bot import constants, database
 from bot.tools.midi import MidiArchiveTools
 from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
-from bot.leaderboard import LeaderboardPaginatorView, BandLeaderboardView, AllTimeLeaderboardView
 
 # jnack and tpose's personal commands
 class TestCog(commands.Cog):
