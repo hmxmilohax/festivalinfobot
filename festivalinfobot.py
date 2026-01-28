@@ -31,7 +31,7 @@ from bot.history import HistoryHandler, LoopCheckHandler
 from bot.commands.leaderboard import LeaderboardCommandHandler
 from bot.commands.path import PathCommandHandler
 from bot.views.suggestions import SuggestionModal
-from bot.tools.lyrics import LyricsHandler
+from bot.commands.lyrics import LyricsHandler
 from bot.views.previewpersist import PreviewButton
 from bot.commands.setlists import SetlistHandler
 from bot.tools.subscriptionmanager import SubscriptionManager
