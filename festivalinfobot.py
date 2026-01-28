@@ -38,7 +38,6 @@ from bot.tools.subscriptionmanager import SubscriptionManager
 from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
-from bot.tools.graph import GraphCommandsHandler
 from bot.commands.mix import MixHandler
 from bot.tools.oauthmanager import OAuthManager
 
