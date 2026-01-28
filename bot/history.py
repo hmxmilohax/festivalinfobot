@@ -20,7 +20,7 @@ from bot import database
 from bot.database import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
 from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
 from bot.tools.midi import MidiArchiveTools
-from bot.tools import history as history_tools
+from bot.views import history_views as history_tools
 from bot.views.previewpersist import PreviewButton
 from bot.views.wishlistpersist import WishlistButton
 from bot.tracks import JamTrackHandler

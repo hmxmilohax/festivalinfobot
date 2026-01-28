@@ -4,7 +4,7 @@ import discord
 from discord.ext import commands
 
 from bot import constants, database
-from bot.tools.graph import GraphCommandsHandler, GraphingFuncs
+from bot.tools.graph import GraphingFuncs
 from bot.tools.midi import MidiArchiveTools
 from bot.tracks import JamTrackHandler
 from bot import constants as const
