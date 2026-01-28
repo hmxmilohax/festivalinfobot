@@ -7,13 +7,11 @@ from discord.ext import commands
 import requests
 
 from bot import constants
-from bot.commands.status import StatusHandler
 from bot.tools.oauthmanager import OAuthManager
 
 class FortniteCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.lightswitch_handler = StatusHandler(bot)
         self.oauth: OAuthManager = bot.oauth_manager
 
     fortnite_group = app_commands.Group(name="festival", description="Festival Commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
