@@ -707,17 +707,19 @@ class FestivalTracker(commands.AutoShardedBot):
                 app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values()
             ]
         )
-        async def path_command(interaction: discord.Interaction, song:str, instrument:app_commands.Choice[str], difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
+        async def path_command(interaction: discord.Interaction, song:str, instrument:app_commands.Choice[str], difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: str = '20', lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
 
             real_instrument: constants.Instruments = None
             values = constants.Instruments.__members__.values()
             real_instrument = discord.utils.find(lambda v: v.value.lb_code == instrument.value, values)
 
+            real_squeeze_percent = int(squeeze_percent)
+
             await self.path_handler.handle_interaction(
                 interaction,
                 song=song,
                 instrument=real_instrument,
-                squeeze_percent=squeeze_percent,
+                squeeze_percent=real_squeeze_percent,
                 difficulty=difficulty,
                 extra_args=[
                     lefty_flip,
@@ -727,6 +729,24 @@ class FestivalTracker(commands.AutoShardedBot):
                     no_time_signatures
                 ]
             )
+
+        @path_command.autocomplete('squeeze_percent')
+        async def autocomplete_callback(interaction: discord.Interaction, current: str):
+            # Do stuff with the "current" parameter, e.g. querying it search results...
+
+            if current == '':
+                return [
+                    app_commands.Choice(name='0%', value='0'),
+                    app_commands.Choice(name='20%', value='20'),
+                    app_commands.Choice(name='40%', value='40'),
+                    app_commands.Choice(name='60%', value='60'),
+                    app_commands.Choice(name='80%', value='80'),
+                    app_commands.Choice(name='100%', value='100')
+                ]
+            else:
+                return [
+                    app_commands.Choice(name=f'{current}%', value=current)
+                ]
 
         @self.tree.command(name="feedback", description="Suggest/give feedback to the Festival Tracker Devs")
         @app_commands.allowed_installs(guilds=True, users=True)

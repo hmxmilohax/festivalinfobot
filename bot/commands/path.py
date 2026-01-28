@@ -22,7 +22,7 @@ class PathCommandHandler():
             # Sir Reginald's Jolly Good Rock 'n' Roll Ensemble Extravaganza: The Third Installment of Harmonious Merriment and Musical Shenanigans
             # this guy is broken
 
-        script_dir = os.path.dirname(os.path.abspath(__file__))
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         if os.name == 'nt':
             chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Windows', 'CHOpt', 'CHOpt.exe')
