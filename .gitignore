@@ -52,3 +52,4 @@ bot/data/Binaries/Linux/FFmpeg/
 bot/data/Binaries/Windows/CHOpt/
 bot/data/Binaries/Windows/FFmpeg/
 .env
+restart_state.json
