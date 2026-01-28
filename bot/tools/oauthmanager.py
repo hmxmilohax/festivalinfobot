@@ -55,7 +55,7 @@ class OAuthManager:
             'token_type': 'eg1'
         }
         response = requests.post(url, headers=headers, data=data)
-        print(response.json())
+        # print(response.json())
         response.raise_for_status()
         self._session_data = response.json()
         self._access_token = self._session_data['access_token']
