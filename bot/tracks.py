@@ -98,7 +98,11 @@ class JamTrackHandler:
                 'frommetou'
             ],
             'oiia': ['oiiaoiia'],
-            'sky': ['sky']
+            'sky': ['sky'],
+            'fall guys': [
+                'fallguys', 
+                'crownjam'
+            ]
         }
 
         if search_term in custom_results.keys():
