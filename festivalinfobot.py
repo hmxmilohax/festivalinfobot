@@ -60,20 +60,23 @@ class FestivalTracker(commands.AutoShardedBot):
         logging.debug(f"Registering utility loop every {self.UTILITY_TASK_INTERVAL}min")
         @tasks.loop(minutes=self.UTILITY_TASK_INTERVAL)
         async def utility_task():
-            await self.wishlist_handler.handle_wishlists()
-            # self.check_handler.handle_task() is now a background task
-            # so it doesn't block the loop interval
+            try:
+                await self.wishlist_handler.handle_wishlists()
+                # self.check_handler.handle_task() is now a background task
+                # so it doesn't block the loop interval
 
-            # this can take over 90 minutes to complete
-            # so it is like this to allow this task loop to run exactly every minute
-            task = asyncio.create_task(self.check_handler.handle_task())
-            def _log_task_error(t):
-                try:
-                    t.result()
-                except Exception as e:
-                    logging.error("Error in utility_task execution:", exc_info=e)
-            
-            task.add_done_callback(_log_task_error)
+                # this can take over 90 minutes to complete
+                # so it is like this to allow this task loop to run exactly every minute
+                task = asyncio.create_task(self.check_handler.handle_task())
+                def _log_task_error(t):
+                    try:
+                        t.result()
+                    except Exception as e:
+                        logging.error("Error in utility_task execution:", exc_info=e)
+                
+                task.add_done_callback(_log_task_error)
+            except Exception as e:
+                logging.error('Utility task could not be finished', exc_info=e)
 
         self.utility_loop_task = utility_task
 
@@ -200,6 +203,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self.is_done_chunking = True
 
         if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
+            logging.debug("Starting utility loop task...")
             self.utility_loop_task.start()
 
         logging.debug("on_ready finished!")
