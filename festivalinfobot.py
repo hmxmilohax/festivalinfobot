@@ -194,7 +194,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
         for guild in self.guilds:
             if not guild.chunked:
-                await guild.chunk()
+                # await guild.chunk()
                 total_guilds_chunked += 1
 
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
