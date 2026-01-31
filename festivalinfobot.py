@@ -194,7 +194,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
         for guild in self.guilds:
             if not guild.chunked:
-                # await guild.chunk()
+                await guild.chunk()
                 total_guilds_chunked += 1
 
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
@@ -202,7 +202,7 @@ class FestivalTracker(commands.AutoShardedBot):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"{constants.tz()} Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
         self.is_done_chunking = True
 
-        if self.CHECK_FOR_NEW_SONGS and not self.utility_loop_task.is_running():
+        if not self.utility_loop_task.is_running():
             logging.debug("Starting utility loop task...")
             self.utility_loop_task.start()
 

@@ -2,9 +2,14 @@
 
 from datetime import datetime
 import json
+import os
 import requests
 
 from datetime import datetime
+
+import asyncio
+
+from bot.tools import midi
 
 def convert_to_unix(date_string):
     dt = datetime.strptime(date_string, "%Y-%m-%dT%H:%M:%SZ")
@@ -86,15 +91,44 @@ def main():
         print(f'[GET] {file_url}')
         track_data = get_track_array(file_url)
         
+        # rewrite: also rewind midi files
+        current_track_data = get_track_array('https://raw.githubusercontent.com/FNLookup/data/main/festival/spark-tracks.json')
+
+        track_data_only_chart_urls = set([song['track']['mu'] for song in track_data])
+        current_track_data_only_chart_urls = set([song['track']['mu'] for song in current_track_data])
+
+        new_urls = track_data_only_chart_urls - current_track_data_only_chart_urls
+        removed_urls = current_track_data_only_chart_urls - track_data_only_chart_urls
+
+        # compare and get different track objects
+
+        print(new_urls)
+        print(removed_urls)
+            
         open('known_tracks.json', 'w').write(json.dumps(track_data))
+        current_songs_data = [song['track']['sn'] for song in track_data]
+        open('known_songs.json', 'w').write(json.dumps(current_songs_data))
         print('Wrote successfully!')
 
-        rewind_choice = input('Rewind known_songs.json (shortnames) too? [y/anything] ')
-        if rewind_choice.lower().strip() == 'y':
-            current_songs_data = [song['track']['sn'] for song in track_data]
+        for url in removed_urls:
+            print('Saving MIDI and .dat for:', url)
+            midi_tool = midi.MidiArchiveTools()
+            asyncio.run(midi_tool.save_chart(url, decrypt=True, log=True))
 
-            open('known_songs.json', 'w').write(json.dumps(current_songs_data))
-            print('Wrote successfully!')
+        for url in new_urls:
+            # delete MIDI and .dat for removed tracks
+            print('Deleting MIDI and .dat for:', url)
+            fname = url.split('/')[-1].split('.')[0]
+            midiname = f"{fname}.mid"
+            encname = f"{fname}.dat"
+            local_path = os.path.join(midi.constants.MIDI_FOLDER, midiname)
+            local_enc_path = os.path.join(midi.constants.MIDI_FOLDER, encname)
+            if os.path.exists(local_path):
+                os.remove(local_path)
+                print('Removed', local_path)
+            if os.path.exists(local_enc_path):
+                os.remove(local_enc_path)
+                print('Removed', local_enc_path)
 
         print('Done')
     else:

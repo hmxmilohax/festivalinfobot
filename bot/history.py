@@ -574,7 +574,7 @@ class LoopCheckHandler():
             if channel_to_send.type == 'channel':
                 channel = self.bot.get_channel(channel_to_send.id)
                 if not channel:
-                    channel = self.bot.fetch_channel(channel_to_send.guild_id)
+                    channel = self.bot.fetch_channel(channel_to_send.id)
             elif channel_to_send.type == 'user':
                 channel = self.bot.get_user(channel_to_send.id)
                 if not channel:
