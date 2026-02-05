@@ -78,8 +78,9 @@ SEASONS = {
     10: 'season010',
     11: 'season011',
     12: 'season012',
+    13: 'season013'
 }
-SEASON_NUMBER = 12
+SEASON_NUMBER = 13
 
 keyart_config = ConfigParser()
 keyart_config.read('bot/data/KeyArt/KeyArtOptions.ini')
