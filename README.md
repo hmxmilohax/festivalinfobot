@@ -60,7 +60,7 @@ OR in `requirements.txt` file
 
 Festival Tracker is intended to run primarily on Windows, but it can run on Linux/Docker.
 
-    To run in Docker, use `docker-compose up -d --build`
+- To run in Docker, use `docker-compose up -d --build`
 
 You can create a virtual environment to run the bot in, but it is not required.
 

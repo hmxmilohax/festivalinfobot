@@ -11,3 +11,4 @@ numpy
 cloudscraper
 beautifulsoup4
 pycountry
+playwright

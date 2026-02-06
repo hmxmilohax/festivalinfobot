@@ -23,6 +23,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# install playwright deps
+RUN playwright install --with-deps chromium
+
 COPY . .
 
 RUN chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt.sh \

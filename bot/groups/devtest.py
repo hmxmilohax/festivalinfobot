@@ -19,6 +19,8 @@ from bot.tools.midi import MidiArchiveTools
 from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 
+from bot.tools.bestsellersrenderer import capture_renderer_screenshot
+
 # jnack and tpose's personal commands
 class TestCog(commands.Cog):
     def __init__(self, bot: constants.BotExt):
@@ -584,6 +586,18 @@ class TestCog(commands.Cog):
             embed.add_field(name=f"**{track_name}** - *{artist_name}*", value=appearance_text, inline=False)
 
         await interaction.edit_original_response(embed=embed)
+
+    @test_group.command(name="render_bestsellers", description="Render the bestsellers image")
+    @app_commands.describe(cols = "Number of columns (default 2)", width = "Width of the image in pixels (default 1920)", height = "Height of the image in pixels (default 1080)", paddingverticalpx = "Vertical padding in pixels (default 20)")
+    async def render_bestsellers(self, interaction: discord.Interaction, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20):
+        await interaction.response.defer()
+
+        output_path = await capture_renderer_screenshot(cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx)
+        if not output_path:
+            await interaction.edit_original_response(content="Rendering the bestsellers image timed out.")
+            return
+
+        await interaction.edit_original_response(attachments=[discord.File(output_path, 'bestsellers_renderer.png')])
 
     @test_group.command(name="pro_vocals_json", description="Get all pro vocals songs as a JSON array")
     async def pro_vocals_json(self, interaction: discord.Interaction):

@@ -1,6 +1,7 @@
 services:
   bot:
     build: .
+    ipc: host
     restart: unless-stopped
     volumes:
       - ./:/app
