@@ -573,19 +573,19 @@ class LoopCheckHandler():
         for channel_to_send in combined_channels:
             if channel_to_send.type == 'channel':
                 channel = self.bot.get_channel(channel_to_send.id)
-                if not channel:
-                    try:
-                        channel = await self.bot.fetch_channel(channel_to_send.id)
-                    except discord.NotFound:
-                        channel = None
-                    except discord.Forbidden:
-                        logging.warning(f"Forbidden to fetch channel {channel_to_send.id}, skipping.")
-                    except discord.HTTPException as e:
-                        logging.error(f"HTTPException when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
-                    except discord.InvalidData as e:
-                        logging.error(f"InvalidData when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
-                    except Exception as e:
-                        logging.error(f"Unexpected error when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
+                # if not channel:
+                #     try:
+                #         channel = await self.bot.fetch_channel(channel_to_send.id)
+                #     except discord.NotFound:
+                #         channel = None
+                #     except discord.Forbidden:
+                #         logging.warning(f"Forbidden to fetch channel {channel_to_send.id}, skipping.")
+                #     except discord.HTTPException as e:
+                #         logging.error(f"HTTPException when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
+                #     except discord.InvalidData as e:
+                #         logging.error(f"InvalidData when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
+                #     except Exception as e:
+                #         logging.error(f"Unexpected error when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
             elif channel_to_send.type == 'user':
                 channel = self.bot.get_user(channel_to_send.id)
                 if not channel:
