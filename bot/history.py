@@ -426,6 +426,7 @@ class LoopCheckHandler():
         self.history_handler = HistoryHandler(bot)
         self.midi_tools = MidiArchiveTools()
         self.jam_track_handler = JamTrackHandler()
+        self.last_best_sellers_hash: str = None
 
     async def handle_activity_task(self):
         tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
@@ -449,6 +450,14 @@ class LoopCheckHandler():
     async def handle_task(self):
         logging.info("Checking for new songs...")
         tracks = constants.get_jam_tracks() # no cache here
+
+        best_sellers_url = 'https://cdn2.unrealengine.com/fn_bsdata/ebb74910-dd35-44b8-b826-d58dc16c6456.json'
+        req = requests.get(best_sellers_url)
+        # generate hash of the content to check for changes
+        best_sellers_hash = hashlib.md5(req.content).hexdigest()
+        if self.last_best_sellers_hash != best_sellers_hash:
+            await self.bot.get_channel(1328386911743639662).send(f"Best Sellers response has changed\nOld hash: {self.last_best_sellers_hash}\nNew hash: {best_sellers_hash}\nLast Modified header: {req.headers.get('Last-Modified', 'N/A')}")
+            self.last_best_sellers_hash = best_sellers_hash
 
         if not tracks:
             # logging.error('Could not fetch tracks.')
