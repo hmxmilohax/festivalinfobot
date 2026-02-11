@@ -173,8 +173,10 @@ class JamTrackHandler:
     def get_spotify_link(self, isrc: str):
         if not self.bot:
             raise ValueError('Bot instance is required to get Spotify link.')
+        
+        normalized_isrc = isrc.lstrip().rstrip()
 
-        song_url = f'https://api.spotify.com/v1/search?q=isrc%3A{isrc}&type=track&limit=1&offset=0'
+        song_url = f'https://api.spotify.com/v1/search?q=isrc%3A{normalized_isrc}&type=track&limit=1&offset=0'
         client_token = self.bot.oauth_manager._spotify_access_token
         logging.debug(f'[GET] {song_url}')
         link = requests.get(song_url, headers={'Authorization': f'Bearer {client_token}'})
