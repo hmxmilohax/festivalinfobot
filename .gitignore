@@ -2,17 +2,17 @@
 channels.json
 backups/
 prefixes.json
+
 # configuration
 config.ini
-# tracking
 
 known_songs.json
 known_tracks.json
 
 # digital mistery
 fnf-midcrypt.py
-# folders
 
+# folders
 out
 json
 midi_files
@@ -34,6 +34,7 @@ logs
 # virtual enviroment
 ft_venv/
 
+# brand generation
 debug_frames/
 bot/tools/brand.py
 
@@ -47,9 +48,12 @@ CHOpt.exe
 Qt6Core.dll
 Qt6Gui.dll
 
+# new binaries
 bot/data/Binaries/Linux/CHOpt/
 bot/data/Binaries/Linux/FFmpeg/
 bot/data/Binaries/Windows/CHOpt/
 bot/data/Binaries/Windows/FFmpeg/
+
+# runtime vars
 .env
 restart_state.json

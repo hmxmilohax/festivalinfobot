@@ -589,10 +589,11 @@ class TestCog(commands.Cog):
 
     @test_group.command(name="render_bestsellers", description="Render the bestsellers image")
     @app_commands.describe(cols = "Number of columns (default 2)", width = "Width of the image in pixels (default 1920)", height = "Height of the image in pixels (default 1080)", paddingverticalpx = "Vertical padding in pixels (default 20)")
-    async def render_bestsellers(self, interaction: discord.Interaction, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20):
+    @app_commands.describe(auto = "Uses predetermined settings to generate the image. Overrides other parameters.")
+    async def render_bestsellers(self, interaction: discord.Interaction, auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20):
         await interaction.response.defer()
 
-        output_path = await capture_renderer_screenshot(cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx)
+        output_path = await capture_renderer_screenshot(auto=auto, cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx)
         if not output_path:
             await interaction.edit_original_response(content="Rendering the bestsellers image timed out.")
             return
