@@ -49,7 +49,7 @@ async def capture_renderer_screenshot(auto: bool = True, cols: int = 2, width: i
             initial_cbtype = "image"
 
         await page.expose_function("snapshot_ready", total_tracks_received_callback)
-        url = f"https://ftracker-ca-on-dev2.festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&stopalerts=1&callbacktype={initial_cbtype}"
+        url = f"https://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&stopalerts=1&callbacktype={initial_cbtype}"
         await page.goto(url)
 
         try:
