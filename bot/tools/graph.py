@@ -70,6 +70,7 @@ class GraphingFuncs():
         df = pd.DataFrame({'nps': notes_per_second}, index=seconds)
         ema = df['nps'].ewm(span=window_size, adjust=False).mean()
         fig = plt.figure(figsize=(10, 4))
+        ax = plt.gca() # get current axis
 
         img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
         fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
@@ -80,10 +81,10 @@ class GraphingFuncs():
         # Plot the EMA
         plt.plot(ema.index, ema.values, color='purple', linestyle='--', linewidth=1, label='EMA (Average)')
 
+        # max notes per second
         mxnps = plt.text(max_nps_second, max_nps, f'{max_nps}', color='red', fontsize=15, ha='center', va='bottom')
-
         mxnps.set_path_effects([
-            path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+            path_effects.Stroke(linewidth=5, foreground='white'), path_effects.Normal()
         ])
 
         plt.xlabel('Time (seconds)')
@@ -96,7 +97,10 @@ class GraphingFuncs():
 
         plt.legend()
 
-        fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
+        watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=0.5, transform=ax.transAxes)
+        watermark.set_path_effects([
+                    path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+                ])
 
         plt.tight_layout()
         plt.savefig(os.path.join(const.TEMP_FOLDER, path))
@@ -217,7 +221,10 @@ class GraphingFuncs():
         plt.ylabel('Number of Notes')
         plt.title(f'{song_artist} - {song_name}: Notes per lane ({diff.english} {inst.english})')
 
-        fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
+        watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=0.5, transform=ax.transAxes)
+        watermark.set_path_effects([
+                    path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+                ])
 
         plt.savefig(os.path.join(const.TEMP_FOLDER, spath))
 
@@ -312,7 +319,10 @@ class GraphingFuncs():
         add_bar_labels(rects3)
         add_bar_labels(rects4)
 
-        fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
+        watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=0.5, transform=ax.transAxes)
+        watermark.set_path_effects([
+                    path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+                ])
 
         # Display the graph
         # plt.tight_layout()
