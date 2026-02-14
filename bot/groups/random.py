@@ -5,6 +5,7 @@ import discord
 from discord.ext import commands
 
 from bot import constants, database
+from bot.embeds import SearchEmbedHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler
 
 class RandomCog(commands.Cog):
@@ -14,6 +15,7 @@ class RandomCog(commands.Cog):
 
         self.daily_handler = DailyCommandHandler(bot)   
         self.shop_handler = ShopCommandHandler(bot)
+        self.search_embed_handler = SearchEmbedHandler()
 
     random_cog = app_commands.Group(name="random", description="Random Commands", allowed_contexts=discord.app_commands.AppCommandContext(guild=True, dm_channel=True, private_channel=True), allowed_installs=discord.app_commands.AppInstallationType(guild=True, user=True))
 
