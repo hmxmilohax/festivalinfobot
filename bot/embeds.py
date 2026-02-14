@@ -230,7 +230,7 @@ class SearchEmbedHandler:
 
         pro_vocals_supported_indicator = ' · Pro Vocals Supported' if (has_pro_vocals and not is_detail) else ''
 
-        embed.set_footer(text=f"ESRB: {rating_description}{pro_vocals_supported_indicator} · Festival Tracker", icon_url=f"https://www.globalratings.com/images/ESRB_{rating}_68.png")
+        embed.set_footer(text=f"ESRB: {rating_description}{pro_vocals_supported_indicator} · Festival Tracker", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         
         embed.set_thumbnail(url=track['au'])
         
