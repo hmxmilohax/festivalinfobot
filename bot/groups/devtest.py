@@ -542,7 +542,11 @@ class TestCog(commands.Cog):
         jamtrack_bestellers = {}
 
         for country_code, data in country_best_sellers.items():
-            country_name = pycountry.countries.get(alpha_2=country_code).name
+            country_name = ""
+            try:
+                country_name = pycountry.countries.get(alpha_2=country_code).name
+            except Exception as e:
+                country_name = f'Invalid({country_code})'
 
             for offer_id in data:
                 offer_info = discord.utils.find(lambda item: item['offerId'] == offer_id, shop_tracks)
@@ -588,12 +592,12 @@ class TestCog(commands.Cog):
         await interaction.edit_original_response(embed=embed)
 
     @test_group.command(name="render_bestsellers", description="Render the bestsellers image")
-    @app_commands.describe(cols = "Number of columns (default 2)", width = "Width of the image in pixels (default 1920)", height = "Height of the image in pixels (default 1080)", paddingverticalpx = "Vertical padding in pixels (default 20)")
+    @app_commands.describe(cols = "Number of columns (default 2)", width = "Width of the image in pixels (default 1920)", height = "Height of the image in pixels (default 1080)", paddingverticalpx = "Vertical padding in pixels (default 20)", paddinghorizontal = "Horizontal padding in pixels (default 0)", textsize = "Text size in pixels (default 24)", infopadding = "Info padding in pixels (default 10)")
     @app_commands.describe(auto = "Uses predetermined settings to generate the image. Overrides other parameters.")
-    async def render_bestsellers(self, interaction: discord.Interaction, auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20):
+    async def render_bestsellers(self, interaction: discord.Interaction, auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20, paddinghorizontal: int = 0, textsize: int = 24, infopadding: int = 10):
         await interaction.response.defer()
 
-        output_path = await capture_renderer_screenshot(auto=auto, cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx)
+        output_path = await capture_renderer_screenshot(auto=auto, cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx, paddinghorizontal=paddinghorizontal, textsize=textsize, infopadding=infopadding)
         if not output_path:
             await interaction.edit_original_response(content="Rendering the bestsellers image timed out.")
             return

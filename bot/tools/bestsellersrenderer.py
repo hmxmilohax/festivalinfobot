@@ -11,24 +11,28 @@ from bot import constants
 def get_track_number_config_url(total_tracks: int):
     host = "festivaltracker.org"
     base_url = f"https://{host}/5604c25f39614cbb_do_not_index-bestsellers-img-generator"
-    params: str = ""
+    params: str = "?stopalerts=1&callbacktype=image"
 
     if total_tracks == 1:
-        params = "?gridcols=1&paddinghorizontal=300&paddingvertical=100&textsize=50&infopadding=30"
+        params += "&gridcols=1&paddinghorizontal=300&paddingvertical=100&textsize=50&infopadding=30"
     elif total_tracks == 2:
-        params = "?gridcols=2&textsize=40&infopadding=30&paddingvertical=50"
+        params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=50"
     elif total_tracks == 3:
-        params = "?gridcols=2&textsize=40&infopadding=30&paddingvertical=70&height=1300"
+        params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=70&height=1300"
     elif total_tracks == 4:
-        params = "?gridcols=2&textsize=40&infopadding=30&height=1300&paddingvertical=70"
+        params += "&gridcols=2&textsize=40&infopadding=30&height=1300&paddingvertical=70"
     elif total_tracks == 5 or total_tracks == 6:
-        params = "?gridcols=3&textsize=30&infopadding=20&height=1080&paddingvertical=70"
+        params += "&gridcols=3&textsize=30&infopadding=20&height=1080&paddingvertical=70"
     elif total_tracks == 7 or total_tracks == 8 or total_tracks == 9:
-        params = "?gridcols=3&textsize=30&infopadding=20&height=1300&paddingvertical=40"
+        params += "&gridcols=3&textsize=30&infopadding=20&height=1300&paddingvertical=40"
+    elif total_tracks == 10 or total_tracks == 11 or total_tracks == 12:
+        params += "&gridcols=4&height=1080&paddingvertical=40"
+    elif total_tracks == 13 or total_tracks == 14 or total_tracks == 15 or total_tracks == 16:
+        params += "&gridcols=4&height=1250&paddingvertical=20"
 
     return base_url + params
 
-async def capture_renderer_screenshot(auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20) -> str:
+async def capture_renderer_screenshot(auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20, paddinghorizontal: int = 0, textsize: int = 24, infopadding: int = 10) -> str:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
@@ -49,18 +53,20 @@ async def capture_renderer_screenshot(auto: bool = True, cols: int = 2, width: i
             initial_cbtype = "image"
 
         await page.expose_function("snapshot_ready", total_tracks_received_callback)
-        url = f"https://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&stopalerts=1&callbacktype={initial_cbtype}"
+        url = f"https://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&paddinghorizontal={paddinghorizontal}&textsize={textsize}&infopadding={infopadding}&stopalerts=1&callbacktype={initial_cbtype}"
         await page.goto(url)
 
         try:
             # now we wait
+            logging.debug(f"Waiting for first snapshot... {url}")
             await asyncio.wait_for(total_tracks_received.wait(), timeout=15.0)
             total_tracks_received.clear()
 
             if auto:
                 url = get_track_number_config_url(total_tracks_number)
-                await page.goto(url + "&callbacktype=image")
+                await page.goto(url)
 
+                logging.debug(f"Waiting for second snapshot... {url}")
                 # wait again
                 await asyncio.wait_for(total_tracks_received.wait(), timeout=15.0)
             
@@ -70,7 +76,8 @@ async def capture_renderer_screenshot(auto: bool = True, cols: int = 2, width: i
 
             return output_path
             
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
+            logging.error(f"Timed out waiting for snapshot:", exc_info=e)
             raise Exception("Timed out.")
         finally:
             # always pull out kids
