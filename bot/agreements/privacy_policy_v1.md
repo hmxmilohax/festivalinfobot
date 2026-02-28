@@ -1,4 +1,4 @@
-# Privacy Policy
+# Festival Tracker Privacy Policy
 
 Version 1
 

@@ -1,4 +1,4 @@
-# Terms of Service
+# Festival Tracker Terms of Service
 
 Version 1
 
