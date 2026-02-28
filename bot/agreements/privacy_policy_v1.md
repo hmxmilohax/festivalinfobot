@@ -49,7 +49,7 @@ Last Updated: 2026.02.28
     By continuing to use the bot after updates are posted, you acknowledge that you have been informed of the updated Privacy Policy. If you do not agree with the updated policy, you should discontinue use of the bot.
 
 7. **Contact Us**  
-   If you have any questions about this Privacy Policy or wish to request data deletion, please contact us: fnlookup@gmail.com
+   If you have any questions about this Privacy Policy or wish to request data deletion, please contact us: [Contact Us](https://festivaltracker.org/contact)
 
 8. **Governing Law**  
    This Privacy Policy is governed by and construed in accordance with the laws of the United States. By using the bot, you agree that any disputes relating to this policy will be subject to the jurisdiction of the courts located in the United States.

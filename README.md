@@ -84,4 +84,4 @@ If you want to contribute to this project, feel free to fork the repository and 
 
 ## Issues
 
-If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you can send us feedback (`/feedback` command).
+If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you can [contact us](https://festivaltracker.org/contact).
