@@ -1,0 +1,10 @@
+{
+    "terms_of_service": {
+        "path": "terms_of_service_v1.md",
+        "version": "1"
+    },
+    "privacy_policy": {
+        "path": "privacy_policy_v1.md",
+        "version": "1"
+    }
+}

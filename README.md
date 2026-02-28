@@ -1,7 +1,8 @@
-
-# [Festival Tracker]((https://festivaltracker.org))
+# [Festival Tracker](<(https://festivaltracker.org)>)
 
 Festival Tracker is a Discord Bot that tracks when new Jam Tracks are added in Fortnite Festival every minute, among other features.
+
+[Terms of Service](https://festivaltracker.org/terms-of-service) - [Privacy Policy](https://festivaltracker.org/privacy-policy)
 
 Follow Us: [X (Twitter)](https://x.festivaltracker.org/)
 
@@ -22,18 +23,7 @@ Follow Us: [X (Twitter)](https://x.festivaltracker.org/)
 ### Requirements
 
 - Python (latest)
-- `discord.py`
-- `requests`
-- `mido`
-- `matplotlib`
-- `pandas`
-- `aiosqlite`
-- `pycryptodome`
-- `pydub`
-- `xmltodict`
-- `numpy`
-
-OR in `requirements.txt` file
+- All libraries are in `requirements.txt`
 
 ### Installation
 
@@ -44,12 +34,18 @@ OR in `requirements.txt` file
     cd festivalinfobot
     ```
 
-2. Install the required Python packages from the requirements above
+2. Install the required Python packages from `requirements.txt`:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 3. Duplicate `config_default.ini` to `config.ini` file in the root directory of the project:
-   - Follow the comments to setup the bot
+    - Follow the comments to setup the bot
+    - DO NOT edit `config_default.ini`.
 
 4. Run the bot:
+
     ```bash
     python festivalinfobot.py
     ```
@@ -88,4 +84,4 @@ If you want to contribute to this project, feel free to fork the repository and 
 
 ## Issues
 
-If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you can send us feedback (`/feedback`).
+If you encounter any issues, please open an issue on the GitHub repository. Otherwise, you can send us feedback (`/feedback` command).
