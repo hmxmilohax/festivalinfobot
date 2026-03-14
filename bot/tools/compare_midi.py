@@ -10,6 +10,7 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
+import matplotlib.patheffects as path_effects
 import numpy as np
 import re
 
@@ -560,7 +561,10 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     ax.grid(True, linestyle='--', alpha=0.7)
 
     track_name = track_name.replace(' ', '_')
-    fig.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1)
+    watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1, transform=ax.transAxes)
+    watermark.set_path_effects([
+        path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+    ])
 
     plt.tight_layout()
     
