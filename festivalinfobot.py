@@ -618,60 +618,7 @@ class FestivalTracker(commands.AutoShardedBot):
             percentage = round((len(songs_with) / len(track_list)) * 100, 2)
             embed.add_field(name="Pro Vocals", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
-            lipsync_only_list = [
-                t for t in track_list 
-                if t['track'].get('ld', None) != None
-            ]
-
-            legacy_list = [
-                t for t in track_list 
-                if track_list.index(
-                    t
-                ) < track_list.index(
-                    discord.utils.find(
-                        lambda x: x['track']['sn'] == 'abarsong', 
-                        track_list
-                    )
-                )
-            ]
-
-            legacy_lipsync_list = [
-                t for t in lipsync_only_list
-                if track_list.index(
-                    t
-                ) < track_list.index(
-                    discord.utils.find(
-                        lambda x: x['track']['sn'] == 'abarsong', 
-                        track_list
-                    )
-                )
-            ]
-
             if detail:
-                legacy_with_pro_vocals = []
-                for track in songs_with:
-                    if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list):
-                        legacy_with_pro_vocals.append(track)
-
-                percentage_legacy = round((len(legacy_with_pro_vocals) / len(legacy_list)) * 100, 2)
-                embed.add_field(name="Pro Vocals (Legacy)", value=f"**{len(legacy_with_pro_vocals)}**/**{len(legacy_list)}** ({percentage_legacy}%)", inline=False)
-
-                ls_w_pv = []
-                for track in songs_with:
-                    if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
-                        ls_w_pv.append(track)
-
-                percentage_ls = round((len(ls_w_pv) / len(lipsync_only_list)) * 100, 2)
-                embed.add_field(name="Pro Vocals (Lipsync Only)", value=f"**{len(ls_w_pv)}**/**{len(lipsync_only_list)}** ({percentage_ls}%)", inline=False)
-
-                legacy_ls_w_pv = []
-                for track in songs_with:
-                    if discord.utils.find(lambda x: x['track']['sn'] == track['sn'], legacy_list) and discord.utils.find(lambda x: x['track']['sn'] == track['sn'], lipsync_only_list):
-                        legacy_ls_w_pv.append(track)
-
-                percentage_legacy_ls = round((len(legacy_ls_w_pv) / len(legacy_lipsync_list)) * 100, 2)
-                embed.add_field(name="Pro Vocals (Legacy Lipsync Only)", value=f"**{len(legacy_ls_w_pv)}**/**{len(legacy_lipsync_list)}** ({percentage_legacy_ls}%)", inline=False)
-
                 if len(missing_midi) > 0:
                     embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
 
