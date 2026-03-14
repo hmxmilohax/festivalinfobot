@@ -392,7 +392,7 @@ class TracklistHandler:
     def __init__(self, bot) -> None:
         self.search_embed_handler = SearchEmbedHandler()
 
-    async def handle_interaction(self, interaction: discord.Interaction, pro_vocals_only: bool = False):
+    async def handle_interaction(self, interaction: discord.Interaction):
         tracks = constants.get_jam_tracks()
         if not tracks:
             await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
@@ -400,20 +400,7 @@ class TracklistHandler:
         
         await interaction.response.defer()
         
-        if pro_vocals_only:
-            midi_tool = MidiArchiveTools()
-
-            filtered_tracks = []
-            for track in tracks:
-                midi_url = track['track'].get('mu', '')
-                if midi_url:
-                    midi_file = await midi_tool.save_chart(track['track']['mu'])
-                    if os.path.exists(midi_file):
-                        with open(midi_file, 'rb') as mf:
-                            if b'PRO VOCALS' in mf.read():
-                                filtered_tracks.append(track)
-
-            tracks = filtered_tracks
+        midi_tool = MidiArchiveTools()
 
         track_list = constants.sort_track_list(tracks)
 
