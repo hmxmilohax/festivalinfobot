@@ -8,6 +8,8 @@ import asyncio
 
 import os
 import base64
+
+from typing import overload, Literal
 # TERROR
 
 class JamTrackEvent():

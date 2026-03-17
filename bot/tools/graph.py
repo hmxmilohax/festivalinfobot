@@ -221,12 +221,12 @@ class GraphingFuncs():
         plt.ylabel('Number of Notes')
         plt.title(f'{song_artist} - {song_name}: Notes per lane ({diff.english} {inst.english})')
 
-        watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=0.5, transform=ax.transAxes)
+        watermark = ax.text(0.99, 0.99, "festivaltracker.org", fontsize=12, color='black', ha='right', va='top', alpha=0.5, transform=ax.transAxes)
         watermark.set_path_effects([
                     path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
                 ])
 
-        plt.savefig(os.path.join(const.TEMP_FOLDER, spath))
+        plt.savefig(os.path.join(const.TEMP_FOLDER, spath), dpi=150)
 
         plt.close()
 
