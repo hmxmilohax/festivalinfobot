@@ -64,6 +64,7 @@ EPIC_DEVICE_AUTH_CLIENT_ID: str = config.get('bot', 'epic_device_auth_client_id'
 EPIC_DEVICE_AUTH_CLIENT_SECRET: str = config.get('bot', 'epic_device_auth_client_secret')
 
 SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
+AGREEMENTS_DATA = json.loads(open('bot/agreements/index.json', 'r').read())
 
 SEASONS = {
     1: 'evergreen',

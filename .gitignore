@@ -57,3 +57,5 @@ bot/data/Binaries/Windows/FFmpeg/
 # runtime vars
 .env
 restart_state.json
+
+**/*.ftk

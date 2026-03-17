@@ -43,17 +43,17 @@ class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishl
         if self.version == '2':
             if self.action == 'add':
 
-                if not await interaction.client.config._already_in_wishlist(user, self.shortname):
-                    await interaction.client.config._add_to_wishlist(user, self.shortname)
+                if not await interaction.client.config.wishlist('check', user=user, shortname=self.shortname):
+                    await interaction.client.config.wishlist('add', user=user, shortname=self.shortname)
                     await interaction.edit_original_response(embed=constants.common_success_embed(f"Added **{title}** - *{artist}* to your wishlist. Please refresh your wishlist to see changes."))
                 else:
                     await interaction.edit_original_response(embed=constants.common_error_embed(f"**{title}** - *{artist}* is already in your wishlist."))
             elif self.action == 'remove':
 
-                if not await interaction.client.config._already_in_wishlist(user, self.shortname):
+                if not await interaction.client.config.wishlist('check', user=user, shortname=self.shortname):
                     await interaction.edit_original_response(embed=constants.common_error_embed(f"**{title}** - *{artist}* is not in your wishlist."))
                 else:
-                    await interaction.client.config._remove_from_wishlist(user, self.shortname)
+                    await interaction.client.config.wishlist('remove', user=user, shortname=self.shortname)
                     await interaction.edit_original_response(embed=constants.common_success_embed(f"Removed **{title}** - *{artist}* from your wishlist. Please refresh your wishlist to see changes."))
         else:
             await interaction.edit_original_response(embed=constants.common_error_embed("This button version is no longer supported. Please try again."))

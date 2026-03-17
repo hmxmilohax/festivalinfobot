@@ -313,7 +313,7 @@ class SearchCommandHandler:
         view.add_item(PreviewButton(track['track']['sn']))
 
         wishlist_button_action = 'add'
-        if await self.bot.config._already_in_wishlist(interaction.user, track['track']['sn']):
+        if await self.bot.config.wishlist('check', user=interaction.user, shortname=track['track']['sn']):
             wishlist_button_action = 'remove'
 
         view.add_item(WishlistButton(track['track']['sn'], wishlist_button_action, interaction.user.id))

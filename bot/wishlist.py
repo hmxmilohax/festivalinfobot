@@ -19,7 +19,7 @@ class WishlistManager():
         self.shop_handler = ShopCommandHandler(self.bot)
 
     async def handle_wishlists(self):
-        all_wishlists: list[database.WishlistEntry] = await self.config._get_all_wishlists()
+        all_wishlists: list[database.WishlistEntry] = await self.config.wishlist('get_all')
         logging.info('Processing wishlists...')
         all_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
         rotation = self.daily_handler.fetch_daily_shortnames()
@@ -34,7 +34,7 @@ class WishlistManager():
 
                 if entry.lock_rotation_active:
                     # the lock is active so we unlock the wishlist entry so that we can notify the user again
-                    await self.config._unlock_wishlist_rotation(entry=entry)
+                    await self.config.wishlist('set_lock_status', lock_type='rotation', entry=entry, lock_status=False)
 
                     # we notify the user that the track is no longer in rotation
                     embed = discord.Embed(
@@ -68,7 +68,7 @@ class WishlistManager():
             print(f"Track {track['track']['sn']} is in rotation, notifying user {entry.user.id}")
 
             # we lock the wishlist entry so that we don't notify the user again
-            await self.config._lock_wishlist_rotation(entry=entry)
+            await self.config.wishlist('set_lock_status', lock_type='rotation', entry=entry, lock_status=True)
 
             embed = discord.Embed(
                 title="A Jam Track from your wishlist is in rotation!",
@@ -102,7 +102,7 @@ class WishlistManager():
 
                 if entry.lock_shop_active:
                     # the lock is active so we unlock the wishlist entry so that we can notify the user again
-                    await self.config._unlock_wishlist_shop(entry=entry)
+                    await self.config.wishlist('set_lock_status', lock_type='shop', entry=entry, lock_status=False)
 
                     # we notify the user that the track is no longer in shop
                     embed = discord.Embed(
@@ -159,7 +159,7 @@ class WishlistManager():
                     logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
             # we lock the wishlist entry so that we don't notify the user again
-            await self.config._lock_wishlist_shop(entry=entry)
+            await self.config.wishlist('set_lock_status', lock_type='shop', entry=entry, lock_status=True)
 
     async def handle_display(self, interaction: discord.Interaction, page = 0):
         first_time = not interaction.response.is_done()
@@ -174,7 +174,7 @@ class WishlistManager():
         container = discord.ui.Container(accent_colour=constants.ACCENT_COLOUR)
         view.add_item(container)
 
-        entries = await self.config._get_wishlist_of_user(interaction.user)
+        entries = await self.config.wishlist('get', user=interaction.user)
         per_page = 5
         last_page = len(entries) // 5
 
@@ -279,8 +279,8 @@ class WishlistManager():
                 shortname = tracks[0]['track']['sn']
                 ftitle = tracks[0]['track']['tt']
                 fartist = tracks[0]['track']['an']
-                if not await self.config._already_in_wishlist(user, shortname):
-                    await self.config._add_to_wishlist(user, shortname)
+                if not await self.config.wishlist('check', user=user, shortname=shortname):
+                    await self.config.wishlist('add', user=user, shortname=shortname)
                     await i.edit_original_response(embed=constants.common_success_embed(f"Added **{ftitle}** - *{fartist}* to your wishlist."))
                 else:
                     await i.edit_original_response(embed=constants.common_error_embed(f"**{ftitle}** - *{fartist}* is already in your wishlist."))

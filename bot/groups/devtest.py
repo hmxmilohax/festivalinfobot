@@ -127,7 +127,7 @@ class TestCog(commands.Cog):
 
         bot_config: database.Config = self.bot.config
 
-        all_users = await bot_config._users()
+        all_users = await bot_config.subscription_global('get_all_users')
         failed = []
 
         for u in all_users:
@@ -156,7 +156,7 @@ class TestCog(commands.Cog):
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
             for fid in failed:
-                await bot_config._del_users_with_query(f'WHERE user_id = {fid}')
+                await bot_config.subscription_global('delete_users_with_query', query=f'WHERE user_id = {fid}')
             await msg.reply(mention_author=False, content=f"{len(failed)} users have been deleted")
         except TimeoutError:
             pass
@@ -171,7 +171,7 @@ class TestCog(commands.Cog):
 
         bot_config: database.Config = self.bot.config
 
-        all_channels = await bot_config._channels()
+        all_channels = await bot_config.subscription_global('get_all_channels')
         failed = []
 
         for u in all_channels:
@@ -200,7 +200,7 @@ class TestCog(commands.Cog):
         try:
             msg = await self.bot.wait_for("message", check=check, timeout=30)
             for fid in failed:
-                await bot_config._del_channels_with_query(f'WHERE channel_id = {fid}')
+                await bot_config.subscription_global('delete_channels_with_query', query=f'WHERE channel_id = {fid}')
             await msg.reply(mention_author=False, content=f"{len(failed)} channels have been deleted")
         except TimeoutError:
             pass
@@ -447,7 +447,7 @@ class TestCog(commands.Cog):
             events.append('announcements')
 
             if ch.type == 'user':
-                await conf._user_edit_events(discord.Object(ch.id), events)
+                await conf.subscription_user('edit', user=discord.Object(ch.id), events=events)
                 mod_count+=1
             elif ch.type == 'channel':
                 chan = self.bot.get_channel(ch.id)

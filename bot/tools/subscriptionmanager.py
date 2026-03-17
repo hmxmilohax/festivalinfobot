@@ -110,7 +110,7 @@ class ServerSubscriptionsView(discord.ui.View):
     async def reply_to_initial(self, message: discord.Message):
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscriptions for {message.guild.name}", colour=constants.ACCENT_COLOUR)
 
-        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
+        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config.subscription_guild('get_channels', guild=message.guild)
         channel_text = ""
 
         for sub_channel in channels_subscribed:
@@ -134,7 +134,7 @@ class ServerSubscriptionsView(discord.ui.View):
 
             await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Guild {interaction.guild.id} unsubscribed')
 
-            await self.bot.config._guild_remove(interaction.guild)
+            await self.bot.config.subscription_guild('remove', guild=interaction.guild)
             new_view = ServerSubscriptionsView(self.bot)
             await new_view.reply_to_initial(self.message)
 
@@ -167,7 +167,7 @@ class UserSubscriptionsView(discord.ui.View):
         embed.add_field(name="Managing", value="Select or deselect Jam Track events to be subscribed to.", inline=False)
         embed.add_field(name="Information", value="You must share at least one (1) mutual server with Festival Tracker to receive subscription messages.", inline=False)
 
-        sub_user: database.SubscriptionUser = await self.bot.config._user(user)
+        sub_user: database.SubscriptionUser = await self.bot.config.subscription_user('get', user=user)
         self.add_item(UserSubscriptionTypesDropdown(self.bot, message, sub_user))
 
         await message.edit(embed=embed, view=self)
@@ -195,7 +195,7 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         event_types = self.values
-        await self.bot.config._user_edit_events(interaction.user, events=event_types)
+        await self.bot.config.subscription_user('edit', user=interaction.user, events=event_types)
 
         text = '[placeholder]'
         if not self.sub_user:
@@ -249,7 +249,7 @@ class CreateServerSubscriptionView(discord.ui.View):
     async def reply_to_initial(self, message: discord.Message):
         embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe a channel", colour=constants.ACCENT_COLOUR)
 
-        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config._guild_channels(guild=message.guild)
+        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config.subscription_guild('get_channels', guild=message.guild)
 
         embed.add_field(name="Select Channel", value="Please select a channel from the dropdown to continue.", inline=False)
         embed.add_field(name="Required Permissions", value="- View Channel\n- Send Messages\n- Embed Links\n- Attach Files", inline=False)
@@ -522,8 +522,7 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         role_ids = [role_id for role_id in role_ids if len(role_id) > 0]
         role_ids = [role_id for role_id in role_ids if role_id != 'invalid']
 
-        objects = [discord.Object(id=int(role_id)) for role_id in role_ids]
-        await self.bot.config._channel_edit_roles(self.channel, roles=objects)
+        await self.bot.config.subscription_channel_roles('edit', self.channel.id, self.channel.guild.id, role_ids=role_ids)
 
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)

@@ -41,6 +41,7 @@ from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.commands.mix import MixHandler
 from bot.tools.oauthmanager import OAuthManager
+from bot.tools.events import EventListener
 
 import traceback
 import hashlib
@@ -107,7 +108,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self._connection.parse_guild_members_chunk(data)
 
     async def on_ready(self):
-        self.is_ready = False
+        self.bot_is_ready = False
         logging.info(f'Logged in as {self.user.name}')
 
         # logging.info("Bot going active on:")
@@ -209,7 +210,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
         logging.debug("on_ready finished!")
 
-        self.is_ready = True
+        self.bot_is_ready = True
 
     async def on_shard_connect(self, shard_id: int):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} connected")
@@ -236,7 +237,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self.suggestions_enabled = True
         self.is_done_chunking = False
         self.last_analytic: Optional[datetime] = None
-        self.is_ready = False
+        self.bot_is_ready = False
 
         # Read the Discord bot token and channel IDs from the config file
         DISCORD_TOKEN = config.get('discord', 'token')
@@ -245,6 +246,9 @@ class FestivalTracker(commands.AutoShardedBot):
         self.UTILITY_TASK_INTERVAL = config.getint('bot', 'utility_task_interval', fallback=5)
         self.CHECK_FOR_NEW_SONGS = config.getboolean('bot', 'check_for_new_songs', fallback=True)
         self.DEVELOPER = config.getboolean('bot', 'is_developer_environment', fallback=True)
+
+        self.DISCORD_APP_CLIENT_ID = config.get('bot', 'discord_app_client_id')
+        self.DISCORD_APP_CLIENT_SECRET = config.get('bot', 'discord_app_client_secret')
 
         self.start_time = time.time()
         self.connection_time = self.start_time
@@ -267,6 +271,8 @@ class FestivalTracker(commands.AutoShardedBot):
             intents=intents,
             chunk_guilds_at_startup=False
         )
+
+        self.events = EventListener()
 
         self.search_handler = SearchCommandHandler(self)
         self.daily_handler = DailyCommandHandler(self)
@@ -489,7 +495,28 @@ class FestivalTracker(commands.AutoShardedBot):
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def search_command(interaction: discord.Interaction):
-            await interaction.response.send_message("**Privacy Policy:** <https://festivaltracker.org/privacy-policy>\n**Terms of Service:** <https://festivaltracker.org/terms-of-service>", ephemeral=True)
+            await interaction.response.defer()
+
+            embed = discord.Embed(colour=constants.ACCENT_COLOUR)
+            embed.add_field(
+                name="Before we continue...",
+                value="Please accept our Privacy Policy and Terms of Service before continuing. You may see this message again whenever we change our policies."
+            )
+            view = discord.ui.View()
+            view.add_item(
+                discord.ui.Button(label="Accept Privacy Policy", url="http://localhost:4321/privacy-policy", row=1)
+            )
+            view.add_item(
+                discord.ui.Button(label="Accept Terms of Service", url="http://localhost:4321/terms-of-service", row=2)
+            )
+
+            await interaction.edit_original_response(embed=embed, view=view)
+
+            try:
+                obj = await self.events.wait_for('test', timeout=10)
+                await interaction.edit_original_response(content=f"it worked {obj}")
+            except asyncio.TimeoutError:
+                await interaction.edit_original_response(content="timeout")
             
         @self.tree.command(name="search", description="Search a track.")
         @app_commands.allowed_installs(guilds=True, users=True)

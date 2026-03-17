@@ -148,3 +148,150 @@ class SetlistHandler():
 
         msg = await interaction.followup.send(view=view, files=[discord.File(io.BytesIO(img_data), filename=img_name) for img_name, img_data in img_bytes], wait=True)
         view.message = msg
+
+class SetlistViewActionRow(discord.ui.ActionRow):
+    def __init__(self, page, total, user_id):
+        super().__init__()
+
+        self.current_page = page
+        self.total_pages = total
+        self.user_id = user_id
+
+        self.prev = PreviousButton(style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, disabled=not (self.current_page > 0), user_id=self.user_id)
+        self.next = NextButton(style=discord.ButtonStyle.secondary, emoji=constants.NEXT_EMOJI, disabled=not (self.current_page < self.total_pages - 1), user_id=self.user_id)
+        self.wishlist = discord.ui.Button(style=discord.ButtonStyle.secondary, label="Wishlist Songs", emoji="🎁")
+        self.wishlist.callback = self.wishlist_callback
+
+        self.add_item(self.prev)
+        self.add_item(self.next)
+        self.add_item(self.wishlist)
+
+    async def wishlist_callback(self, interaction: discord.Interaction):
+        view: SetlistView = self.view
+        container_data = view.container_data[view.current_page]
+        shortnames = container_data['songs_shortnames']
+
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        return
+
+        user = interaction.client.get_user(self.user_id)
+
+        if not user:
+            await interaction.response.send_message("User not found.", ephemeral=True)
+            return
+
+        added_tracks = []
+        already_in_wishlist = []
+
+        for shortname in shortnames:
+            if not await interaction.client.config.wishlist('check', user=user, shortname=shortname):
+                await interaction.client.config.wishlist('add', user=user, shortname=shortname)
+                added_tracks.append(shortname)
+            else:
+                already_in_wishlist.append(shortname)
+
+        jam_tracks = constants.get_jam_tracks()
+        def get_track_info(sn):
+            return discord.utils.find(lambda t: t['track']['sn'] == sn, jam_tracks)
+
+        embed = discord.Embed(title="Wishlist Update", color=constants.EMBED_COLOR_SUCCESS)
+
+        if added_tracks:
+            added_lines = []
+            for sn in added_tracks:
+                track_info = get_track_info(sn)
+                added_lines.append(f"**{track_info['track']['tt']}** - *{track_info['track']['an']}*")
+            embed.add_field(name="Added to Wishlist:", value="\n".join(added_lines), inline=False)
+
+        if already_in_wishlist:
+            already_lines = []
+            for sn in already_in_wishlist:
+                track_info = get_track_info(sn)
+                already_lines.append(f"**{track_info['track']['tt']}** - *{track_info['track']['an']}*")
+            embed.add_field(name="Already in Wishlist:", value="\n".join(already_lines), inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+class SetlistView(discord.ui.LayoutView):
+    def __init__(self, containers, user_id):
+        super().__init__(timeout=60)
+        self.user_id = user_id
+        self.current_page = 0
+        self.message : discord.Message
+
+        self.container_data = containers
+
+        self.total_pages = len(containers)
+        self.action_row = None
+
+        logging.info(self.total_pages)
+
+    def update_components(self):
+        """
+        returns the attachments for the page
+        """
+        self.clear_items()
+
+        container_data = self.container_data[self.current_page]
+
+        container = discord.ui.Container()
+        container.add_item(discord.ui.TextDisplay(f"# {container_data['setlist_name']}"))
+        container.add_item(discord.ui.TextDisplay(f"-# Setlist {self.current_page + 1} of {self.total_pages}"))
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay(f"{len(container_data['songs'].splitlines())} songs · {container_data['length']}\n{container_data['songs']}"))
+        container.add_item(discord.ui.MediaGallery(
+            discord.MediaGalleryItem(container_data['attachment_url'])
+        ))
+
+        container.add_item(discord.ui.Separator())
+
+        self.action_row = SetlistViewActionRow(self.current_page, self.total_pages, self.user_id)
+        container.add_item(self.action_row)
+
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay(f"-# Festival Tracker"))
+
+        self.add_item(container)
+
+    async def on_timeout(self):
+        try:
+            if self.action_row:
+                for item in self.action_row.children:
+                    item.disabled = True
+                await self.message.edit(view=self)
+        except discord.NotFound:
+            logging.warning("Message was not found when trying to edit after timeout.")
+        except Exception as e:
+            logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
+
+class PreviousButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        view: SetlistView = self.view
+        view.current_page -= 1
+        
+        view.update_components()
+
+        await interaction.response.edit_message(view=view)
+
+class NextButton(discord.ui.Button):
+    def __init__(self, *args, **kwargs):
+        self.user_id = kwargs.pop('user_id')
+        super().__init__(*args, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This is not your session. Please run the command yourself to start your own session.", ephemeral=True)
+            return
+        view: SetlistView = self.view
+        view.current_page += 1
+        view.update_components()
+
+        await interaction.response.edit_message(view=view)
