@@ -5,159 +5,240 @@ import logging
 import discord
 from playwright.async_api import async_playwright
 import requests
+import base64
 
 from bot import constants
 
-def get_track_number_config_url(total_tracks: int):
-    host = "festivaltracker.org"
-    base_url = f"https://{host}/5604c25f39614cbb_do_not_index-bestsellers-img-generator"
-    params: str = "?stopalerts=1&callbacktype=image"
 
-    if total_tracks == 1:
-        params += "&gridcols=1&paddinghorizontal=300&paddingvertical=100&textsize=50&infopadding=30"
-    elif total_tracks == 2:
-        params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=50"
-    elif total_tracks == 3:
-        params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=70&height=1300"
-    elif total_tracks == 4:
-        params += "&gridcols=2&textsize=40&infopadding=30&height=1300&paddingvertical=70"
-    elif total_tracks == 5 or total_tracks == 6:
-        params += "&gridcols=3&textsize=30&infopadding=20&height=1080&paddingvertical=70"
-    elif total_tracks == 7 or total_tracks == 8 or total_tracks == 9:
-        params += "&gridcols=3&textsize=30&infopadding=20&height=1300&paddingvertical=40"
-    elif total_tracks == 10 or total_tracks == 11 or total_tracks == 12:
-        params += "&gridcols=4&height=1080&paddingvertical=40"
-    elif total_tracks == 13 or total_tracks == 14 or total_tracks == 15 or total_tracks == 16:
-        params += "&gridcols=4&height=1250&paddingvertical=20"
+class BestsellersRenderer:
+    def __init__(self, bot: constants.BotExt):
+        self.bot = bot
 
-    return base_url + params
+    async def get_leaving_new_lists(self) -> tuple:
+        # numbers:numbers:numbers...
+        leaving_today_string = []
 
-async def capture_renderer_screenshot(auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20, paddinghorizontal: int = 0, textsize: int = 24, infopadding: int = 10) -> str:
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage"]
-        )
-        page = await browser.new_page()
+        # we r making the value containing the ids for new and leaving soon tracks
+        logging.debug(f'[GET] {constants.SHOP_API}')
+        headers = {
+            'Authorization': self.bot.oauth_manager.session_token
+        }
+        response = requests.get(constants.SHOP_API, headers=headers)
+        if response.status_code == 401 or response.status_code == 403:
+            self.bot.oauth_manager._create_token()
+            raise Exception('Please try again.')
+        
+        data = response.json()
+
+        storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
+        shop_tracks = storefront['catalogEntries']
+
+        for track in shop_tracks:
+            if not track['meta']['templateId'].startswith('SparksSong:'):
+                continue
             
-        total_tracks_number = 0
-        total_tracks_received = asyncio.Event()
-        async def total_tracks_received_callback(msg, total_tracks):
-            print(f"Signal: {msg} {total_tracks} {type(total_tracks)}")
-            nonlocal total_tracks_number
-            total_tracks_number = total_tracks
-            total_tracks_received.set()
+            # offer_info contains the leaving date in ISO
+            # check if it is the same day as today
 
-        initial_cbtype = "numbers"
-        if not auto:
-            initial_cbtype = "image"
+            # set it to custom for testing
+            track['meta']['outDate'] = "2026-03-14T23:59:59.999Z"
 
-        await page.expose_function("snapshot_ready", total_tracks_received_callback)
-        url = f"https://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&paddinghorizontal={paddinghorizontal}&textsize={textsize}&infopadding={infopadding}&stopalerts=1&callbacktype={initial_cbtype}"
-        await page.goto(url)
+            leaving_date = datetime.fromisoformat(track['meta']['outDate'])
+            if leaving_date.date() != datetime.now(tz=timezone.utc).date():
+                continue
 
-        try:
-            # now we wait
-            logging.debug(f"Waiting for first snapshot... {url}")
-            await asyncio.wait_for(total_tracks_received.wait(), timeout=15.0)
-            total_tracks_received.clear()
+            sid_num = track['meta']['templateId'].split(":")[1].split("_")[-1]
+            leaving_today_string.append(sid_num)
 
-            if auto:
-                url = get_track_number_config_url(total_tracks_number)
-                await page.goto(url)
+        # make new jam track string
+        new_jam_track_string = []
 
-                logging.debug(f"Waiting for second snapshot... {url}")
-                # wait again
+        tracks = constants.get_jam_tracks(use_cache=True)
+        for track in tracks:
+            # check new until date
+            track_data = track.get('track')
+            new_until = track_data.get('nu')
+
+            if new_until:
+                new_until_date = datetime.fromisoformat(new_until)
+                if new_until_date.date() > datetime.now(tz=timezone.utc).date():
+                    sid_num = track_data['ti'].split(":")[1].split("_")[-1]
+                    new_jam_track_string.append(sid_num)
+
+        return leaving_today_string, new_jam_track_string
+
+    async def get_track_number_config_url(self, total_tracks: int):
+        host = "ftracker-ca-on-dev2.festivaltracker.org"
+        base_url = f"https://{host}/5604c25f39614cbb_do_not_index-bestsellers-img-generator"
+        params: str = "?stopalerts=1&callbacktype=image"
+
+        leaving_today_string, new_jam_track_string = await self.get_leaving_new_lists()
+        leaving_today_string = ":".join(leaving_today_string)
+        new_jam_track_string = ":".join(new_jam_track_string)
+
+        # encode as base64 url
+        leaving_today_string = base64.urlsafe_b64encode(leaving_today_string.encode('utf-8')).decode('utf-8').rstrip('=')
+        new_jam_track_string = base64.urlsafe_b64encode(new_jam_track_string.encode('utf-8')).decode('utf-8').rstrip('=')
+
+        params += f"&leavingtoday={leaving_today_string}&newjam={new_jam_track_string}"
+
+        if total_tracks == 1:
+            params += "&gridcols=1&paddinghorizontal=300&paddingvertical=100&textsize=50&infopadding=30"
+        elif total_tracks == 2:
+            params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=50"
+        elif total_tracks == 3:
+            params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=70&height=1300"
+        elif total_tracks == 4:
+            params += "&gridcols=2&textsize=40&infopadding=30&height=1300&paddingvertical=70"
+        elif total_tracks == 5 or total_tracks == 6:
+            params += "&gridcols=3&textsize=30&infopadding=20&height=1080&paddingvertical=70"
+        elif total_tracks == 7 or total_tracks == 8 or total_tracks == 9:
+            params += "&gridcols=3&textsize=30&infopadding=20&height=1300&paddingvertical=40"
+        elif total_tracks == 10 or total_tracks == 11 or total_tracks == 12:
+            params += "&gridcols=4&height=1080&paddingvertical=40"
+        elif total_tracks == 13 or total_tracks == 14 or total_tracks == 15 or total_tracks == 16:
+            params += "&gridcols=4&height=1250&paddingvertical=20"
+
+        return base_url + params
+
+    async def capture_renderer_screenshot(self, auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20, paddinghorizontal: int = 0, textsize: int = 24, infopadding: int = 10) -> str:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=["--no-sandbox", "--disable-dev-shm-usage"]
+            )
+            page = await browser.new_page()
+                
+            total_tracks_number = 0
+            total_tracks_received = asyncio.Event()
+            async def total_tracks_received_callback(msg, total_tracks):
+                print(f"Signal: {msg} {total_tracks} {type(total_tracks)}")
+                nonlocal total_tracks_number
+                total_tracks_number = total_tracks
+                total_tracks_received.set()
+
+            initial_cbtype = "numbers"
+            if not auto:
+                initial_cbtype = "image"
+
+            await page.expose_function("snapshot_ready", total_tracks_received_callback)
+            
+            leaving_today_string, new_jam_track_string = await self.get_leaving_new_lists()
+            leaving_today_string = ":".join(leaving_today_string)
+            new_jam_track_string = ":".join(new_jam_track_string)
+
+            # encode as base64 url
+            leaving_today_string = base64.urlsafe_b64encode(leaving_today_string.encode('utf-8')).decode('utf-8').rstrip('=')
+            new_jam_track_string = base64.urlsafe_b64encode(new_jam_track_string.encode('utf-8')).decode('utf-8').rstrip('=')
+            url = f"https://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&paddinghorizontal={paddinghorizontal}&textsize={textsize}&infopadding={infopadding}&stopalerts=1&callbacktype={initial_cbtype}&leavingtoday={leaving_today_string}&newjam={new_jam_track_string}"
+
+            print(url)
+
+            logging.debug(f"Navigating to {url}")
+            await page.goto(url)
+
+            try:
+                # now we wait
+                logging.debug(f"Waiting for first snapshot... {url}")
                 await asyncio.wait_for(total_tracks_received.wait(), timeout=15.0)
-            
-            output_path = constants.CACHE_FOLDER + "bestsellers.png"
-            await page.locator("#container").screenshot(path=output_path)
-            open(constants.CACHE_FOLDER + "BestsellersTimestamp.dat", "w").write(str(int(datetime.now().timestamp())))
+                total_tracks_received.clear()
 
-            return output_path
-            
-        except asyncio.TimeoutError as e:
-            logging.error(f"Timed out waiting for snapshot:", exc_info=e)
-            raise Exception("Timed out.")
-        finally:
-            # always pull out kids
-            await browser.close()
+                if auto:
+                    url = await self.get_track_number_config_url(total_tracks_number)
+                    await page.goto(url)
 
-async def handle_cacher():
-    # this function is ran every minute
-    # it should check the hash of the bestsellers response and if it has changed, capture a new screenshot
-    # bestsellers hash is also saved locally
+                    logging.debug(f"Waiting for second snapshot... {url}")
+                    # wait again
+                    await asyncio.wait_for(total_tracks_received.wait(), timeout=15.0)
+                
+                output_path = constants.CACHE_FOLDER + "bestsellers.png"
+                await page.locator("#container").screenshot(path=output_path)
+                open(constants.CACHE_FOLDER + "BestsellersTimestamp.dat", "w").write(str(int(datetime.now().timestamp())))
 
-    # this code should only run at hour 0, 1 and 2 utc
+                return output_path
+                
+            except asyncio.TimeoutError as e:
+                logging.error(f"Timed out waiting for snapshot:", exc_info=e)
+                raise Exception("Timed out.")
+            finally:
+                # always pull out kids
+                await browser.close()
 
-    current_utc_hour = datetime.now(timezone.utc).hour
-    if current_utc_hour not in [0, 1, 2]:
-        return
-    
-    url = "https://cdn2.unrealengine.com/fn_bsdata/ebb74910-dd35-44b8-b826-d58dc16c6456.json"
-    req = requests.get(url)
-    
-    response_hash = hashlib.sha256(req.content).hexdigest()
-    try:
-        saved_hash = open(constants.CACHE_FOLDER + "BestsellersHash.dat", "r").read()
-    except Exception as e:
-        logging.warning(f"Error reading hash cache: {e}")
-        saved_hash = ""
+    async def handle_cacher(self):
+        # this function is ran every minute
+        # it should check the hash of the bestsellers response and if it has changed, capture a new screenshot
+        # bestsellers hash is also saved locally
 
-    if response_hash != saved_hash:
-        logging.info("Bestsellers data has changed, capturing new screenshot.")
+        # this code should only run at hour 0, 1 and 2 utc
+
+        current_utc_hour = datetime.now(timezone.utc).hour
+        if current_utc_hour not in [0, 1, 2]:
+            return
+        
+        url = "https://cdn2.unrealengine.com/fn_bsdata/ebb74910-dd35-44b8-b826-d58dc16c6456.json"
+        req = requests.get(url)
+        
+        response_hash = hashlib.sha256(req.content).hexdigest()
         try:
-            await capture_renderer_screenshot(auto=True)
-            open(constants.CACHE_FOLDER + "BestsellersHash.dat", "w").write(response_hash)
+            saved_hash = open(constants.CACHE_FOLDER + "BestsellersHash.dat", "r").read()
         except Exception as e:
-            logging.error(f"Error capturing screenshot: {e}")
+            logging.warning(f"Error reading hash cache: {e}")
+            saved_hash = ""
 
-async def handle_interaction(interaction: discord.Interaction):
-    await interaction.response.defer()
+        if response_hash != saved_hash:
+            logging.info("Bestsellers data has changed, capturing new screenshot.")
+            try:
+                await self.capture_renderer_screenshot(auto=True)
+                open(constants.CACHE_FOLDER + "BestsellersHash.dat", "w").write(response_hash)
+            except Exception as e:
+                logging.error(f"Error capturing screenshot: {e}")
 
-    # to avoid taking a screenshot every time
-    # we will check the saved timestamp and make sure it is from the same utc day
-    try:
-        timestamp = int(open(constants.CACHE_FOLDER + "BestsellersTimestamp.dat", "r").read())
-        last_capture_date = datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
-        current_date = datetime.now(timezone.utc).date()
+    async def handle_interaction(self, interaction: discord.Interaction):
+        await interaction.response.defer()
 
-        if last_capture_date == current_date:
-            # same day, use cached image
-            output_path = constants.CACHE_FOLDER + "bestsellers.png"
-        else:
-            # different day, capture new image
-            output_path = await capture_renderer_screenshot(auto=True)
-    except Exception as e:
-        logging.warning(f"Error checking cache: {e}")
-        output_path = await capture_renderer_screenshot(auto=True)
+        # to avoid taking a screenshot every time
+        # we will check the saved timestamp and make sure it is from the same utc day
+        try:
+            timestamp = int(open(constants.CACHE_FOLDER + "BestsellersTimestamp.dat", "r").read())
+            last_capture_date = datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
+            current_date = datetime.now(timezone.utc).date()
 
-    # the timestamp on the dat file
-    capture_time = datetime.fromtimestamp(int(open(constants.CACHE_FOLDER + "BestsellersTimestamp.dat", "r").read()), tz=timezone.utc)
+            if last_capture_date == current_date:
+                # same day, use cached image
+                output_path = constants.CACHE_FOLDER + "bestsellers.png"
+            else:
+                # different day, capture new image
+                output_path = await self.capture_renderer_screenshot(auto=True)
+        except Exception as e:
+            logging.warning(f"Error checking cache: {e}")
+            output_path = await self.capture_renderer_screenshot(auto=True)
 
-    view = discord.ui.LayoutView()
-    container = discord.ui.Container(accent_colour=constants.ACCENT_COLOUR)
-    container.add_item(
-        discord.ui.Section(
-            discord.ui.TextDisplay("# Best Sellers"),
-            discord.ui.TextDisplay(f"*Last updated: {discord.utils.format_dt(capture_time, style='F')}*"),
-            accessory=discord.ui.Thumbnail(f'attachment://{constants.KEYART_FNAME}')
-        )
-    )
+        # the timestamp on the dat file
+        capture_time = datetime.fromtimestamp(int(open(constants.CACHE_FOLDER + "BestsellersTimestamp.dat", "r").read()), tz=timezone.utc)
 
-    container.add_item(
-        discord.ui.MediaGallery(
-            discord.MediaGalleryItem(
-                "attachment://bestsellers.png"
+        view = discord.ui.LayoutView()
+        container = discord.ui.Container(accent_colour=constants.ACCENT_COLOUR)
+        container.add_item(
+            discord.ui.Section(
+                discord.ui.TextDisplay("# Best Sellers"),
+                discord.ui.TextDisplay(f"*Last updated: {discord.utils.format_dt(capture_time, style='F')}*"),
+                accessory=discord.ui.Thumbnail(f'attachment://{constants.KEYART_FNAME}')
             )
         )
-    )
 
-    
-    container.add_item(discord.ui.Separator())
-    container.add_item(
-        discord.ui.TextDisplay("-# Festival Tracker")
-    )
+        container.add_item(
+            discord.ui.MediaGallery(
+                discord.MediaGalleryItem(
+                    "attachment://bestsellers.png"
+                )
+            )
+        )
 
-    view.add_item(container)
-    await interaction.edit_original_response(view=view, attachments=[discord.File(output_path, "bestsellers.png"), discord.File(constants.KEYART_PATH, constants.KEYART_FNAME)])
+        
+        container.add_item(discord.ui.Separator())
+        container.add_item(
+            discord.ui.TextDisplay("-# Festival Tracker")
+        )
+
+        view.add_item(container)
+        await interaction.edit_original_response(view=view, attachments=[discord.File(output_path, "bestsellers.png"), discord.File(constants.KEYART_PATH, constants.KEYART_FNAME)])

@@ -22,7 +22,7 @@ from bot.groups.festival import FortniteCog
 from bot.groups.graphs import GraphCog
 from bot.groups.history import HistoryCog
 from bot.groups.leaderboard import LeaderboardCog
-from bot.tools import bestsellersrenderer
+from bot.tools.bestsellersrenderer import BestsellersRenderer
 from bot.tools.log import setup as setup_log
 from bot.tools.log import CustomHandler
 from bot.groups.devtest import TestCog
@@ -279,6 +279,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self.mix_handler = MixHandler()
         self.wishlist_handler = WishlistManager(self)
         self.setlist_handler = SetlistHandler(self)
+        self.bestsellers_renderer = BestsellersRenderer(self)
 
         self.setup_commands()
 
@@ -565,7 +566,7 @@ class FestivalTracker(commands.AutoShardedBot):
         # @app_commands.allowed_installs(guilds=True, users=True)
         # @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         # async def bestsellers_command(interaction: discord.Interaction):
-        #     await bestsellersrenderer.handle_interaction(interaction=interaction)
+        #     await self.bestsellers_renderer.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.describe(detail = "Whether to show detailed categories of Jam Tracks.")
