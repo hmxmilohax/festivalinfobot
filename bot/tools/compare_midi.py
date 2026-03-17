@@ -16,11 +16,18 @@ import re
 
 import logging
 
+from bot.tools.graph import tile_image
+
 font_path = os.path.abspath('bot/data/Fonts/InterTight-Regular.ttf')
 prop = fm.FontProperties(fname=font_path)
 font_name = prop.get_name()
 
+jetbrains_mono_path = os.path.abspath('bot/data/Fonts/JetBrainsMono-Regular.ttf')
+prop = fm.FontProperties(fname=jetbrains_mono_path)
+jetbrains_mono_name = prop.get_name()
+
 fm.fontManager.addfont(font_path)
+fm.fontManager.addfont(jetbrains_mono_path)
 
 plt.rcParams['font.family'] = font_name
 
@@ -494,8 +501,8 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
         ax.yaxis.label.set_color('white')
         ax.title.set_color('white')
 
-    img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
-    fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
+    dpi = 300
+    tile_image(fig, dpi)
     
     times = []
     notes = []
@@ -522,7 +529,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     
     for time, text1, text2 in text_differences:
         text_times.append(time/ppqn)
-        text_events.append(f"{text1} >\n{text2}")
+        text_events.append(f"- {text1}\n+ {text2}")
         text_changes.append('changed')
 
     # Convert note and text times to numpy arrays for plotting
@@ -535,16 +542,14 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     
     # Plot note changes (use note indices for y-axis)
     note_indices = [note_to_index[note] for note in notes]
-    ax.scatter(times, note_indices, c=colors, marker='s', s=100, edgecolor='black', label=f'{track_name}')
-
-    
+    ax.scatter(times, note_indices, c=colors, marker='s', s=100, edgecolor='black', linewidths=0.5, label=f'{track_name}')
 
     # Add text event markers
     if text_times:
         # Plot text event changes with blue triangles
-        ax.scatter(text_times, [-1] * len(text_times), c='blue', marker='^', s=25, edgecolor='black', label='Text Event')
+        ax.scatter(text_times, [-1] * len(text_times), c='blue', marker='x', s=25, label='Text Event')
         for i, txt in enumerate(text_events):
-            ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', fontsize=6)
+            ax.annotate(txt, (text_times[i], -1), textcoords="offset points", xytext=(0, 5), ha='center', ma='left', fontsize=6, fontfamily=jetbrains_mono_name)
 
     ax.set_xlabel('Beat (Time)')
     ax.set_ylabel('MIDI Note/Text')
@@ -554,11 +559,11 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
 
     # Apply note names instead of raw MIDI numbers, using the note_name_map
-    ax.set_yticklabels([note_name_map.get(note, f"Note {note}") for note in unique_notes] + ['MIDI Notes'])
+    ax.set_yticklabels([note_name_map.get(note, f"Note {note}") for note in unique_notes] + [''])
     
     ax.invert_yaxis()  # This inverts the y-axis to ensure highest notes are at the top
 
-    ax.grid(True, linestyle='--', alpha=0.7)
+    ax.grid(True, linestyle='-.', alpha=0.3)
 
     track_name = track_name.replace(' ', '_')
     watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1, transform=ax.transAxes)
@@ -572,7 +577,7 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     image_path = os.path.join(output_folder, f"{track_name}_changes_{session_id}.png")
     logging.debug(f"Saving {image_path}")
 
-    plt.savefig(image_path)
+    plt.savefig(image_path, dpi=dpi)
 
     plt.close()
     
@@ -629,8 +634,8 @@ def compare_text_events(track1_text_events, track2_text_events):
     text2_dict = dict(track2_text_events)
 
     for time in all_times:
-        text1 = text1_dict.get(time, "X")
-        text2 = text2_dict.get(time, "X")
+        text1 = text1_dict.get(time, "[None]")
+        text2 = text2_dict.get(time, "[None]")
         if text1 != text2:
             differences.append((time, text1, text2))
 

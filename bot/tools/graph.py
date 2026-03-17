@@ -30,6 +30,22 @@ fm.fontManager.addfont(font_path)
 
 plt.rcParams['font.family'] = font_name
 
+def tile_image(fig: matplotlib.figure.Figure, target_dpi=300):
+    img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
+    img_h, img_w = img.shape[:2]
+
+    fig_w_px = fig.get_figwidth() * target_dpi
+    fig_h_px = fig.get_figheight() * target_dpi
+
+    repeat_x = int(np.ceil(fig_w_px / img_w))
+    repeat_y = int(np.ceil(fig_h_px / img_h))
+    if img.ndim == 3:
+        tiled_img = np.tile(img, (repeat_y, repeat_x, 1))
+    else:
+        tiled_img = np.tile(img, (repeat_y, repeat_x))
+
+    fig.figimage(tiled_img, xo=0, yo=0, alpha=0.15, zorder=-1)
+
 class GraphingFuncs():
     def __init__(self):
         pass
@@ -72,8 +88,8 @@ class GraphingFuncs():
         fig = plt.figure(figsize=(10, 4))
         ax = plt.gca() # get current axis
 
-        img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
-        fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
+        dpi = 300
+        tile_image(fig, dpi)
 
         # Plot the original notes per second
         plt.plot(seconds, notes_per_second, color='black', linestyle='-', linewidth=1, label='Notes per second')
@@ -103,7 +119,7 @@ class GraphingFuncs():
                 ])
 
         plt.tight_layout()
-        plt.savefig(os.path.join(const.TEMP_FOLDER, path))
+        plt.savefig(os.path.join(const.TEMP_FOLDER, path), dpi=dpi)
 
         plt.close()
 
@@ -201,8 +217,9 @@ class GraphingFuncs():
 
         fig = plt.gcf() # get current figure
         ax = plt.gca() # get current axis
-        img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
-        fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
+
+        dpi = 300
+        tile_image(fig, dpi)
 
         bbox = ax.get_window_extent()
         axis_height_pixels = bbox.height
@@ -226,7 +243,7 @@ class GraphingFuncs():
                     path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
                 ])
 
-        plt.savefig(os.path.join(const.TEMP_FOLDER, spath), dpi=150)
+        plt.savefig(os.path.join(const.TEMP_FOLDER, spath), dpi=dpi)
 
         plt.close()
 
@@ -282,9 +299,8 @@ class GraphingFuncs():
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
-        fig.figimage(img, xo=0, yo=0, alpha=0.15, zorder=-1)
-        fig.figimage(img, xo=1000, yo=0, alpha=0.15, zorder=-1)
+        dpi = 300
+        tile_image(fig, dpi)
 
         rects1 = ax.bar(x - 1.5*width, easy, width, label='Easy', color='lime')
         rects2 = ax.bar(x - 0.5*width, medium, width, label='Medium', color='yellow')
@@ -327,7 +343,7 @@ class GraphingFuncs():
         # Display the graph
         # plt.tight_layout()
         plt.tight_layout()
-        plt.savefig(os.path.join(const.TEMP_FOLDER, path), dpi=115)
+        plt.savefig(os.path.join(const.TEMP_FOLDER, path), dpi=dpi)
 
         plt.close()
 
