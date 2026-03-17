@@ -18,8 +18,7 @@ from bot import constants, database
 from bot.tools.midi import MidiArchiveTools
 from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
-
-from bot.tools.bestsellersrenderer import capture_renderer_screenshot
+from bot.tools.bestsellersrenderer import BestsellersRenderer
 
 # jnack and tpose's personal commands
 class TestCog(commands.Cog):
@@ -536,8 +535,6 @@ class TestCog(commands.Cog):
 
         storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
         shop_tracks = storefront['catalogEntries']
-
-        # open('shop_data.json', 'w', encoding='utf-8').write(json.dumps(shop_tracks, indent=4))
         
         jamtrack_bestellers = {}
 
@@ -597,7 +594,9 @@ class TestCog(commands.Cog):
     async def render_bestsellers(self, interaction: discord.Interaction, auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20, paddinghorizontal: int = 0, textsize: int = 24, infopadding: int = 10):
         await interaction.response.defer()
 
-        output_path = await capture_renderer_screenshot(auto=auto, cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx, paddinghorizontal=paddinghorizontal, textsize=textsize, infopadding=infopadding)
+        bestsellers_renderer: BestsellersRenderer = self.bot.bestsellers_renderer
+
+        output_path = await bestsellers_renderer.capture_renderer_screenshot(auto=auto, cols=cols, width=width, height=height, paddingverticalpx=paddingverticalpx, paddinghorizontal=paddinghorizontal, textsize=textsize, infopadding=infopadding)
         if not output_path:
             await interaction.edit_original_response(content="Rendering the bestsellers image timed out.")
             return
