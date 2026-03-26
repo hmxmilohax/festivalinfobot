@@ -63,7 +63,7 @@ class SetlistHandler():
                     setlist_songs: list[str] = setlist_values.split(',')
                     normalised = [song.lstrip().rstrip() for song in setlist_songs]
 
-                    available_setlists[f"setlist_{setlist_idx}"] = normalised
+                    available_setlists[f"setlist_{setlist_idx}"] = normalised + [active_until_date]
 
         containers: list[discord.ui.Container] = []
         img_bytes = []
@@ -77,8 +77,11 @@ class SetlistHandler():
 
         available_setlists = dict(sorted(available_setlists.items(), key=_sort_key))
 
-        for setlist_id, shortnames in available_setlists.items():
+        for setlist_id, setlist_data in available_setlists.items():
             container = discord.ui.Container()
+
+            shortnames = setlist_data[:-1]
+            active_until_date = setlist_data[-1]
 
             setlist_names = ['Daily Vibes', 'Spotlight', 'Festival Selects']
             idx = int(setlist_id.split('_')[-1]) - 1
@@ -104,7 +107,7 @@ class SetlistHandler():
             seconds = length_secs % 60
             length = f"{minutes}m {seconds}s"
 
-            td = discord.ui.TextDisplay(f"{len(shortnames)} songs · {length}\n{songsstr}")
+            td = discord.ui.TextDisplay(f"{len(shortnames)} songs · {length}\n{songsstr}Ends {discord.utils.format_dt(active_until_date, 'R')}")
             container.add_item(td)
 
             imgs = []
