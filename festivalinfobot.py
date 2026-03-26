@@ -365,7 +365,7 @@ class FestivalTracker(commands.AutoShardedBot):
             if uname:
                 err_text = err_text.replace(uname, '-' * len(uname))
 
-            embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="This error has been reported.")
+            embed = discord.Embed(colour=0xbe2625, title=f"{constants.ERROR_EMOJI} An error has occurred!", description="Don't fret, this error has been reported.")
             embed.add_field(name="", value=f"```{str(err_text)}```")
             embed.set_author(name="Festival Tracker", icon_url=self.user.avatar.url)
 
