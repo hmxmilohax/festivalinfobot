@@ -14,6 +14,7 @@ import concurrent.futures
 import discord
 from discord.ext import commands
 import requests
+import time
 
 from bot import constants
 from bot import database
@@ -452,12 +453,30 @@ class LoopCheckHandler():
         tracks = constants.get_jam_tracks() # no cache here
 
         best_sellers_url = 'https://cdn2.unrealengine.com/fn_bsdata/ebb74910-dd35-44b8-b826-d58dc16c6456.json'
+        print(f'[GET] {best_sellers_url}')
         req = requests.get(best_sellers_url)
+
         # generate hash of the content to check for changes
         best_sellers_hash = hashlib.md5(req.content).hexdigest()
+        unix_ts = int(time.time())
+
+        archive_path = f'{constants.CACHE_FOLDER}/archive_best_sellers/{best_sellers_hash}_{unix_ts}/'
         if self.last_best_sellers_hash != best_sellers_hash:
             await self.bot.get_channel(1328386911743639662).send(f"Best Sellers response has changed\nOld hash: {self.last_best_sellers_hash}\nNew hash: {best_sellers_hash}\nLast Modified header: {req.headers.get('Last-Modified', 'N/A')}")
             self.last_best_sellers_hash = best_sellers_hash
+            os.makedirs(archive_path, exist_ok=True)
+            with open(f'{archive_path}BestSellers.json', 'wb') as f:
+                f.write(req.content)
+
+            # archive shop response
+            logging.debug(f'[GET] {constants.SHOP_API}')
+            headers = {
+                'Authorization': self.bot.oauth_manager.session_token
+            }
+            response = requests.get(constants.SHOP_API, headers=headers)
+            data = response.json()
+            with open(f'{archive_path}Shop.json', 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4)
 
         if not tracks:
             # logging.error('Could not fetch tracks.')
