@@ -68,7 +68,7 @@ class BestsellersRenderer:
         return leaving_today_string, new_jam_track_string
 
     async def get_track_number_config_url(self, total_tracks: int):
-        host = "ftracker-ca-on-dev2.festivaltracker.org"
+        host = "festivaltracker.org"
         base_url = f"https://{host}/5604c25f39614cbb_do_not_index-bestsellers-img-generator"
         params: str = "?stopalerts=1&callbacktype=image"
 
