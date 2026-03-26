@@ -615,10 +615,12 @@ def generate_difficulty_string(difficulty_data):
         f"<:vocals:1349038596841279539> {difficulty_data.get('vl', 0) + 1}/7"
     )
 
-def generate_difficulty_bar(difficulty, max_blocks=7):
-    scaled_difficulty = difficulty + 1
+def generate_difficulty_bar(difficulty, max_blocks=7, append_real_diff: bool = False):
+    scaled_difficulty = min(difficulty, 6) + 1
     filled_blocks = '■' * scaled_difficulty
     empty_blocks = '□' * (max_blocks - scaled_difficulty)
+    if append_real_diff:
+        return filled_blocks + empty_blocks + f" [{scaled_difficulty}/7]"
     return filled_blocks + empty_blocks
 
 def generate_session_hash(user_id, song_name):

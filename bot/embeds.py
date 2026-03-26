@@ -337,7 +337,7 @@ class SearchEmbedHandler:
                     discord.ui.TextDisplay(f"{name} difficulty changed"),
                 )
                 container.add_item(
-                    discord.ui.TextDisplay(f"```Old: \"{constants.generate_difficulty_bar(old_track_data['in'].get(value, -1))}\"\nNew: \"{constants.generate_difficulty_bar(new_track_data['in'].get(value, -1))}\"```")
+                    discord.ui.TextDisplay(f"```Old: \"{constants.generate_difficulty_bar(old_track_data['in'].get(value, -1), append_real_diff=True)}\"\nNew: \"{constants.generate_difficulty_bar(new_track_data['in'].get(value, -1), append_real_diff=True)}\"```")
                 )
 
 
@@ -347,7 +347,7 @@ class SearchEmbedHandler:
                     discord.ui.TextDisplay(f"{key} (*Mismatched Difficulty*)")
                 )
                 container.add_item(
-                    discord.ui.TextDisplay(f"```Found: {constants.generate_difficulty_bar(new_track_data['in'][key])}```")
+                    discord.ui.TextDisplay(f"```Found: {constants.generate_difficulty_bar(new_track_data['in'][key], append_real_diff=True)}```")
                 )
 
         if old.get('lastModified') != new.get('lastModified'):

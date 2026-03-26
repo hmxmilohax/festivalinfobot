@@ -314,7 +314,7 @@ class HistoryHandler():
                                 if previous_property.get(value, -1) != pv.get(value, -1):
                                     embed.add_field(
                                         name=f"{name} difficulty changed", 
-                                        value=f"```Old: \"{constants.generate_difficulty_bar(previous_property.get(value, -1))}\"\nNew: \"{constants.generate_difficulty_bar(pv.get(value, -1))}\"```", 
+                                        value=f"```Old: \"{constants.generate_difficulty_bar(previous_property.get(value, -1), append_real_diff=True)}\"\nNew: \"{constants.generate_difficulty_bar(pv.get(value, -1), append_real_diff=True)}\"```", 
                                         inline=False
                                     )
 
@@ -322,7 +322,7 @@ class HistoryHandler():
                                 if key not in constants.DIFFICULTY_COMPARISONS.keys() and key != '_type':
                                     embed.add_field(
                                         name=f"{key} (*Mismatched Difficulty*)", 
-                                        value=f"```Found: {constants.generate_difficulty_bar(pv[key])}```", 
+                                        value=f"```Found: {constants.generate_difficulty_bar(pv[key], append_real_diff=True)}```", 
                                         inline=False
                                     )
                     else:
