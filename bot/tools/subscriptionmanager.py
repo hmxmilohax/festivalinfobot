@@ -522,7 +522,7 @@ class ChannelManageMentionableRolesSelect(discord.ui.Select):
         role_ids = [role_id for role_id in role_ids if len(role_id) > 0]
         role_ids = [role_id for role_id in role_ids if role_id != 'invalid']
 
-        await self.bot.config.subscription_channel_roles('edit', self.channel.id, self.channel.guild.id, role_ids=role_ids)
+        await self.bot.config._channel_edit_roles(self.channel, [discord.Object(id=role_id) for role_id in role_ids])
 
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)
