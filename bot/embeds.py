@@ -137,6 +137,12 @@ class SearchEmbedHandler:
         pro_bass_diff = track['in'].get('pb', -1)
         pro_drums_diff = track['in'].get('pd', -1)
         band_diff = track['in'].get('bd', -1) # apparently bd is placeholder for pro vocals
+        # if it is instrumental only, band_diff = 99
+        is_instrumental = False
+        if band_diff == 99:
+            # makes sure we dont count it in
+            band_diff = -1
+            is_instrumental = True
 
         midi_tool = MidiArchiveTools()
         # user_id = track.get('ry', 2025)
@@ -228,9 +234,13 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
 
-        pro_vocals_supported_indicator = ' · Pro Vocals Supported' if (has_pro_vocals and not is_detail) else ''
+        pro_vocals_status = "Pro Vocals Status Not Available"
+        if is_instrumental:
+            pro_vocals_status = "Instrumental Only"
+        elif has_pro_vocals:
+            pro_vocals_status = "Pro Vocals Supported"
 
-        embed.set_footer(text=f"ESRB: {rating_description}{pro_vocals_supported_indicator} · Festival Tracker", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
+        embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} · {pro_vocals_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         
         embed.set_thumbnail(url=track['au'])
         
