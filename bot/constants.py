@@ -182,6 +182,9 @@ EXTRA_COMPARISONS = {
     '_templateName': 'Template Name'
 }
 
+from bot.tools.oauthmanager import OAuthManager
+OAUTH_MANAGER: OAuthManager = None
+
 class Analytic:
     def __init__(self, interaction: discord.Interaction):
         self.is_dm: bool = interaction.guild == None

@@ -15,6 +15,8 @@ from bot import helpers
 from bot.tools.voicemessages import PreviewAudioMgr
 from bot.views.wishlistpersist import WishlistButton
 from bot.views.previewpersist import PreviewButton
+from bot.views.actionmenu import ActionSelect
+from bot.tools.midi import MidiArchiveTools
 
 class JamTrackHandler:
     def __init__(self, bot: commands.Bot = None) -> None:
@@ -169,45 +171,6 @@ class JamTrackHandler:
             # Check for duplicates
             if track not in result_unique: result_unique.append(track) 
         return result_unique
-    
-    def get_spotify_link(self, isrc: str):
-        if not self.bot:
-            raise ValueError('Bot instance is required to get Spotify link.')
-        
-        normalized_isrc = isrc.lstrip().rstrip()
-
-        song_url = f'https://api.spotify.com/v1/search?q=isrc%3A{normalized_isrc}&type=track&limit=1&offset=0'
-        client_token = self.bot.oauth_manager._spotify_access_token
-        logging.debug(f'[GET] {song_url}')
-        link = requests.get(song_url, headers={'Authorization': f'Bearer {client_token}'})
-
-        # print(link.text)
-
-        try:
-            link.raise_for_status()
-        except Exception as e:
-            logging.error(f'Spotify Link GET returned {link.status_code}', exc_info=e)
-            return None
-        
-        result = link.json()
-        items = result['tracks']['items']
-        if len(items) > 0:
-            return items[0]['external_urls'].get('spotify', None)
-        
-    def get_song_link_odesli(self, spotify_url: str):
-        url = f"https://api.odesli.co/resolve?url={spotify_url}"
-        logging.debug(f'[GET] {url}')
-
-        odesli = requests.get(url)
-
-        try:
-            odesli.raise_for_status()
-        except Exception as e:
-            logging.error(f'Odesli Link GET returned {odesli.status_code}', exc_info=e)
-            return None
-        
-        result = odesli.json()
-        return f'https://{result["type"]}.link/s/{result["id"]}'
 
     # deprecated
     def get_jam_tracks(self):
@@ -307,40 +270,89 @@ class SearchCommandHandler:
 
         embed = await self.embed_handler.generate_track_embed(track, is_detail=detail)
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
-        message = await interaction.edit_original_response(embed=embed)
 
         view: discord.ui.View = discord.ui.View(timeout=None)
-        view.add_item(PreviewButton(track['track']['sn']))
+        action_select = ActionSelect(interaction.user.id)
+        # preview
+        action_select.item.append_option(
+            discord.SelectOption(
+                emoji="🔊",
+                label="Preview",
+                description="Listen to a 30-second preview of the Jam Track.",
+                value=f"preview:1:{base64.urlsafe_b64encode(track['track']['sn'].encode('utf-8')).decode('utf-8')}"
+            )
+        )
 
         wishlist_button_action = 'add'
         if await self.bot.config.wishlist('check', user=interaction.user, shortname=track['track']['sn']):
             wishlist_button_action = 'remove'
 
-        view.add_item(WishlistButton(track['track']['sn'], wishlist_button_action, interaction.user.id))
-        # view.buttons.append()
+        # wishlist
+        wishlist_metad = f'{wishlist_button_action}:{track["track"]["sn"]}'
+        action_select.item.append_option(
+            discord.SelectOption(
+                emoji="⭐" if wishlist_button_action == 'add' else "🗑️",
+                label="Wishlist" if wishlist_button_action == 'add' else "Unwishlist",
+                # this is gonna be a headache to localise
+                description=f"{'Add' if wishlist_button_action == 'add' else 'Remove'} this Jam Track from your wishlist.",
+                value=f"wishlist:3:{base64.urlsafe_b64encode(wishlist_metad.encode('utf-8')).decode('utf-8')}"
+            )
+        )
 
-        view.message = message
-        await message.edit(embed=embed, view=view)
+        # view lyrics
+        # shouldnt show up if track doesnt support pro vocals...
+        midi_tool = MidiArchiveTools()
+        midi_file = await midi_tool.save_chart(track['track']['mu'])
+        has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
+        is_instrumental = track['track']['in'].get('bd', -1) == 99
 
-        try:
-            if (not track) or (not message):
-                return
-            
-            if track['track'].get('isrc', None):
-                spotify = self.jam_track_handler.get_spotify_link(track['track']['isrc'])
+        if has_pro_vocals and not is_instrumental:
+            action_select.item.append_option(
+                discord.SelectOption(
+                    emoji="🎤",
+                    label="View Lyrics",
+                    # We don't need "(if it supports Pro Vocals) here"!!
+                    description="View the lyrics for this Jam Track.",
+                    value=f"lyrics:1:{base64.urlsafe_b64encode(track['track']['sn'].encode('utf-8')).decode('utf-8')}"
+                )
+            )
 
-                if not spotify:
-                    return
-                
-                view.add_item(discord.ui.Button(label="Spotify", url=spotify))
+        # see path
+        action_select.item.append_option(
+            discord.SelectOption(
+                emoji="🔥",
+                label="View Paths",
+                description="View the Overdrive Paths for this track.",
+                value=f"path:1:{base64.urlsafe_b64encode(track['track']['sn'].encode('utf-8')).decode('utf-8')}"
+            )
+        )
 
-                song_dot_link = self.jam_track_handler.get_song_link_odesli(spotify)
-                if song_dot_link:
-                    view.add_item(discord.ui.Button(label="song.link", url=song_dot_link))
+        # streaming services
+        isrc = track['track'].get('isrc', None)
 
-                await message.edit(embed=embed, view=view)
-        except Exception as e:
-            logging.error('Error attempting to add Spotify link to message:', exc_info=e)
+        if isrc:
+            action_select.item.append_option(
+                discord.SelectOption(
+                    emoji="🎵",
+                    label="Streaming Services",
+                    description="Listen to this track on streaming services.",
+                    value=f"streaming:1:{base64.urlsafe_b64encode(track['track']['sn'].encode('utf-8')).decode('utf-8')}"
+                )
+            )
+
+        # download metadata as json
+        action_select.item.append_option(
+            discord.SelectOption(
+                emoji="📄",
+                label="Get Metadata",
+                description="Get the metadata as a .json file.",
+                value=f"download:1:{base64.urlsafe_b64encode(track['track']['sn'].encode('utf-8')).decode('utf-8')}"
+            )
+        )
+
+        view.add_item(action_select)
+
+        message = await interaction.edit_original_response(embed=embed, view=view)
 
 class ResultsJamTracks(discord.ui.View):
     def __init__(self, tracks: list, on_select):

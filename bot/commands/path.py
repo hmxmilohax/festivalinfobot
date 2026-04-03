@@ -74,7 +74,7 @@ class PathCommandHandler():
 
         return sum_phrases, sum_overlaps
 
-    async def handle_interaction(self, interaction:discord.Interaction, song:str, instrument:constants.Instruments, extra_args:list[bool], squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, difficulty:constants.Difficulties = constants.Difficulties.Expert):
+    async def handle_interaction(self, interaction:discord.Interaction, song:str, extra_args:list[bool], squeeze_percent: discord.app_commands.Range[int, 0, 100] = 20, instrument:constants.Instruments = constants.Instruments.Lead, difficulty:constants.Difficulties = constants.Difficulties.Expert):
         if not interaction.response.is_done():
             await interaction.response.defer()
 
@@ -216,7 +216,7 @@ class PathCommandHandler():
                         new_selected_instrument = instr
                         break
 
-                await self.handle_interaction(new_interaction, song, new_selected_instrument, extra_args, squeeze_percent, difficulty)
+                await self.handle_interaction(new_interaction, song, extra_args, squeeze_percent, difficulty=difficulty, instrument=new_selected_instrument)
             instrument_drop_down.callback = on_select
 
             action_row = discord.ui.ActionRow(instrument_drop_down)

@@ -42,8 +42,8 @@ class LyricsHandler():
         self.midi_tool = midi.MidiArchiveTools()
         self.jam_track_handler = JamTrackHandler()
 
-    async def handle_interaction(self, interaction: discord.Interaction, query: str, pt: Literal['No', 'Yes', 'Yes (Include Overdrive)']):
-        await interaction.response.defer(thinking=True)
+    async def handle_interaction(self, interaction: discord.Interaction, query: str, pt: Literal['No', 'Yes', 'Yes (Include Overdrive)'], should_be_ephemeral: bool = False):
+        await interaction.response.defer(thinking=True, ephemeral=should_be_ephemeral)
 
         track_list = constants.get_jam_tracks(use_cache=True)
         if not track_list:

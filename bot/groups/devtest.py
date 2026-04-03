@@ -419,16 +419,6 @@ class TestCog(commands.Cog):
 
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(''.join(lines).encode()), 'log.txt')])
 
-    @test_group.command(name="isrc", description="Get the spotify link from an isrc query")
-    async def isrc(self, interaction: discord.Interaction, isrc: str):
-        await interaction.response.defer()
-        jt_handler = JamTrackHandler()
-        link = jt_handler.get_spotify_link(isrc)
-        if not link:
-            link = 'invalid'
-
-        await interaction.edit_original_response(content=link)
-
     @test_group.command(name="suball", description="Subscribe all subscribed channels to a specific feed")
     async def suball(self, interaction: discord.Interaction, feed: Literal["added", "modified", "removed", "announcements"]):
         if not (interaction.user.id in constants.BOT_OWNERS):

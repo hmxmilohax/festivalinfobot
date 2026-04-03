@@ -9,7 +9,7 @@ class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishl
                 label='Wishlist' if action == 'add' else 'Unwishlist',
                 style=discord.ButtonStyle.blurple,
                 custom_id=f'wishlist:v{version}:{action}:{shortname}:{user_id}',
-                emoji='🎁' if action == 'add' else '🗑️',
+                emoji='⭐' if action == 'add' else '🗑️',
             )
         )
         self.shortname: str = shortname
@@ -42,7 +42,6 @@ class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishl
 
         if self.version == '2':
             if self.action == 'add':
-
                 if not await interaction.client.config.wishlist('check', user=user, shortname=self.shortname):
                     await interaction.client.config.wishlist('add', user=user, shortname=self.shortname)
                     await interaction.edit_original_response(embed=constants.common_success_embed(f"Added **{title}** - *{artist}* to your wishlist. Please refresh your wishlist to see changes."))

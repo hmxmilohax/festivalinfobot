@@ -42,6 +42,7 @@ from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandle
 from bot.commands.mix import MixHandler
 from bot.tools.oauthmanager import OAuthManager
 from bot.tools.events import EventListener
+from bot.views.actionmenu import ActionSelect
 
 import traceback
 import hashlib
@@ -100,6 +101,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
         self.add_dynamic_items(PreviewButton)
         self.add_dynamic_items(WishlistButton)
+        self.add_dynamic_items(ActionSelect)
 
         logging.debug("setup_hook finished!")
 
@@ -282,6 +284,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self.history_handler = HistoryHandler(self)
         self.check_handler = LoopCheckHandler(self)
         self.oauth_manager = OAuthManager(self, constants.EPIC_DEVICE_ID, constants.EPIC_ACCOUNT_ID, constants.EPIC_DEVICE_SECRET)
+        constants.OAUTH_MANAGER = self.oauth_manager
         self.mix_handler = MixHandler()
         self.wishlist_handler = WishlistManager(self)
         self.setlist_handler = SetlistHandler(self)
