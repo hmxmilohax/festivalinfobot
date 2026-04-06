@@ -239,7 +239,7 @@ class LyricsHandler():
                 # insert a new phrase between existing phrases
                 # at the time of this section message
                 phrases.append({
-                    'start': m.time,
+                    'start': m.time - mid.ticks_per_beat,
                     'note': None,
                     'end': m.time,
                     'notes': [{
