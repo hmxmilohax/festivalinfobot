@@ -794,7 +794,7 @@ class FestivalTracker(commands.AutoShardedBot):
             embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
             embed.add_field(name="Channels", value=f"{channel_count} channels", inline=True)
             embed.add_field(name="Users", value=f"{users_count} users", inline=True)
-            embed.add_field(name="Subscriptions", value=f"{len(await self.config._users())} users, {len(await self.config._channels())} channels", inline=True)
+            embed.add_field(name="Subscriptions", value=f"{len(await self.config.subscription_global(operation='get_all_users'))} users, {len(await self.config.subscription_global(operation='get_all_channels'))} channels", inline=True)
             embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
             embed.add_field(name="Up Since", value=f"{discord.utils.format_dt(datetime.fromtimestamp(self.start_time), 'R')}", inline=True)
             embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
@@ -931,11 +931,12 @@ class FestivalTracker(commands.AutoShardedBot):
         @self.tree.command(name="lyrics", description="View the lyrics of a Jam Track (if it supports Pro Vocals).")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         @app_commands.describe(plaintext = "Whether to send the lyrics formatted neatly in a text file (.txt).")
+        @app_commands.describe(style = "Whether to send the lyrics in the legacy image format or the new image format.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def lyrics_command(interaction: discord.Interaction, song: str, plaintext: Literal['No', 'Yes', 'Yes (Include Overdrive)'] = 'No'):
+        async def lyrics_command(interaction: discord.Interaction, song: str, plaintext: Literal['No', 'Yes', 'Yes (Include Overdrive)'] = 'No', style: Literal['Legacy', 'Stable'] = 'Stable'):
             lyrics_handler = LyricsHandler()
-            await lyrics_handler.handle_interaction(interaction, song, pt=plaintext)
+            await lyrics_handler.handle_interaction(interaction, song, pt=plaintext, style=style)
 
     async def setup_cogs(self):
         test_cog = TestCog(self)
