@@ -262,9 +262,9 @@ class LyricsHandler():
                     'text': '[[OD]]'
                 })
                 # [].insert()
-                hi = ['h', 'i']
-                hi.insert(0, '[[OD]]')
-                print(hi)
+                # hi = ['h', 'i']
+                # hi.insert(0, '[[OD]]')
+                # print(hi)
             
 
         # phrases.sort(key=lambda p: p['start'])
@@ -368,23 +368,22 @@ class LyricsHandler():
         text_colour=(0, 0, 0),
         song_name: str = 'Por El Asterisco',
         artist_name: str = 'Faraon Love Shady'):
-        max_width = 720
-        text_area_width = max_width - (2 * margin)
+        column_width = 720
+        text_area_width = column_width - (2 * margin)
+        fixed_height = 1920
+        footer_height = 50
         
         try:
             font = ImageFont.truetype(font_path, font_size)
             font_sections = ImageFont.truetype(font_path, int(font_size / 1.5))
-            # Header area settings: reserve space so everything below starts at y=256
-            # margin + header_height == 256 -> header_height = 256 - margin
             header_height = max(0, 256 - margin)
-            # Larger title/artist fonts for header
             font_title = ImageFont.truetype(font_path, 35)
             font_artist = ImageFont.truetype(font_path, 30)
         except IOError:
             print(f"Error: The font file '{font_path}' was not found.")
             return None
 
-        # --- Text Wrapping and Height Calculation (from draw_lyrics) ---
+        # Text Wrapping
         wrapped_sentences_data = []
         for sentence in sentences:
             if not sentence.strip():
@@ -410,35 +409,92 @@ class LyricsHandler():
                 'type': 'sentence',
                 'lines': wrapped_lines
             })
-        
-        # Calculate the total height required for the image based on wrapped text
-        y_offset = margin + header_height
-        for sentence_data in wrapped_sentences_data:
-            if y_offset > margin + header_height: # Add separation before each new sentence (except the very first)
-                y_offset += separation
-            
+
+        # calculate the rendered height of a sentence
+        def calc_sentence_height(sentence_data, is_first=False):
+            h = 0
             for i, line in enumerate(sentence_data['lines']):
                 font_to_use = font
                 is_section = False
+                text = line
+                text = text.replace('[[OD]]', '')
 
-                if line.startswith('[') and line.endswith(']'):
+                if text.startswith('[') and text.endswith(']'):
                     font_to_use = font_sections
+                    text = text[2:-2]
+                    text = event_map.get(text.lower(), text)
                     is_section = True
 
-                line = line.replace('[[OD]]', '')
-                line = line.replace('SPECIAL-', '')
-                text_bbox = font_to_use.getbbox(line)
+                text_bbox = font_to_use.getbbox(text)
                 text_height = text_bbox[3] - text_bbox[1]
-                y_offset += text_height
-                if i < len(sentence_data['lines']) - 1: # Add line_spacing between wrapped lines
-                    y_offset += line_spacing
+                h += text_height
+                if i < len(sentence_data['lines']) - 1:
+                    h += line_spacing
+                if is_section and not is_first:
+                    h -= 20
+            return h
 
-                if is_section:
-                    y_offset -= 20
-        
-        final_image_height = y_offset + margin + 100 # Add bottom margin
+        def is_section_sentence(sentence_data):
+            """Check if this sentence is a section marker (e.g. [[Chorus]])"""
+            if len(sentence_data['lines']) == 0:
+                return False
+            clean = sentence_data['lines'][0].replace('[[OD]]', '')
+            return clean.startswith('[') and clean.endswith(']')
 
-        # --- Background Generation (from create_blurred_colour_grid_background) ---
+        # --- Column Pagination ---
+        # Header spans full width at top; footer spans full width at bottom.
+        # All columns share the same vertical lyrics zone.
+        column_lyrics_start = 265  # after header area
+        column_lyrics_bottom = fixed_height - (margin / 2) - footer_height  # 1280 - 45 - 100 = 1135
+
+        # Each column is a list of indices into wrapped_sentences_data
+        columns = [[]]
+        current_y = column_lyrics_start
+        current_col = 0
+        just_moved_section = False
+
+        for idx, sentence_data in enumerate(wrapped_sentences_data):
+            is_first_in_col = len(columns[current_col]) == 0
+            sentence_h = calc_sentence_height(sentence_data, is_first=is_first_in_col)
+            total_needed = sentence_h
+            if not is_first_in_col:
+                total_needed += separation
+
+            # Would this sentence overflow the column?
+            if current_y + total_needed > column_lyrics_bottom and not is_first_in_col:
+                # Check if the last sentence in current column is a section marker
+                # and we haven't just moved one (prevent infinite loops)
+                if (not just_moved_section and columns[current_col] and
+                        is_section_sentence(wrapped_sentences_data[columns[current_col][-1]])):
+                    # Move section marker to the new column so it stays with following content
+                    moved_idx = columns[current_col].pop()
+                    current_col += 1
+                    columns.append([moved_idx])
+                    moved_h = calc_sentence_height(wrapped_sentences_data[moved_idx], is_first=True)
+                    current_y = column_lyrics_start + moved_h
+                    just_moved_section = True
+                else:
+                    current_col += 1
+                    columns.append([])
+                    current_y = column_lyrics_start
+                    just_moved_section = False
+
+                # Recalculate for the (possibly non-empty) new column
+                is_first_in_col = len(columns[current_col]) == 0
+                sentence_h = calc_sentence_height(sentence_data, is_first=is_first_in_col)
+                total_needed = sentence_h
+                if not is_first_in_col:
+                    total_needed += separation
+            else:
+                just_moved_section = False
+
+            columns[current_col].append(idx)
+            current_y += total_needed
+
+        num_columns = len(columns)
+        total_width = num_columns * column_width
+
+        # Background Generation
         try:
             album_art = Image.open(album_art_path).convert("RGB")
         except FileNotFoundError:
@@ -448,19 +504,19 @@ class LyricsHandler():
             print(f"Error opening album art: {e}")
             return None
 
-        # Step 1: Extract Dominant colours from 8 sections of the album art
+        # Extract dominant colours from 8 sections of the album art
         small_album_art = album_art.resize((256, 256))
         
         dominant_colours = []
         section_width = small_album_art.width // 4
-        section_height = small_album_art.height // 2
+        section_height_img = small_album_art.height // 2
 
-        for j in range(2): # 2 rows
-            for i in range(4): # 4 columns
+        for j in range(2):
+            for i in range(4):
                 left = i * section_width
-                top = j * section_height
+                top = j * section_height_img
                 right = left + section_width
-                bottom = top + section_height
+                bottom = top + section_height_img
                 
                 section = small_album_art.crop((left, top, right, bottom))
                 section_colours = list(section.getdata())
@@ -468,7 +524,6 @@ class LyricsHandler():
                 if not section_colours:
                     continue
 
-                # Check if the section is mostly dark
                 total_r = sum(c[0] for c in section_colours)
                 total_g = sum(c[1] for c in section_colours)
                 total_b = sum(c[2] for c in section_colours)
@@ -478,12 +533,10 @@ class LyricsHandler():
                 avg_b = total_b / num_pixels
 
                 if avg_r < 5 and avg_g < 5 and avg_b < 5:
-                    # If section is dark, find the brightest colour
                     brightest_colour = max(section_colours, key=lambda c: sum(c))
                     dominant_colours.append(brightest_colour)
                     continue
 
-                # Group similar colours
                 colour_counts = Counter(section_colours)
                 sorted_colours = sorted(colour_counts.keys(), key=lambda c: colour_counts[c], reverse=True)
                 
@@ -497,12 +550,10 @@ class LyricsHandler():
                     current_cluster = {'colours': [colour], 'count': colour_counts[colour]}
                     processed_colours.add(colour)
 
-                    # Find similar colours to add to the current cluster
                     for other_colour in sorted_colours:
                         if other_colour in processed_colours:
                             continue
                         
-                        # Check if colours are similar (e.g., within a threshold of 10 for each channel)
                         if all(abs(c1 - c2) <= 10 for c1, c2 in zip(colour, other_colour)):
                             current_cluster['colours'].append(other_colour)
                             current_cluster['count'] += colour_counts[other_colour]
@@ -511,10 +562,8 @@ class LyricsHandler():
                     clusters.append(current_cluster)
 
                 if clusters:
-                    # Find the largest cluster
                     largest_cluster = max(clusters, key=lambda c: c['count'])
                     
-                    # Calculate the average colour of the largest cluster
                     avg_r = sum(c[0] for c in largest_cluster['colours']) // len(largest_cluster['colours'])
                     avg_g = sum(c[1] for c in largest_cluster['colours']) // len(largest_cluster['colours'])
                     avg_b = sum(c[2] for c in largest_cluster['colours']) // len(largest_cluster['colours'])
@@ -527,33 +576,30 @@ class LyricsHandler():
                                 (0, 255, 255), (255, 0, 255), (128, 128, 128), (0, 0, 0)]
             
         dominant_colours = [self.darken_colour(colour, 45) for colour in dominant_colours]
-        # print(dominant_colours)
 
-        # Step 2: Generate Grid Pattern (dynamically adjust height)
-        grid_width = max_width
-        blocks_across = grid_width // block_size
-        
-        # Calculate blocks_down dynamically to ensure grid_height is at least final_image_height
-        blocks_down = (final_image_height // block_size) + (1 if final_image_height % block_size > 0 else 0)
-        # Ensure there's at least one 4x2 chunk vertically for randomness if the height is small
+        # Generate grid at full image dimensions
+        grid_w = total_width
+        blocks_across = grid_w // block_size + (1 if grid_w % block_size > 0 else 0)
+        blocks_down = fixed_height // block_size + (1 if fixed_height % block_size > 0 else 0)
         blocks_down = max(blocks_down, 2)
         
-        grid_height = blocks_down * block_size
+        grid_pixel_w = blocks_across * block_size
+        grid_pixel_h = blocks_down * block_size
 
-        grid_image = Image.new('RGB', (grid_width, grid_height), 'white')
-        draw_grid = ImageDraw.Draw(grid_image) # Use a separate Draw object for the grid
+        grid_image = Image.new('RGB', (grid_pixel_w, grid_pixel_h), 'white')
+        draw_grid = ImageDraw.Draw(grid_image)
 
         for y_chunk_start in range(0, blocks_down, 2):
             for x_chunk_start in range(0, blocks_across, 4):
                 current_chunk_colours = random.sample(dominant_colours, min(len(dominant_colours), 8))
                 colour_index = 0
 
-                for y_offset in range(2):
-                    for x_offset in range(4):
-                        current_block_x = (x_chunk_start + x_offset) * block_size
-                        current_block_y = (y_chunk_start + y_offset) * block_size
+                for y_off in range(2):
+                    for x_off in range(4):
+                        current_block_x = (x_chunk_start + x_off) * block_size
+                        current_block_y = (y_chunk_start + y_off) * block_size
 
-                        if current_block_x < grid_width and current_block_y < grid_height:
+                        if current_block_x < grid_pixel_w and current_block_y < grid_pixel_h:
                             colour_to_use = current_chunk_colours[colour_index % len(current_chunk_colours)]
                             draw_grid.rectangle(
                                 [current_block_x, current_block_y, 
@@ -562,21 +608,16 @@ class LyricsHandler():
                             )
                             colour_index += 1
 
-        # Step 3: Apply Gaussian Blur
         blurred_grid = grid_image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+        final_background = blurred_grid.crop((0, 0, total_width, fixed_height))
         
-        # Crop the blurred grid to the exact dimensions of the final image
-        final_background = blurred_grid.crop((0, 0, max_width, final_image_height))
-        
-        # --- Draw Text on Background ---
-        # Use the prepared background as the base image for drawing
-        img = final_background.copy() # Make a copy to draw on
-        draw_text = ImageDraw.Draw(img) # Use a separate Draw object for text
-        # Overlay for semi-transparent text (artist and section headers)
+        # Draw on the image
+        img = final_background.copy()
+        draw_text = ImageDraw.Draw(img)
         overlay = Image.new('RGBA', img.size, (255, 255, 255, 0))
         draw_overlay = ImageDraw.Draw(overlay)
 
-        # Draw header: album art at (45,30) sized 175x175, then title and artist to the right
+        # Draw Header
         art_x, art_y = 45, 30
         art_size = 175
         try:
@@ -584,7 +625,6 @@ class LyricsHandler():
         except Exception:
             album_art_thumb = album_art.copy().resize((art_size, art_size)).convert("RGBA")
 
-        # Create rounded corner mask and apply it
         mask = Image.new('L', (art_size, art_size), 0)
         mask_draw = ImageDraw.Draw(mask)
         radius = 20
@@ -593,13 +633,11 @@ class LyricsHandler():
         rounded_art = Image.new('RGBA', (art_size, art_size))
         rounded_art.paste(album_art_thumb, (0, 0), mask=mask)
 
-        # Paste rounded album art onto the main image using the mask for transparency
         img.paste(rounded_art, (art_x, art_y), mask)
 
-        # text should start 25px right of the album art and must not pass x=675 (right margin 45)
-        text_x = art_x + art_size + 25
+        text_x_header = art_x + art_size + 25
         right_margin = 45
-        header_avail_width = max_width - right_margin - text_x  # enforces max x = 675
+        header_avail_width = total_width - right_margin - text_x_header
 
         def ellipsize(text, font_obj, max_w):
             if not text:
@@ -607,7 +645,6 @@ class LyricsHandler():
             if font_obj.getlength(text) <= max_w:
                 return text
             ell = '...'
-            # binary-search like shrink
             low, high = 0, len(text)
             while low < high:
                 mid = (low + high) // 2
@@ -617,7 +654,6 @@ class LyricsHandler():
                 else:
                     high = mid
             candidate = text[:max(0, low-1)].rstrip() + ell
-            # final fallback brute force
             if font_obj.getlength(candidate) <= max_w:
                 return candidate
             for i in range(len(text), 0, -1):
@@ -629,7 +665,6 @@ class LyricsHandler():
         title = ellipsize(song_name or '', font_title, header_avail_width)
         artist = ellipsize(artist_name or '', font_artist, header_avail_width)
 
-        # Center the two lines vertically relative to the album art's area
         title_bbox = font_title.getbbox(title)
         artist_bbox = font_artist.getbbox(artist)
         title_h = title_bbox[3] - title_bbox[1] if title else 0
@@ -640,131 +675,127 @@ class LyricsHandler():
         y_start = int(y_center - total_h / 2)
 
         if title:
-            draw_text.text((text_x, y_start), title, font=font_title, fill=text_colour)
+            draw_text.text((text_x_header, y_start), title, font=font_title, fill=text_colour)
         if artist:
-            # draw artist semi-transparent (0.8 alpha)
             artist_rgba = (text_colour[0], text_colour[1], text_colour[2], int(0.8 * 255))
-            draw_overlay.text((text_x, y_start + title_h + (spacing if title and artist else 0)), artist, font=font_artist, fill=artist_rgba)
+            draw_overlay.text((text_x_header, y_start + title_h + (spacing if title and artist else 0)), artist, font=font_artist, fill=artist_rgba)
         
-        # Draw a 1px tall semi-transparent white separator at (45,225) width 675
-        sep_x = 45
+        # Horizontal separator
         sep_y = 235
-        sep_w = 675
         sep_colour = (255, 255, 255, int(0.5 * 255))
-        draw_overlay.rectangle([(sep_x, sep_y), (sep_w, sep_y)], fill=sep_colour)
+        draw_overlay.rectangle([(margin, sep_y), (total_width - margin, sep_y)], fill=sep_colour)
 
-        # Start drawing lyrics at absolute y=256 (ensured by header_height calculation)
-        y_position = 265
-        is_first = True
-        for sentence_data in wrapped_sentences_data:
-            if y_position > 265:  # Add separation before each new sentence (except the very first)
-                y_position += separation
+        # Draw separators between columns
+        col_sep_colour = (255, 255, 255, int(0.15 * 255))
+        for col_idx in range(1, num_columns):
+            sep_x = col_idx * column_width
+            draw_overlay.rectangle([(sep_x, header_height + margin), (sep_x, fixed_height - margin)], fill=col_sep_colour)
 
-            print(sentence_data['lines'])
-                
-            for i, line in enumerate(sentence_data['lines']):
-                x_position = margin
+        # Draw Lyrics per Column
+        def draw_gradient_text(base_img, pos, text, font_obj, colour_start, colour_end):
+            bbox = font_obj.getbbox(text)
+            x0, y0, x1, y1 = bbox
+            w = max(1, x1 - x0)
+            h = max(1, y1 - y0)
 
-                font_to_use = font
-                is_section = False
-                text = line
+            txt_mask = Image.new('L', (w, h), 0)
+            md = ImageDraw.Draw(txt_mask)
+            md.text((-x0, -y0), text, font=font_obj, fill=255)
 
-                is_overdrive = text.startswith('[[OD]]')
-                text = text.replace('[[OD]]', '')
+            grad = Image.new('RGBA', (w, h))
+            gd = ImageDraw.Draw(grad)
+            for ix in range(w):
+                t = ix / (w - 1) if w > 1 else 0
+                r = int(colour_start[0] + (colour_end[0] - colour_start[0]) * t)
+                g = int(colour_start[1] + (colour_end[1] - colour_start[1]) * t)
+                b = int(colour_start[2] + (colour_end[2] - colour_start[2]) * t)
+                gd.line([(ix, 0), (ix, h)], fill=(r, g, b, 255))
 
-                if text.startswith('[') and text.endswith(']'):
-                    font_to_use = font_sections
-                    text = text[2:-2]
-                    text = event_map.get(text.lower(), text)
-                    is_section = True
+            px = pos[0] + x0
+            py = pos[1] + y0
+            try:
+                base_img.paste(grad, (px, py), txt_mask)
+            except Exception:
+                base_img.paste(grad, (px, py), txt_mask)
 
-                cur_colour = text_colour
-                if is_section:
-                    # draw section header semi-transparent via overlay
-                    section_rgba = (255, 255, 255, int(0.75 * 255))
-                    draw_overlay.text((x_position, y_position), text, font=font_to_use, fill=section_rgba)
-                elif is_overdrive:
-                    # We'll render gradient text instead of solid colour
-                    def draw_gradient_text(base_img, pos, text, font_obj, colour_start, colour_end):
-                        # compute bbox and size
-                        bbox = font_obj.getbbox(text)
-                        x0, y0, x1, y1 = bbox
-                        w = max(1, x1 - x0)
-                        h = max(1, y1 - y0)
+        for col_idx, col_sentence_indices in enumerate(columns):
+            col_x_offset = col_idx * column_width
+            y_position = column_lyrics_start
+            is_first_in_col = True
 
-                        # create mask for text
-                        mask = Image.new('L', (w, h), 0)
-                        md = ImageDraw.Draw(mask)
-                        md.text((-x0, -y0), text, font=font_obj, fill=255)
+            for sent_idx in col_sentence_indices:
+                sentence_data = wrapped_sentences_data[sent_idx]
 
-                        # create horizontal gradient
-                        grad = Image.new('RGBA', (w, h))
-                        gd = ImageDraw.Draw(grad)
-                        for ix in range(w):
-                            t = ix / (w - 1) if w > 1 else 0
-                            r = int(colour_start[0] + (colour_end[0] - colour_start[0]) * t)
-                            g = int(colour_start[1] + (colour_end[1] - colour_start[1]) * t)
-                            b = int(colour_start[2] + (colour_end[2] - colour_start[2]) * t)
-                            gd.line([(ix, 0), (ix, h)], fill=(r, g, b, 255))
+                if not is_first_in_col:
+                    y_position += separation
 
-                        # paste gradient using text mask
-                        px = pos[0] + x0
-                        py = pos[1] + y0
-                        try:
-                            base_img.paste(grad, (px, py), mask)
-                        except Exception:
-                            base_img.paste(grad, (px, py), mask)
-                    # draw gradient from (255,227,153) to (255,215,0)
-                    draw_gradient_text(img, (x_position, y_position), text, font_to_use, (255, 227, 153), (255, 215, 0))
+                for i, line in enumerate(sentence_data['lines']):
+                    x_position = col_x_offset + margin
 
-                # print(f"Drawing text: '{text}' at position ({x_position}, {y_position})")
-                else:
-                    if not is_overdrive:
+                    font_to_use = font
+                    is_section = False
+                    text = line
+
+                    is_overdrive = text.startswith('[[OD]]')
+                    text = text.replace('[[OD]]', '')
+
+                    if text.startswith('[') and text.endswith(']'):
+                        font_to_use = font_sections
+                        text = text[2:-2]
+                        text = event_map.get(text.lower(), text)
+                        is_section = True
+
+                    cur_colour = text_colour
+                    if is_section:
+                        section_rgba = (255, 255, 255, int(0.75 * 255))
+                        draw_overlay.text((x_position, y_position), text, font=font_to_use, fill=section_rgba)
+                    elif is_overdrive:
+                        draw_gradient_text(img, (x_position, y_position), text, font_to_use, (255, 227, 153), (255, 215, 0))
+                    else:
                         draw_text.text((x_position, y_position), text, font=font_to_use, fill=cur_colour)
-                text_height = font_to_use.getbbox(text)[3] - font_to_use.getbbox(text)[1]
-                # print('Adding line spacing by ' + str(text_height) + ' to ' + str(y_position))
-                y_position += text_height
-                if is_section:
-                    # print('reducing line spacing by 20 to ' + str(y_position))
-                    if not is_first:
-                        y_position -= 20
 
-                if i < len(sentence_data['lines']) - 1:
-                    # print('FFFFFFFFFFFFFFFFF Adding line spacing by ' + str(line_spacing) + ' to ' + str(y_position))
-                    y_position += line_spacing
+                    text_height = font_to_use.getbbox(text)[3] - font_to_use.getbbox(text)[1]
+                    y_position += text_height
+                    if is_section:
+                        if not is_first_in_col:
+                            y_position -= 20
 
-            is_first = False
+                    if i < len(sentence_data['lines']) - 1:
+                        y_position += line_spacing
+
+                is_first_in_col = False
         
-        # Composite overlay onto main image to apply semi-transparent texts
+        # Composite overlay onto main image
         try:
             composed = Image.alpha_composite(img.convert('RGBA'), overlay)
         except Exception:
             composed = img.convert('RGBA')
 
-        # Draw footer: paste logo at left and right-align festivaltracker.org at right margin
+        # Draw Footer
         try:
-            footer_top = final_image_height - 100
-            logo_path = os.path.join('bot', 'data', 'Logo', 'Title.png')
-            if os.path.exists(logo_path):
-                logo = Image.open(logo_path).convert('RGBA')
-                # resize to height 50 keeping aspect ratio
-                logo_h = 50
-                logo_w = max(1, int(logo.width * (logo_h / logo.height)))
-                logo_thumb = logo.resize((logo_w, logo_h))
-                logo_x = 45
-                logo_y = int(footer_top + (100 - logo_h) / 2)
-                composed.paste(logo_thumb, (logo_x, logo_y), logo_thumb)
-
-            # Draw footer text right-aligned with 45px right margin
+            footer_top = fixed_height - footer_height
             draw_footer = ImageDraw.Draw(composed)
             footer_text = 'festivaltracker.org'
             font_wmark = ImageFont.truetype(font_path, 25)
-            text_bbox = font_wmark.getbbox(footer_text)
-            text_w = text_bbox[2] - text_bbox[0]
-            text_h = text_bbox[3] - text_bbox[1]
-            text_x = max_width - 45 - text_w
-            text_y = int(footer_top + (100 - text_h) / 2)
-            draw_footer.text((text_x, text_y), footer_text, font=font_wmark, fill=text_colour)
+            ft_bbox = font_wmark.getbbox(footer_text)
+            ft_w = ft_bbox[2] - ft_bbox[0]
+            ft_h = ft_bbox[3] - ft_bbox[1]
+
+            # Text at far right with margin
+            ftxt_x = total_width - margin - ft_w
+            ftxt_y = int(footer_top)
+            draw_footer.text((ftxt_x, ftxt_y), footer_text, font=font_wmark, fill=(255, 255, 255, int(0.75 * 255)))
+
+            # Logo to the left of the text
+            # logo_path = os.path.join('bot', 'data', 'Logo', 'Title.png')
+            # if os.path.exists(logo_path):
+            #     logo = Image.open(logo_path).convert('RGBA')
+            #     logo_h = 50
+            #     logo_w = max(1, int(logo.width * (logo_h / logo.height)))
+            #     logo_thumb = logo.resize((logo_w, logo_h))
+            #     logo_x = ftxt_x - logo_w - 15
+            #     logo_y = int(footer_top + (footer_height - logo_h) / 2)
+            #     composed.paste(logo_thumb, (logo_x, logo_y), logo_thumb)
         except Exception:
             pass
 
