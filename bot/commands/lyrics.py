@@ -491,6 +491,83 @@ class LyricsHandler():
             columns[current_col].append(idx)
             current_y += total_needed
 
+        # Post-processing pass 1 (end of column):
+        # If a column ends with a section marker that has only 1-2 phrases after it,
+        # move that entire section (marker + phrases) to the start of the next column.
+        for col_idx in range(len(columns) - 1):
+            col = columns[col_idx]
+            # Find the last section marker in this column
+            last_section_pos = None
+            for pos in range(len(col) - 1, -1, -1):
+                if is_section_sentence(wrapped_sentences_data[col[pos]]):
+                    last_section_pos = pos
+                    break
+
+            if last_section_pos is not None and last_section_pos > 0:
+                trailing_count = len(col) - 1 - last_section_pos  # phrases after section marker
+                if 0 <= trailing_count <= 2:
+                    # Move the section marker + its trailing phrases to the next column
+                    moved = col[last_section_pos:]
+                    columns[col_idx] = col[:last_section_pos]
+                    columns[col_idx + 1] = moved + columns[col_idx + 1]
+
+        # Post-processing pass 2 (start of column):
+        # If a column starts with 1-2 orphan phrases before a section marker,
+        # pull the entire section those orphans belong to (from the previous column)
+        # forward into this column, so the full section is together.
+        for col_idx in range(1, len(columns)):
+            col = columns[col_idx]
+            first_section_pos = None
+            for pos, sent_idx in enumerate(col):
+                if is_section_sentence(wrapped_sentences_data[sent_idx]):
+                    first_section_pos = pos
+                    break
+
+            if first_section_pos is not None and 1 <= first_section_pos <= 2:
+                prev_col = columns[col_idx - 1]
+                # Find the last section marker in the previous column
+                # (this is the section the orphans belong to)
+                last_section_in_prev = None
+                for pos in range(len(prev_col) - 1, -1, -1):
+                    if is_section_sentence(wrapped_sentences_data[prev_col[pos]]):
+                        last_section_in_prev = pos
+                        break
+
+                if last_section_in_prev is not None:
+                    # Pull the section marker + all its phrases from prev column into this column
+                    pulled = prev_col[last_section_in_prev:]
+                    columns[col_idx - 1] = prev_col[:last_section_in_prev]
+                    columns[col_idx] = pulled + col
+
+        # Remove any columns that became empty after post-processing
+        columns = [col for col in columns if len(col) > 0]
+
+        # Re-paginate to prevent clipping: if any column now overflows
+        # due to post-processing, split it into additional columns.
+        repaginated = []
+        for col in columns:
+            current_repag_col = []
+            current_y = column_lyrics_start
+            for sent_idx in col:
+                is_first = len(current_repag_col) == 0
+                h = calc_sentence_height(wrapped_sentences_data[sent_idx], is_first=is_first)
+                needed = h + (separation if not is_first else 0)
+
+                if current_y + needed > column_lyrics_bottom and not is_first:
+                    repaginated.append(current_repag_col)
+                    current_repag_col = []
+                    current_y = column_lyrics_start
+                    h = calc_sentence_height(wrapped_sentences_data[sent_idx], is_first=True)
+                    needed = h
+
+                current_repag_col.append(sent_idx)
+                current_y += needed
+
+            if current_repag_col:
+                repaginated.append(current_repag_col)
+
+        columns = repaginated
+
         num_columns = len(columns)
         total_width = num_columns * column_width
 
