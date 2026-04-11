@@ -225,7 +225,11 @@ class HistoryHandler():
                         'last_modified_new': last_modified_new_str,
                         'shortname': track_name
                     }, list_of_images)
-        return ({}, [])
+        return ({
+                        'last_modified_old': last_modified_old_str,
+                        'last_modified_new': last_modified_new_str,
+                        'shortname': track_name
+                    }, [])
 
     def fetch_local_history(self):
         json_files = []
@@ -687,7 +691,7 @@ class LoopCheckHandler():
                                 ),
                                 discord.ui.MediaGallery(
                                     *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in files[:10]]
-                                ),
+                                ) if files and len(files) > 0 else discord.ui.TextDisplay("Nothing to show :/"),
                                 accent_colour=constants.ACCENT_COLOUR
                             )
                         if len(files) > 10:
@@ -697,7 +701,7 @@ class LoopCheckHandler():
                         )
 
                     try:
-                        message = await channel.send(view=view, files=[discord.File(fpath) for fpath in files[:10]] if files else None)
+                        message = await channel.send(view=view, files=[discord.File(fpath) for fpath in files[:10]] if files and len(files) > 0 else None)
 
                     except discord.Forbidden as e:
                         logging.warning(f"Channel {channel.id} cannot be sent messages to, skipped", exc_info=e)
