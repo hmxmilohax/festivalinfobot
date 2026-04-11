@@ -691,7 +691,9 @@ class LoopCheckHandler():
                                 ),
                                 discord.ui.MediaGallery(
                                     *[discord.MediaGalleryItem(media=f'attachment://{os.path.basename(file)}') for file in files[:10]]
-                                ) if files and len(files) > 0 else discord.ui.TextDisplay("Nothing to show :/"),
+                                ) if files and len(files) > 0 else discord.ui.TextDisplay("Nothing to show..."),
+                                discord.ui.Separator(),
+                                discord.ui.TextDisplay('-# Festival Tracker'),
                                 accent_colour=constants.ACCENT_COLOUR
                             )
                         if len(files) > 10:
