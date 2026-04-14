@@ -389,4 +389,7 @@ class SearchEmbedHandler:
                     discord.ui.TextDisplay(f"```Old: \"{old.get(value, '[N/A]')}\"\nNew: \"{new.get(value, '[N/A]')}\"```")
                 )
 
+        container.add_item(discord.ui.Separator())
+        container.add_item(discord.ui.TextDisplay('-# By Festival Tracker · festivaltracker.org'))
+
         return container
