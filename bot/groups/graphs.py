@@ -33,15 +33,33 @@ class GraphCog(commands.Cog):
     @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
     @app_commands.describe(instrument = "The instrument to view the #notes of.")
     @app_commands.describe(difficulty = "The difficulty to view the #notes for.")
-    async def graph_lanes_command(self, interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-        await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
+    @app_commands.choices(
+            instrument=[
+                app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values()
+            ]
+        )
+    async def graph_lanes_command(self, interaction: discord.Interaction, song:str, instrument : app_commands.Choice[str], difficulty : constants.Difficulties = constants.Difficulties.Expert):
+        real_instrument: constants.Instruments = None
+        values = constants.Instruments.__members__.values()
+        real_instrument = discord.utils.find(lambda v: v.value.lb_code == instrument.value, values)
+
+        await self.graph_handler.handle_lanes_interaction(interaction=interaction, song=song, instrument=real_instrument, difficulty=difficulty)
 
     @graph_group.command(name="nps", description="Graph the NPS (Notes per second) for a specific song, instrument, and difficulty.")
     @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
     @app_commands.describe(instrument = "The instrument to view the NPS of.")
     @app_commands.describe(difficulty = "The difficulty to view the NPS for.")
-    async def graph_nps_command(self, interaction: discord.Interaction, song:str, instrument : constants.Instruments, difficulty : constants.Difficulties = constants.Difficulties.Expert):
-        await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=instrument, difficulty=difficulty)
+    @app_commands.choices(
+            instrument=[
+                app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values()
+            ]
+        )
+    async def graph_nps_command(self, interaction: discord.Interaction, song:str, instrument : app_commands.Choice[str], difficulty : constants.Difficulties = constants.Difficulties.Expert):
+        real_instrument: constants.Instruments = None
+        values = constants.Instruments.__members__.values()
+        real_instrument = discord.utils.find(lambda v: v.value.lb_code == instrument.value, values)
+
+        await self.graph_handler.handle_nps_interaction(interaction=interaction, song=song, instrument=real_instrument, difficulty=difficulty)
 
 class GraphCommandsHandler():
     def __init__(self) -> None:

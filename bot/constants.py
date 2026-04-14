@@ -79,7 +79,8 @@ SEASONS = {
     10: 'season010',
     11: 'season011',
     12: 'season012',
-    13: 'season013'
+    13: 'season013',
+    14: 'season014'
 }
 SEASON_NUMBER = 13
 
@@ -491,7 +492,8 @@ class Instruments(enum.Enum):
     Vocals = Instrument(english="Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS", emoji="<:vocals:1327742697695350936>")
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR", emoji="<:proguitar:1327742543571583179>")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS", emoji="<:probass:1327742553558093858>")
-    ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
+    ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
+    ProCymbals = Instrument(english="Pro Cymbals", lb_code="Solo_PeripheralCymbals", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=False, path_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
     ProVocals = Instrument(english="Pro Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=False, path_enabled=False, emoji="<:provocals:1464755018052931708>")
 
     # The @classmethod decorator just works!
@@ -526,6 +528,9 @@ class AllTimeLBTypes(enum.Enum):
     Vocals = AllTimeLBType(english="Vocals", code="Solo_Vocals")
     ProLead = AllTimeLBType(english="Pro Lead", code="Solo_PeripheralGuitar")
     ProBass = AllTimeLBType(english="Pro Bass", code="Solo_PeripheralBass")
+    ProDrums = AllTimeLBType(english="Pro Drums", code="Solo_PeripheralDrum")
+    ProCymbals = AllTimeLBType(english="Pro Cymbals", code="Solo_PeripheralCymbals")
+    ProVocals = AllTimeLBType(english="Pro Vocals", code="Solo_PeripheralVocals")
     BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
     BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
     BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)
