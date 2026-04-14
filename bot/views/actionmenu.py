@@ -13,14 +13,14 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
     def __init__(self, user_id: int) -> None:
         super().__init__(
             discord.ui.Select(
-                placeholder='Select an action...',
+                placeholder='[NEW] Wishlist, Preview, Lyrics & more...',
                 max_values=1,
                 min_values=1,
                 custom_id=f'actionmenu:{user_id}',
                 disabled=False
             )
         )
-        self.user_id: int = int(user_id)
+        self.user_id: int = int(user_id) if user_id else None
 
         # likewise, each option follows the "custom id pattern"
         # they should also have versions!!!
@@ -132,7 +132,7 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
             from bot.commands.lyrics import LyricsHandler
             # python is weird
             lyrics_handler = LyricsHandler()
-            await lyrics_handler.handle_interaction(interaction, chosen_metadata, pt='No', should_be_ephemeral=True)
+            await lyrics_handler.handle_interaction(interaction, chosen_metadata, pt='No', should_be_ephemeral=True, style='Stable')
         elif chosen_action == 'path' and chosen_action_version == '1':
             # import here to avoid circular import
             from bot.commands.path import PathCommandHandler

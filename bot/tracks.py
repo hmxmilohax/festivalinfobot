@@ -271,8 +271,35 @@ class SearchCommandHandler:
         embed = await self.embed_handler.generate_track_embed(track, is_detail=detail)
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
 
-        view: discord.ui.View = discord.ui.View(timeout=None)
-        action_select = ActionSelect(interaction.user.id)
+        view = ActionView(interaction.user.id, track)
+        await view.setup()
+        message = await interaction.edit_original_response(embed=embed, view=view)
+
+class ResultsJamTracks(discord.ui.View):
+    def __init__(self, tracks: list, on_select):
+        super().__init__(timeout=30)
+        self.tracks = tracks
+        self.select = ResultsJamTracksDropdown(tracks)
+        self.add_item(self.select)
+        self.select.callback = on_select
+
+class ResultsJamTracksDropdown(discord.ui.Select):
+    def __init__(self, tracks: list):
+        self.tracks = tracks
+
+        options = [discord.SelectOption(label=track['track']['tt'], value=track['track']['sn'], description=track['track']['an']) for track in tracks]
+        super().__init__(placeholder=f"Select from results... ({len(tracks)} total)", min_values=1, max_values=1, options=options)
+
+class ActionView(discord.ui.View):
+    def __init__(self, bot: commands.Bot, track_data: any, user_id: int = None):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+        self.track_data = track_data
+        self.bot = bot
+
+    async def setup(self):
+        track = self.track_data
+        action_select = ActionSelect(self.user_id if self.user_id else 111111111111111111)
         # preview
         action_select.item.append_option(
             discord.SelectOption(
@@ -284,8 +311,9 @@ class SearchCommandHandler:
         )
 
         wishlist_button_action = 'add'
-        if await self.bot.config.wishlist('check', user=interaction.user, shortname=track['track']['sn']):
-            wishlist_button_action = 'remove'
+        if self.user_id:
+            if await self.bot.config.wishlist('check', user=discord.Object(id=self.user_id), shortname=track['track']['sn']):
+                wishlist_button_action = 'remove'
 
         # wishlist
         wishlist_metad = f'{wishlist_button_action}:{track["track"]["sn"]}'
@@ -350,21 +378,4 @@ class SearchCommandHandler:
             )
         )
 
-        view.add_item(action_select)
-
-        message = await interaction.edit_original_response(embed=embed, view=view)
-
-class ResultsJamTracks(discord.ui.View):
-    def __init__(self, tracks: list, on_select):
-        super().__init__(timeout=30)
-        self.tracks = tracks
-        self.select = ResultsJamTracksDropdown(tracks)
-        self.add_item(self.select)
-        self.select.callback = on_select
-
-class ResultsJamTracksDropdown(discord.ui.Select):
-    def __init__(self, tracks: list):
-        self.tracks = tracks
-
-        options = [discord.SelectOption(label=track['track']['tt'], value=track['track']['sn'], description=track['track']['an']) for track in tracks]
-        super().__init__(placeholder=f"Select from results... ({len(tracks)} total)", min_values=1, max_values=1, options=options)
+        self.add_item(action_select)
