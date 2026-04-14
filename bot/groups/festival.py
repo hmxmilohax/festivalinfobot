@@ -74,12 +74,12 @@ class FortniteCog(commands.Cog):
 
         links_info = f'https://links-public-service-live.ol.epicgames.com/links/api/fn/mnemonic?ignoreFailures=true'
         payload = [
-            {
-                "mnemonic": "set_battlestage_playlists",
-                "type": "",
-                "filter": False,
-                "v": ""
-            },
+            # {
+            #     "mnemonic": "set_battlestage_playlists",
+            #     "type": "",
+            #     "filter": False,
+            #     "v": ""
+            # },
             {
                 "mnemonic": "playlist_pilgrimquickplay",
                 "type": "",
@@ -108,12 +108,12 @@ class FortniteCog(commands.Cog):
 
         # datalabs = epiclabsresponse.json()
         jam_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_fmclubisland', data['links'])
-        battle_stage = discord.utils.find(lambda p: p['linkCode'] == 'set_battlestage_playlists', data['links'])
+        # battle_stage = discord.utils.find(lambda p: p['linkCode'] == 'set_battlestage_playlists', data['links'])
         main_stage = discord.utils.find(lambda p: p['linkCode'] == 'playlist_pilgrimquickplay', data['links'])
         # dance_with_sabrina = discord.utils.find(lambda p: p['linkCode'] == '4030-2345-0180', datalabs['links'])
 
         jam_stage_data = discord.utils.find(lambda p: p['mnemonic'] == 'playlist_fmclubisland', links_data)
-        battle_stage_data = discord.utils.find(lambda p: p['mnemonic'] == 'set_battlestage_playlists', links_data)
+        # battle_stage_data = discord.utils.find(lambda p: p['mnemonic'] == 'set_battlestage_playlists', links_data)
         main_stage_data = discord.utils.find(lambda p: p['mnemonic'] == 'playlist_pilgrimquickplay', links_data)
 
         now_ts = datetime.datetime.now(datetime.timezone.utc)
@@ -121,15 +121,15 @@ class FortniteCog(commands.Cog):
         now_3h_ago = (now_ts - datetime.timedelta(hours=3)).isoformat(timespec='milliseconds')[:-6] + 'Z'
 
         metrics_jam_stage = f'https://api.fortnite.com/ecosystem/v1/islands/playlist_fmclubisland/metrics/hour/peak-ccu?from={now_3h_ago}'
-        metrics_battle_stage = f'https://api.fortnite.com/ecosystem/v1/islands/set_battlestage_playlists/metrics/hour/peak-ccu?from={now_3h_ago}'
+        # metrics_battle_stage = f'https://api.fortnite.com/ecosystem/v1/islands/set_battlestage_playlists/metrics/hour/peak-ccu?from={now_3h_ago}'
         metrics_main_stage = f'https://api.fortnite.com/ecosystem/v1/islands/playlist_pilgrimquickplay/metrics/hour/peak-ccu?from={now_3h_ago}'
 
         # print(jam_stage_data)
 
-        total_ccu = battle_stage['globalCCU'] + main_stage['globalCCU'] + jam_stage['globalCCU']
+        total_ccu = main_stage['globalCCU'] + jam_stage['globalCCU']
         
         jam_stage_metrics = self.generate_metrics(jam_stage['globalCCU'], metrics_jam_stage)
-        battle_stage_metrics = self.generate_metrics(battle_stage['globalCCU'], metrics_battle_stage)
+        # battle_stage_metrics = self.generate_metrics(battle_stage['globalCCU'], metrics_battle_stage)
         main_stage_metrics = self.generate_metrics(main_stage['globalCCU'], metrics_main_stage)
 
         # TODO Localize images and titles
@@ -152,14 +152,14 @@ class FortniteCog(commands.Cog):
             )
         ).add_item(
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-        ).add_item(
-            discord.ui.Section(
-                f"## {battle_stage_data['metadata']['title']}",
-                battle_stage_metrics,
-                accessory=discord.ui.Thumbnail(battle_stage_data['metadata']['image_url'])
-            )
-        ).add_item(
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+        # ).add_item(
+        #     discord.ui.Section(
+        #         f"## {battle_stage_data['metadata']['title']}",
+        #         battle_stage_metrics,
+        #         accessory=discord.ui.Thumbnail(battle_stage_data['metadata']['image_url'])
+        #     )
+        # ).add_item(
+        #     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
         ).add_item(
             discord.ui.Section(
                 f"## {main_stage_data['metadata']['title']}",
@@ -176,7 +176,7 @@ class FortniteCog(commands.Cog):
         embed = discord.Embed(title="Fortnite Festival Active Players", colour=constants.ACCENT_COLOUR)
         embed.add_field(name="Total", value=total_ccu, inline=False)
         # embed.add_field(name="Jam Stage", value=jam_stage['globalCCU'])
-        embed.add_field(name="Battle Stage", value=battle_stage['globalCCU'])
+        # embed.add_field(name="Battle Stage", value=battle_stage['globalCCU'])
         embed.add_field(name="Main Stage", value=main_stage['globalCCU'])
         embed.add_field(name="Jam Stage", value=jam_stage['globalCCU'])
         await interaction.edit_original_response(view=view, attachments=[discord.File(constants.KEYART_PATH, constants.KEYART_FNAME)])
