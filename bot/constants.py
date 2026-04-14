@@ -63,6 +63,8 @@ EPIC_DEVICE_SECRET: str = config.get('bot', 'epic_device_secret')
 EPIC_DEVICE_AUTH_CLIENT_ID: str = config.get('bot', 'epic_device_auth_client_id')
 EPIC_DEVICE_AUTH_CLIENT_SECRET: str = config.get('bot', 'epic_device_auth_client_secret')
 
+IS_DEVELOPER_ENVIRONMENT = config.getboolean('bot', 'is_developer_environment', fallback=False)
+
 SPARKS_MIDI_KEY: str = config.get('bot', 'sparks_midi_key') #b64
 AGREEMENTS_DATA = json.loads(open('bot/agreements/index.json', 'r').read())
 
@@ -123,7 +125,15 @@ PRO_DRUMS_EMOJI = '<:drums:1349038567502123128>'
 PRO_VOCALS_EMOJI = '<:vocals:1349038596841279539>'
 PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 
-ACCENT_COLOUR = 0x884FB0
+# brand                 (139, 79, 176)
+# [13] chappell         (241, 138, 181)
+SEASON_COLOUR = (241, 138, 181)
+
+# invert the colour if in developer environment 
+if IS_DEVELOPER_ENVIRONMENT:
+    SEASON_COLOUR = tuple(255 - c for c in SEASON_COLOUR)
+
+ACCENT_COLOUR = (SEASON_COLOUR[0] << 16) + (SEASON_COLOUR[1] << 8) + SEASON_COLOUR[2]
 
 EVENT_NAMES = {
     'added': "Track Added",
