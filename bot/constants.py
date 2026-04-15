@@ -540,7 +540,7 @@ class AllTimeLBTypes(enum.Enum):
     ProBass = AllTimeLBType(english="Pro Bass", code="Solo_PeripheralBass")
     ProDrums = AllTimeLBType(english="Pro Drums", code="Solo_PeripheralDrum")
     ProCymbals = AllTimeLBType(english="Pro Cymbals", code="Solo_PeripheralCymbals")
-    ProVocals = AllTimeLBType(english="Pro Vocals", code="Solo_PeripheralVocals")
+    MicVocals = AllTimeLBType(english="Mic Vocals", code="Solo_PeripheralVocals")
     BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
     BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
     BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)
