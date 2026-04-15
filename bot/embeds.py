@@ -191,7 +191,7 @@ class SearchEmbedHandler:
             embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
 
             if has_pro_vocals:
-                embed.add_field(name="Pro Vocals", value="Yes", inline=True)
+                embed.add_field(name="Mic Vocals", value="Yes", inline=True)
             
             embed.add_field(name="Rating", value=f"`{track.get('ar', 'N/A')}`", inline=True)
 
@@ -234,11 +234,11 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
 
-        pro_vocals_status = "Pro Vocals Status Not Available"
+        pro_vocals_status = "Mic Vocals Status Not Available"
         if is_instrumental:
             pro_vocals_status = "Instrumental Only"
         elif has_pro_vocals:
-            pro_vocals_status = "Pro Vocals Supported"
+            pro_vocals_status = "Mic Vocals Supported"
 
         embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} · {pro_vocals_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         
