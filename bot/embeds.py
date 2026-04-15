@@ -219,7 +219,7 @@ class SearchEmbedHandler:
             f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
             f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
             f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Pro Vocals: {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Mic Vocals: {constants.generate_difficulty_bar(band_diff)}\n"
             f"Average {a} {constants.generate_difficulty_bar(int(avg_diff - 1))}"
         )
 
