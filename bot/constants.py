@@ -504,7 +504,7 @@ class Instruments(enum.Enum):
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS", emoji="<:probass:1327742553558093858>")
     ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
     ProCymbals = Instrument(english="Pro Cymbals", lb_code="Solo_PeripheralCymbals", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, path_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
-    ProVocals = Instrument(english="Pro Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=True, path_enabled=False, emoji="<:provocals:1464755018052931708>")
+    MicVocals = Instrument(english="Mic Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=True, path_enabled=False, emoji="<:provocals:1464755018052931708>")
 
     # The @classmethod decorator just works!
     @classmethod
