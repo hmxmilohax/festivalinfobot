@@ -511,7 +511,7 @@ class Instruments(enum.Enum):
     # The @classmethod decorator just works!
     @classmethod
     def getall(self) -> list[Instrument]:
-        return [self.ProLead.value, self.ProBass.value, self.ProDrums.value, self.Bass.value, self.Lead.value, self.Drums.value, self.Vocals.value, self.ProVocals.value]
+        return [self.ProLead.value, self.ProBass.value, self.ProDrums.value, self.ProCymbals.value, self.Bass.value, self.Lead.value, self.Drums.value, self.Vocals.value, self.MicVocals.value]
 
 class Difficulties(enum.Enum):
     Expert = Difficulty()
