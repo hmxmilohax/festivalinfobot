@@ -585,13 +585,13 @@ class FestivalTracker(commands.AutoShardedBot):
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def agreements_command(interaction: discord.Interaction):
-            await interaction.response.defer()
-
             embed = discord.Embed(colour=constants.ACCENT_COLOUR)
             embed.add_field(
                 name="Festival Tracker Agreements",
                 value="Festival Tracker's Privacy Policy and Terms of Service."
             )
+            embed.set_thumbnail(url=self.user.avatar.url)
+            embed.set_footer(text="Festival Tracker")
             view = discord.ui.View()
             view.add_item(
                 discord.ui.Button(label="View Privacy Policy", url="https://festivaltracker.org/privacy-policy", row=1)
@@ -600,13 +600,7 @@ class FestivalTracker(commands.AutoShardedBot):
                 discord.ui.Button(label="View Terms of Service", url="https://festivaltracker.org/terms-of-service", row=2)
             )
 
-            await interaction.edit_original_response(embed=embed, view=view)
-
-            try:
-                obj = await self.events.wait_for('test', timeout=10)
-                await interaction.edit_original_response(content=f"it worked {obj}")
-            except asyncio.TimeoutError:
-                await interaction.edit_original_response(content="timeout")
+            await interaction.response.send_message(embed=embed, view=view)
             
         @self.tree.command(name="search", description="Search a track.")
         @app_commands.allowed_installs(guilds=True, users=True)
