@@ -121,8 +121,6 @@ class LyricsHandler():
         phrases = []
         cur_phrase = None
         for phrase in messages_only_phrases:
-            #                            I hope this doesnt
-            #                              break anything!
             if phrase.type == 'note_on' and not cur_phrase:
                 cur_phrase = {
                     'start': phrase.time,
@@ -130,9 +128,7 @@ class LyricsHandler():
                     'end': None,
                     'notes': []
                 }
-                #                                   DUMBASS FIX BRO 
-                #                                    HARMONIX FIX
-                #                                    UR GAME PLS
+                #                                   dumb fix
             elif (phrase.type == 'note_off' or phrase.type == 'note_on') and cur_phrase and phrase.note == cur_phrase['note']:
                 cur_phrase['end'] = phrase.time
                 phrases.append(cur_phrase)
@@ -355,7 +351,7 @@ class LyricsHandler():
                     album_art_path=album_art_path,
                     line_spacing=10,
                     text_colour=(255, 255, 255),
-                    song_name=song_name, artist_name=artist_name
+                    song_data=track
                 )
         else:
             return '\n'.join(sentences)
@@ -376,19 +372,25 @@ class LyricsHandler():
         block_size=180, 
         blur_radius=200,
         text_colour=(0, 0, 0),
-        song_name: str = 'Por El Asterisco',
-        artist_name: str = 'Faraon Love Shady'):
+        song_data: any = None):
         column_width = 720
         text_area_width = column_width - (2 * margin)
         fixed_height = 1920
         footer_height = 50
         
+        song_name = song_data['track']['tt'] if song_data else None
+        artist_name = song_data['track']['an'] if song_data else None
+        year = song_data['track']['ry'] if song_data else None
+        duration = song_data['track']['dn'] if song_data else None
+        pro_vocals_difficulty = song_data['track']['in'].get('bd', -1)
+
         try:
             font = ImageFont.truetype(font_path, font_size)
             font_sections = ImageFont.truetype(font_path, int(font_size / 1.5))
             header_height = max(0, 256 - margin)
             font_title = ImageFont.truetype(font_path, 35)
             font_artist = ImageFont.truetype(font_path, 30)
+            font_meta = ImageFont.truetype(font_path, 20)
         except IOError:
             print(f"Error: The font file '{font_path}' was not found.")
             return None
@@ -675,20 +677,77 @@ class LyricsHandler():
         title = ellipsize(song_name or '', font_title, header_avail_width)
         artist = ellipsize(artist_name or '', font_artist, header_avail_width)
 
+        # Build metadata line: "year · min:sec"
+        meta_line = ''
+        if year is not None and duration is not None:
+            dur_min = int(duration) // 60
+            dur_sec = int(duration) % 60
+            meta_line = f"{year} \u00B7 {dur_min}:{dur_sec:02d}"
+        elif year is not None:
+            meta_line = str(year)
+        elif duration is not None:
+            dur_min = int(duration) // 60
+            dur_sec = int(duration) % 60
+            meta_line = f"{dur_min}:{dur_sec:02d}"
+
         title_bbox = font_title.getbbox(title)
         artist_bbox = font_artist.getbbox(artist)
         title_h = title_bbox[3] - title_bbox[1] if title else 0
         artist_h = artist_bbox[3] - artist_bbox[1] if artist else 0
-        spacing = 12
+        meta_h = (font_meta.getbbox(meta_line)[3] - font_meta.getbbox(meta_line)[1]) if meta_line else 0
+
+        # Difficulty bar dimensions
+        diff_display = (pro_vocals_difficulty + 1) if pro_vocals_difficulty >= 0 else None
+        bar_total_segments = 7
+        bar_seg_w = 16
+        bar_seg_h = 16
+        bar_seg_gap = 4
+        bar_total_w = bar_total_segments * bar_seg_w + (bar_total_segments - 1) * bar_seg_gap
+        diff_label = f"{diff_display}/{bar_total_segments}" if diff_display is not None else ''
+        diff_label_w = font_meta.getlength(diff_label) if diff_label else 0
+        diff_row_h = bar_seg_h if diff_display is not None else 0
+
+        spacing = 10
         y_center = art_y + art_size / 2
-        total_h = title_h + artist_h + (spacing if title and artist else 0)
+        total_h = title_h
+        if artist:
+            total_h += spacing + artist_h
+        if meta_line:
+            total_h += spacing + meta_h
+        if diff_display is not None:
+            total_h += spacing + diff_row_h
         y_start = int(y_center - total_h / 2)
 
+        cur_y = y_start
         if title:
-            draw_text.text((text_x_header, y_start), title, font=font_title, fill=text_colour)
+            draw_text.text((text_x_header, cur_y), title, font=font_title, fill=text_colour)
+            cur_y += title_h + spacing
         if artist:
             artist_rgba = (text_colour[0], text_colour[1], text_colour[2], int(0.8 * 255))
-            draw_overlay.text((text_x_header, y_start + title_h + (spacing if title and artist else 0)), artist, font=font_artist, fill=artist_rgba)
+            draw_overlay.text((text_x_header, cur_y), artist, font=font_artist, fill=artist_rgba)
+            cur_y += artist_h + spacing
+        if meta_line:
+            meta_rgba = (text_colour[0], text_colour[1], text_colour[2], int(0.6 * 255))
+            draw_overlay.text((text_x_header, cur_y), meta_line, font=font_meta, fill=meta_rgba)
+            cur_y += meta_h + spacing
+        if diff_display is not None:
+            bar_x = text_x_header
+            bar_y = cur_y
+            bar_radius = 3
+            for seg_i in range(bar_total_segments):
+                sx = bar_x + seg_i * (bar_seg_w + bar_seg_gap)
+                if seg_i < diff_display:
+                    seg_fill = (text_colour[0], text_colour[1], text_colour[2], int(0.85 * 255))
+                else:
+                    seg_fill = (text_colour[0], text_colour[1], text_colour[2], int(0.2 * 255))
+                draw_overlay.rounded_rectangle(
+                    [sx, bar_y, sx + bar_seg_w, bar_y + bar_seg_h],
+                    radius=bar_radius, fill=seg_fill
+                )
+            label_x = bar_x + bar_total_w + 10
+            label_rgba = (text_colour[0], text_colour[1], text_colour[2], int(0.6 * 255))
+            label_y_offset = int((bar_seg_h - (font_meta.getbbox(diff_label)[3] - font_meta.getbbox(diff_label)[1])) / 2)
+            draw_overlay.text((label_x, bar_y + label_y_offset - 5), diff_label, font=font_meta, fill=label_rgba)
         
         # Horizontal separator
         sep_y = 235
