@@ -127,7 +127,8 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 
 # brand                 (139, 79, 176)
 # [13] chappell         (241, 138, 181)
-SEASON_COLOUR = (241, 138, 181)
+# [14] laufey           (71, 132, 178)
+SEASON_COLOUR = (71, 132, 178)
 
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
@@ -170,7 +171,8 @@ SIMPLE_COMPARISONS = {
     'nu': 'New Until Date',
     'tb': 'Quest Thumbnail',
     'sm': 'Stage Mood',
-    'ag': 'Animation Genre'
+    'ag': 'Animation Genre',
+    'ci': 'Count-in Duration'
 }
 
 DIFFICULTY_COMPARISONS = {
