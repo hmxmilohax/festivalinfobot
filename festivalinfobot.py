@@ -647,7 +647,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
             songs_with, songs_without, missing_midi = provocals_data
             percentage = round((len(songs_with) / len(track_list)) * 100, 2)
-            embed.add_field(name="Pro Vocals", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
+            embed.add_field(name="Mic Vocals", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
             if detail:
                 if len(missing_midi) > 0:
@@ -928,7 +928,7 @@ class FestivalTracker(commands.AutoShardedBot):
         async def wishlist_command(interaction: discord.Interaction):
             await self.wishlist_handler.handle_display(interaction)
 
-        @self.tree.command(name="lyrics", description="View the lyrics of a Jam Track (if it supports Pro Vocals).")
+        @self.tree.command(name="lyrics", description="View the lyrics of a Jam Track (if it supports Mic Vocals).")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         @app_commands.describe(plaintext = "Whether to send the lyrics formatted neatly in a text file (.txt).")
         @app_commands.describe(style = "Whether to send the lyrics in the legacy image format or the new image format.")
