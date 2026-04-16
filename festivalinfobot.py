@@ -690,7 +690,7 @@ class FestivalTracker(commands.AutoShardedBot):
         @app_commands.describe(no_time_signatures = "If set to True, CHOpt will not draw Time Signatures.")
         @app_commands.choices(
             instrument=[
-                app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values()
+                app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values() if kt.value.path_enabled
             ]
         )
         async def path_command(interaction: discord.Interaction, song:str, instrument:app_commands.Choice[str], difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: str = '20', lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):

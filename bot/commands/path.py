@@ -223,6 +223,10 @@ class PathCommandHandler():
 
             container.add_item(action_row)
 
+            if chosen_instrument.midi == "PLASTIC DRUMS":
+                container.add_item(discord.ui.Separator())
+                container.add_item(discord.ui.TextDisplay('-# Disclaimer: Pro Drums Paths are generated with the Clone Hero engine and may not be accurate to the in-game engine.'))
+
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.TextDisplay("-# Festival Tracker"))
     
