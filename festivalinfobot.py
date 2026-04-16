@@ -308,14 +308,8 @@ class FestivalTracker(commands.AutoShardedBot):
     async def on_guild_remove(self, guild: discord.Guild):
         await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
-    async def on_app_command_completion(self, interaction: discord.Interaction, command: Union[app_commands.Command, app_commands.ContextMenu]):
-        place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
-        if interaction.guild:
-            place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}")
-
-        analytic = constants.Analytic(interaction)
-        self.analytics.append(analytic)
+    async def on_interaction(self, interaction: discord.Interaction):
+        pass
 
     async def on_command_error(self, context, exception):
         if isinstance(exception, commands.errors.CommandNotFound):
@@ -394,8 +388,120 @@ class FestivalTracker(commands.AutoShardedBot):
             if not is_piped:
                 logging.error('Ignoring exception in command tree', exc_info=error)
 
-    def setup_commands(self):
+    async def check_agreements(self, interaction: discord.Interaction):
+        # return True
+
+        current_privacy_version = constants.AGREEMENTS_DATA["privacy_policy"]["version"]
+        current_terms_version = constants.AGREEMENTS_DATA["terms_of_service"]["version"]
+        user_agreements_data = await self.config.agreement(operation="get", user=interaction.user)
+        should_proceed = True
+
+        if user_agreements_data:
+            user_privacy_version = user_agreements_data["privacy_policy_version"]
+            user_terms_version = user_agreements_data["terms_of_service_version"]
+            user_privacy_accepted = user_agreements_data["privacy_policy_accepted"]
+            user_terms_accepted = user_agreements_data["terms_of_service_accepted"]
+
+            if current_privacy_version != user_privacy_version:
+                should_proceed = False
+            if current_terms_version != user_terms_version:
+                should_proceed = False
+            if not user_privacy_accepted:
+                should_proceed = False
+            if not user_terms_accepted:
+                should_proceed = False
+        else:
+            should_proceed = False
+
+        if should_proceed:
+            return True
+
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
         
+        embed = discord.Embed(colour=constants.ACCENT_COLOUR)
+        embed.title = "Festival Tracker Agreements"
+        embed.add_field(
+            name="Before we continue...",
+            value="Please review and accept Festival Tracker's Privacy Policy and Terms of Service before proceeding.\n" +
+            "You'll be able to use Festival Tracker normally after accepting." +
+            "\n\n-# You may see this message again whenever we change these policies."
+        )
+        embed.set_footer(text=f"Version: {current_privacy_version}-{current_terms_version}")
+        embed.set_thumbnail(url=self.user.avatar.url)
+        view = discord.ui.View()
+        view.add_item(
+            discord.ui.Button(label="View Privacy Policy", url="https://festivaltracker.org/privacy-policy", row=1)
+        )
+        view.add_item(
+            discord.ui.Button(label="View Terms of Service", url="https://festivaltracker.org/terms-of-service", row=2)
+        )
+
+        async def on_accept_policy_callback(interaction: discord.Interaction):
+            await interaction.response.defer()
+
+            agreement_type = "privacy_policy" if interaction.data['id'] == 6767 else "terms_of_service"
+            agreement_version = current_privacy_version if agreement_type == "privacy_policy" else current_terms_version
+            agreement_accepted = True
+
+            await self.config.agreement(operation="update", user=interaction.user, agreement_type=agreement_type, agreement_version=agreement_version, agreement_accepted=agreement_accepted)
+
+            view.find_item(interaction.data['id']).disabled = True
+
+            user_agreements_data = await self.config.agreement(operation="get", user=interaction.user)
+            if user_agreements_data["privacy_policy_accepted"] and user_agreements_data["privacy_policy_version"] == current_privacy_version and user_agreements_data["terms_of_service_accepted"] and user_agreements_data["terms_of_service_version"] == current_terms_version:
+                embed = discord.Embed(colour=constants.ACCENT_COLOUR)
+                embed.title = "You're all set!"
+                embed.add_field(
+                    name="Thank you!",
+                    value="You have now accepted our policies. You're ready to use Festival Tracker." +
+                    "\n\n-# Due to Discord API limitations, we cannot proceed for you. Please run the command again to continue."
+                )
+                embed.set_footer(text=f"Version: {current_privacy_version}-{current_terms_version}")
+                embed.set_thumbnail(url=self.user.avatar.url)
+
+                await interaction.edit_original_response(embed=embed, view=None)
+            else:
+                await interaction.edit_original_response(view=view)
+
+        accept_pp_btn = discord.ui.Button(style=discord.ButtonStyle.success,
+        label="Accept", id=6767, row=1)
+        accept_tos_btn = discord.ui.Button(style=discord.ButtonStyle.success,
+        label="Accept", id=6969, row=2)
+
+        accept_pp_btn.callback = on_accept_policy_callback
+        accept_tos_btn.callback = on_accept_policy_callback
+
+        view.add_item(accept_pp_btn)
+        view.add_item(accept_tos_btn)
+
+        await interaction.edit_original_response(embed=embed, view=view)
+
+        return False
+
+    async def _pre_command(self, interaction: discord.Interaction):
+        command = interaction.command
+
+        place = f'DMs with {interaction.user.display_name} (`{interaction.user.id}`)'
+        if interaction.guild:
+            place = f'{interaction.guild.name} (`{interaction.guild.id}`)'
+
+        command_options = str(interaction.namespace)
+        raw_namespace = command_options.replace('<Namespace ', '').replace('>', '')
+        parsed_namespace = ""
+        if len(raw_namespace) > 0:
+            parsed_namespace = f'\n```{raw_namespace}```'
+            
+        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}{parsed_namespace}")
+
+        analytic = constants.Analytic(interaction)
+        self.analytics.append(analytic)
+
+        return await self.check_agreements(interaction)
+
+    def setup_commands(self):
+        self.tree.interaction_check = self._pre_command
+
         @self.command(name="online")
         async def checkonline_command(ctx):
             if ctx.message.channel.permissions_for(ctx.message.channel.guild.me).add_reactions:
@@ -455,26 +561,6 @@ class FestivalTracker(commands.AutoShardedBot):
             await ctx.send("Licensing is hard")
 
         @self.command()
-        async def weak(ctx: commands.Context):
-            await ctx.send(file=discord.File('bot/data/EasterEgg/weak.png', filename="weak.png"))
-
-        @self.command()
-        async def ontonothing(ctx: commands.Context):
-            await ctx.send(file=discord.File('bot/data/EasterEgg/ontonothing.jpg', filename="ontonothing.jpg"))
-
-        @self.command()
-        async def miku(ctx: commands.Context):
-            await ctx.send(file=discord.File('bot/data/EasterEgg/miku.png', filename="miku.png"))
-
-        @self.command()
-        async def impersonator(ctx: commands.Context):
-            await ctx.send(file=discord.File('bot/data/EasterEgg/Screenshot 2025-10-04 005309.png', filename="Screenshot 2025-10-04 005309.png"))
-
-        @self.command()
-        async def milohaxowner(ctx: commands.Context):
-            await ctx.send(file=discord.File('bot/data/EasterEgg/heisthebot.png', filename="heisthebot.png"))
-
-        @self.command()
         async def feet(ctx: commands.Context):
             await ctx.message.add_reaction("👣")
 
@@ -497,7 +583,7 @@ class FestivalTracker(commands.AutoShardedBot):
         @self.tree.command(name="agreements", description="Festival Tracker Privacy Policy and Terms of Service.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def search_command(interaction: discord.Interaction):
+        async def agreements_command(interaction: discord.Interaction):
             await interaction.response.defer()
 
             embed = discord.Embed(colour=constants.ACCENT_COLOUR)

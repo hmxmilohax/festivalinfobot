@@ -617,3 +617,22 @@ class TestCog(commands.Cog):
             track_list_json.append(track['track']['sn'])
         
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(json.dumps(track_list_json, indent=4).encode()), 'pro_vocals_tracks.json')])
+
+    @test_group.command(name="wipe_agreements_for_user", description="Wipe all agreements for a user")
+    @app_commands.describe(user_id = "The user ID to wipe agreements for")
+    async def wipe_agreements_for_user(self, interaction: discord.Interaction, user_id: str):
+        if not (interaction.user.id in constants.BOT_OWNERS):
+            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+            return
+
+        await interaction.response.defer()
+
+        agreement_data = constants.AGREEMENTS_DATA
+        privacy_policy_version = agreement_data['privacy_policy']['version']
+        terms_of_service_version = agreement_data['terms_of_service']['version']
+
+        conf: database.Config = self.bot.config
+        await conf.agreement(operation="update", user=discord.Object(int(user_id)), agreement_type="privacy_policy", agreement_version=privacy_policy_version, agreement_accepted=False)
+        await conf.agreement(operation="update", user=discord.Object(int(user_id)), agreement_type="terms_of_service", agreement_version=terms_of_service_version, agreement_accepted=False)
+
+        await interaction.edit_original_response(content=f"Agreements wiped for user <@{user_id}>")
