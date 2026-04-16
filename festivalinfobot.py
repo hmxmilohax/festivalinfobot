@@ -679,10 +679,9 @@ class FestivalTracker(commands.AutoShardedBot):
             await self.bestsellers_renderer.handle_interaction(interaction=interaction)
 
         @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
-        @app_commands.describe(detail = "Whether to show detailed categories of Jam Tracks.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-        async def count_command(interaction: discord.Interaction, detail: bool = False):
+        async def count_command(interaction: discord.Interaction):
             track_list = constants.get_jam_tracks(use_cache=False)
             if not track_list:
                 await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
@@ -729,9 +728,8 @@ class FestivalTracker(commands.AutoShardedBot):
             percentage = round((len(songs_with) / len(track_list)) * 100, 2)
             embed.add_field(name="Mic Vocals", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
-            if detail:
-                if len(missing_midi) > 0:
-                    embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
+            if len(missing_midi) > 0:
+                embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
 
             embed.set_footer(text="Festival Tracker")
 
