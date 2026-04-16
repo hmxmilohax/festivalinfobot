@@ -626,7 +626,7 @@ class LoopCheckHandler():
                         channel = await self.bot.fetch_user(channel_to_send.id)
                     except discord.NotFound:
                         channel = None
-                    except discord.HTTPException:
+                    except discord.HTTPException as e:
                         logging.error(f"HTTPException when fetching user {channel_to_send.id}, skipping.", exc_info=e)
                     except Exception as e:
                         logging.error(f"Unexpected error when fetching user {channel_to_send.id}, skipping.", exc_info=e)
