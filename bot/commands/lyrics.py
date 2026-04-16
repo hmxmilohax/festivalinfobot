@@ -647,9 +647,49 @@ class LyricsHandler():
 
         img.paste(rounded_art, (art_x, art_y), mask)
 
-        text_x_header = art_x + art_size + 25
+        # Draw logo + watermark in top-right corner
         right_margin = 45
-        header_avail_width = total_width - right_margin - text_x_header
+        logo_reserved_w = 0
+        try:
+            logo_path = os.path.join('bot', 'data', 'Logo', 'logo_update_every_season.png')
+            if os.path.exists(logo_path):
+                wmark_text = 'festivaltracker.org'
+                font_wmark = ImageFont.truetype(font_path, 20)
+                wt_bbox = font_wmark.getbbox(wmark_text)
+                wt_w = wt_bbox[2] - wt_bbox[0]
+                wt_h = wt_bbox[3] - wt_bbox[1]
+
+                logo_area_top = art_y
+                logo_area_bottom = 235 - 8  # small gap above separator (sep_y = 235)
+                logo_area_h = logo_area_bottom - logo_area_top
+                logo_img_h = logo_area_h - wt_h - 6  # 6px gap between logo and text
+
+                logo_img = Image.open(logo_path).convert('RGBA')
+                logo_aspect = logo_img.width / logo_img.height
+                logo_img_w = max(1, int(logo_img_h * logo_aspect))
+                logo_thumb = logo_img.resize((logo_img_w, logo_img_h), Image.LANCZOS)
+
+                # Right-align to margin
+                logo_block_w = max(logo_img_w, wt_w)
+                logo_x = total_width - right_margin - logo_block_w + (logo_block_w - logo_img_w) // 2
+                logo_y = logo_area_top
+                composed_header = img.convert('RGBA')
+                composed_header.paste(logo_thumb, (logo_x, logo_y), logo_thumb)
+                img = composed_header.convert('RGB')
+                draw_text = ImageDraw.Draw(img)
+
+                # Draw watermark text centered below the logo
+                wt_x = total_width - right_margin - logo_block_w + (logo_block_w - wt_w) // 2
+                wt_y = logo_y + logo_img_h - 4
+                wmark_rgba = (255, 255, 255, int(0.6 * 255))
+                draw_overlay.text((wt_x, wt_y), wmark_text, font=font_wmark, fill=wmark_rgba)
+
+                logo_reserved_w = logo_block_w + 20  # 20px gap between text and logo block
+        except Exception:
+            pass
+
+        text_x_header = art_x + art_size + 25
+        header_avail_width = total_width - right_margin - text_x_header - logo_reserved_w
 
         def ellipsize(text, font_obj, max_w):
             if not text:
@@ -840,33 +880,8 @@ class LyricsHandler():
         except Exception:
             composed = img.convert('RGBA')
 
-        # Draw Footer
-        try:
-            footer_top = fixed_height - footer_height
-            draw_footer = ImageDraw.Draw(composed)
-            footer_text = 'festivaltracker.org'
-            font_wmark = ImageFont.truetype(font_path, 25)
-            ft_bbox = font_wmark.getbbox(footer_text)
-            ft_w = ft_bbox[2] - ft_bbox[0]
-            ft_h = ft_bbox[3] - ft_bbox[1]
-
-            # Text at far right with margin
-            ftxt_x = total_width - margin - ft_w
-            ftxt_y = int(footer_top)
-            draw_footer.text((ftxt_x, ftxt_y), footer_text, font=font_wmark, fill=(255, 255, 255, int(0.75 * 255)))
-
-            # Logo to the left of the text
-            # logo_path = os.path.join('bot', 'data', 'Logo', 'Title.png')
-            # if os.path.exists(logo_path):
-            #     logo = Image.open(logo_path).convert('RGBA')
-            #     logo_h = 50
-            #     logo_w = max(1, int(logo.width * (logo_h / logo.height)))
-            #     logo_thumb = logo.resize((logo_w, logo_h))
-            #     logo_x = ftxt_x - logo_w - 15
-            #     logo_y = int(footer_top + (footer_height - logo_h) / 2)
-            #     composed.paste(logo_thumb, (logo_x, logo_y), logo_thumb)
-        except Exception:
-            pass
+        # Footer area (watermark moved to header logo block)
+        pass
 
         return composed
     
