@@ -425,6 +425,7 @@ class FestivalTracker(commands.AutoShardedBot):
             name="Before we continue...",
             value="Please review and accept Festival Tracker's Privacy Policy and Terms of Service before proceeding.\n" +
             "You'll be able to use Festival Tracker normally after accepting." +
+            "\n\n-# Problems? Tag us on twitter [@FestTrackerApp](https://x.com/FestTrackerApp)"
             "\n\n-# You may see this message again whenever we change these policies."
         )
         embed.set_footer(text=f"Version: {current_privacy_version}-{current_terms_version}")
@@ -588,15 +589,15 @@ class FestivalTracker(commands.AutoShardedBot):
 
             embed = discord.Embed(colour=constants.ACCENT_COLOUR)
             embed.add_field(
-                name="Before we continue...",
-                value="Please accept our Privacy Policy and Terms of Service before continuing. You may see this message again whenever we change our policies."
+                name="Festival Tracker Agreements",
+                value="Festival Tracker's Privacy Policy and Terms of Service."
             )
             view = discord.ui.View()
             view.add_item(
-                discord.ui.Button(label="Accept Privacy Policy", url="http://localhost:4321/privacy-policy", row=1)
+                discord.ui.Button(label="View Privacy Policy", url="https://festivaltracker.org/privacy-policy", row=1)
             )
             view.add_item(
-                discord.ui.Button(label="Accept Terms of Service", url="http://localhost:4321/terms-of-service", row=2)
+                discord.ui.Button(label="View Terms of Service", url="https://festivaltracker.org/terms-of-service", row=2)
             )
 
             await interaction.edit_original_response(embed=embed, view=view)
