@@ -483,7 +483,7 @@ class LeaderboardEmbedHandler():
                 if _is_fullcombo:
                     accuracy = 'FC'
 
-                instrument = ['LD', 'BS', 'VL', 'DS', 'PL', 'PB', 'MV', 'PC', '??'][_instrument]
+                instrument = ['LD', 'BS', 'TV', 'DS', 'PL', 'PB', 'PD', 'KA', 'PC', '??'][min(_instrument, 9)]
                 diff_inst = difficulty + instrument
 
                 _season = stats.get(f'M_{player_id}_SEASON', None)
@@ -597,7 +597,7 @@ class LeaderboardEmbedHandler():
                         stars = self.format_stars(_player_stars)
                         score = f"{_player_score}"
                         difficulty = ['E', 'M', 'H', 'X'][_player_difficulty]
-                        instrument = ['LD', 'BS', 'VL', 'DS', 'PL', 'PB', 'MV', 'PC', '??'][_player_instrument]
+                        instrument = ['LD', 'BS', 'TV', 'DS', 'PL', 'PB', 'PD', 'KA', 'PC', '??'][min(_player_instrument, 9)]
                         if _player_is_fullcombo:
                             accuracy = 'FC'
 
@@ -694,7 +694,7 @@ class LeaderboardEmbedHandler():
             is_solo = len(session['stats']['players']) == 1
             for player in session['stats']['players']:
                 try:
-                    username = entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['L', 'B', 'V', 'D', 'PL', 'PB', 'MV', 'PC'][player['instrument']]}"
+                    username = entry_data['userName'] if player['is_valid_entry'] else f"[Band Member] {['LD', 'BA', 'TV', 'DS', 'PL', 'PB', 'PD', 'KA', 'PC', '??'][min(player['instrument'], 9)]}"
                     difficulty = ['E', 'M', 'H', 'X'][player['difficulty']]
                     accuracy = f"{player['accuracy']}%"
                     stars = self.format_stars(player['stars'])
