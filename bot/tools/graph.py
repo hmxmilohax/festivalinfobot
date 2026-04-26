@@ -31,20 +31,23 @@ fm.fontManager.addfont(font_path)
 plt.rcParams['font.family'] = font_name
 
 def tile_image(fig: matplotlib.figure.Figure, target_dpi=300):
+    from PIL import Image
     img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
-    img_h, img_w = img.shape[:2]
 
-    fig_w_px = fig.get_figwidth() * target_dpi
-    fig_h_px = fig.get_figheight() * target_dpi
+    fig_w_px = int(fig.get_figwidth() * target_dpi)
+    fig_h_px = int(fig.get_figheight() * target_dpi)
 
-    repeat_x = int(np.ceil(fig_w_px / img_w))
-    repeat_y = int(np.ceil(fig_h_px / img_h))
-    if img.ndim == 3:
-        tiled_img = np.tile(img, (repeat_y, repeat_x, 1))
+    # Convert to uint8 if float [0,1]
+    if img.dtype != np.uint8:
+        img_uint8 = (np.clip(img, 0, 1) * 255).astype(np.uint8)
     else:
-        tiled_img = np.tile(img, (repeat_y, repeat_x))
+        img_uint8 = img
 
-    fig.figimage(tiled_img, xo=0, yo=0, alpha=0.15, zorder=-1)
+    pil_img = Image.fromarray(img_uint8)
+    pil_img = pil_img.resize((fig_w_px, fig_h_px), Image.LANCZOS)
+    stretched_img = np.array(pil_img)
+
+    fig.figimage(stretched_img, xo=0, yo=0, alpha=0.15, zorder=-1)
 
 class GraphingFuncs():
     def __init__(self):
