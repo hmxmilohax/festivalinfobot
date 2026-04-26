@@ -736,33 +736,6 @@ class LeaderboardCommandHandler:
         self.jam_track_handler = JamTrackHandler()
         self.leaderboard_embed_handler = LeaderboardEmbedHandler()
 
-    def fetch_leaderboard_of_track(self, shortname:str, instrument:constants.Instrument):
-        season_url = f'{constants.LEADERBOARD_DB_URL}meta.json'
-        logging.debug(f'[GET] {season_url}')
-
-        season_number_request = requests.get(season_url)
-        current_season_number = season_number_request.json()['season']
-
-        song_url = f'{constants.LEADERBOARD_DB_URL}leaderboards/season{current_season_number}/{shortname}/'
-
-        fetched_entries = []
-        fetched_pages = 0
-        while (fetched_pages < 5):
-            json_url = f'{song_url}{instrument.lb_code}_{fetched_pages}.json'
-            try:
-                logging.debug(f'[GET] {json_url}')
-
-                response = requests.get(json_url)
-                response.raise_for_status()
-                data = response.json()
-                fetched_entries.extend(data['entries'])
-                fetched_pages += 1
-            except Exception as e: # No more entries, the leaderboard isn't full yet
-                logging.warning(f'There aren\'t enough entries to fetch', exc_info=e)
-                return fetched_entries
-        else: # 5 pages have been fetched
-            return fetched_entries
-
     async def handle_interaction(self, interaction: discord.Interaction, song:str, instrument:constants.Instruments):
         # Convert our instrument string into an Enum value
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
