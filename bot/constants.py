@@ -158,7 +158,7 @@ SIMPLE_COMPARISONS = {
     'isrc': 'International Standard Recording Code',
     'ar': 'ESRB Rating',
     'au': 'Album Art URL',
-    'siv': 'Vocals Starting Instrument',
+    'siv': 'Tap Vocals Starting Instrument',
     'sib': 'Bass Starting Instrument',
     'sid': 'Drums Starting Instrument',
     'sig': 'Guitar Starting Instrument',
@@ -179,11 +179,11 @@ DIFFICULTY_COMPARISONS = {
     'pb': 'Pro Bass',
     'pd': 'Pro Drums',
     'pg': 'Pro Lead',
-    'vl': 'Vocals',
+    'vl': 'Tap Vocals',
     'gr': 'Lead',
     'ds': 'Drums',
     'ba': 'Bass',
-    'bd': 'Mic Vocals'
+    'bd': 'Karaoke'
 }
 
 EXTRA_COMPARISONS = {
@@ -419,7 +419,7 @@ class ButtonedView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Instrument:
-    def __init__(self, english:str = "Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True, path_enabled: bool = True, emoji: str = None) -> None:
+    def __init__(self, english:str = "Tap Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True, path_enabled: bool = True, emoji: str = None) -> None:
         """Creates an instrument, for easier internal handling.
 
         Properties:
@@ -501,12 +501,12 @@ class Instruments(enum.Enum):
     Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR", emoji="<:guitar:1327742677856420003>")
     Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS", emoji="<:bass:1327742687025168555>")
     Drums = Instrument(english="Drums", lb_code="Solo_Drums", chopt="drums", midi="PART DRUMS", emoji="<:drums:1327742563762835598>")
-    Vocals = Instrument(english="Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS", emoji="<:vocals:1327742697695350936>")
+    Vocals = Instrument(english="Tap Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS", emoji="<:vocals:1327742697695350936>")
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR", emoji="<:proguitar:1327742543571583179>")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS", emoji="<:probass:1327742553558093858>")
     ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
     ProCymbals = Instrument(english="Pro Cymbals", lb_code="Solo_PeripheralCymbals", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, path_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
-    MicVocals = Instrument(english="Mic Vocals", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=True, path_enabled=False, emoji="<:provocals:1464755018052931708>")
+    MicVocals = Instrument(english="Karaoke", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=True, path_enabled=False, emoji="<:provocals:1464755018052931708>")
 
     # The @classmethod decorator just works!
     @classmethod
@@ -537,12 +537,12 @@ class AllTimeLBTypes(enum.Enum):
     Lead = AllTimeLBType()
     Drums = AllTimeLBType(english="Drums", code="Solo_Drums")
     Bass = AllTimeLBType(english="Bass", code="Solo_Bass")
-    Vocals = AllTimeLBType(english="Vocals", code="Solo_Vocals")
+    Vocals = AllTimeLBType(english="Tap Vocals", code="Solo_Vocals")
     ProLead = AllTimeLBType(english="Pro Lead", code="Solo_PeripheralGuitar")
     ProBass = AllTimeLBType(english="Pro Bass", code="Solo_PeripheralBass")
     ProDrums = AllTimeLBType(english="Pro Drums", code="Solo_PeripheralDrum")
     ProCymbals = AllTimeLBType(english="Pro Cymbals", code="Solo_PeripheralCymbals")
-    MicVocals = AllTimeLBType(english="Mic Vocals", code="Solo_PeripheralVocals")
+    MicVocals = AllTimeLBType(english="Karaoke", code="Solo_PeripheralVocals")
     BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
     BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
     BandSquads = AllTimeLBType(english="Band Squads", code="Band_Quad", is_band=True)

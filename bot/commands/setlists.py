@@ -98,6 +98,8 @@ class SetlistHandler():
 
             for shortname in shortnames:
                 track_info = discord.utils.find(lambda t: t['track']['sn'] == shortname, track_list)
+                if not track_info:
+                    track_info = {'track': {'tt': shortname, 'an': '[Song Not Found]', 'dn': 0, 'au': 'https://festivaltracker.org/assets/img/no_album_art.png'}}
 
                 songsstr += f"- **{track_info['track']['tt']}** - *{track_info['track']['an']}*\n"
                 length_secs += track_info['track']['dn']
@@ -110,14 +112,11 @@ class SetlistHandler():
             td = discord.ui.TextDisplay(f"{len(shortnames)} songs · {length}\n{songsstr}Ends {discord.utils.format_dt(active_until_date, 'R')}")
             container.add_item(td)
 
-            imgs = []
-            for url in auurls[:4]:
+            all_imgs = []
+            for url in auurls:
                 r = requests.get(url)
-                img = Image.open(io.BytesIO(r.content)).convert("RGBA")
-                imgs.append(img)
-
-            while len(imgs) < 4:
-                imgs.append(Image.new("RGBA", (512, 512), (0, 0, 0, 0)))
+                img = Image.open(io.BytesIO(r.content)).convert("RGBA").resize((512, 512))
+                all_imgs.append(img)
 
             grid_w, grid_h = 512 * 2, 512 * 2
             bg = Image.open("bot/data/Logo/Festival_Tracker_Fuser_sat.png").convert("RGBA")
@@ -126,9 +125,24 @@ class SetlistHandler():
             bg = ImageEnhance.Brightness(bg).enhance(0.4)
             grid = bg
 
-            positions = [(0, 0), (512, 0), (0, 512), (512, 512)]
-            for img, pos in zip(imgs, positions):
-                grid.paste(img, pos, img)
+            if len(all_imgs) <= 4:
+                # normal
+                imgs = list(all_imgs)
+                while len(imgs) < 4:
+                    imgs.append(Image.new("RGBA", (512, 512), (0, 0, 0, 0)))
+                positions = [(0, 0), (512, 0), (0, 512), (512, 512)]
+                for img, pos in zip(imgs, positions):
+                    grid.paste(img, pos, img)
+            else:
+                # mini 4x4 in last grid slot
+                first_three = all_imgs[:3]
+                for img, pos in zip(first_three, [(0, 0), (512, 0), (0, 512)]):
+                    grid.paste(img, pos, img)
+                overflow = all_imgs[3:7]
+                mini_positions = [(512, 512), (768, 512), (512, 768), (768, 768)]
+                for img, mini_pos in zip(overflow, mini_positions):
+                    mini = img.resize((256, 256))
+                    grid.paste(mini, mini_pos, mini)
 
             img_bytes_io = io.BytesIO()
             grid.save(img_bytes_io, format="PNG")

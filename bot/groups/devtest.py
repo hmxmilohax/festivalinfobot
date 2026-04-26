@@ -593,7 +593,7 @@ class TestCog(commands.Cog):
 
         await interaction.edit_original_response(attachments=[discord.File(output_path, 'bestsellers_renderer.png')])
 
-    @test_group.command(name="pro_vocals_json", description="Get all pro vocals songs as a JSON array")
+    @test_group.command(name="pro_vocals_json", description="Get all karaoke songs as a JSON array")
     async def pro_vocals_json(self, interaction: discord.Interaction):
         await interaction.response.defer()
 

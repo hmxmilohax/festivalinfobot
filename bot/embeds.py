@@ -191,7 +191,7 @@ class SearchEmbedHandler:
             embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
 
             if has_pro_vocals:
-                embed.add_field(name="Mic Vocals", value="Yes", inline=True)
+                embed.add_field(name="Karaoke", value="Yes", inline=True)
             
             embed.add_field(name="Rating", value=f"`{track.get('ar', 'N/A')}`", inline=True)
 
@@ -215,11 +215,11 @@ class SearchEmbedHandler:
             f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
             f"Bass:       {constants.generate_difficulty_bar(bass_diff)}\n"
             f"Drums:      {constants.generate_difficulty_bar(drums_diff)}\n"
-            f"Vocals:     {constants.generate_difficulty_bar(vocals_diff)}\n"
+            f"Tap Vocals: {constants.generate_difficulty_bar(vocals_diff)}\n"
             f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
             f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
             f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Mic Vocals: {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Karaoke:    {constants.generate_difficulty_bar(band_diff)}\n"
             f"Average {a} {constants.generate_difficulty_bar(int(avg_diff - 1))}"
         )
 
@@ -234,11 +234,11 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
 
-        pro_vocals_status = "Mic Vocals Status Not Available"
+        pro_vocals_status = "Karaoke Not Available"
         if is_instrumental:
             pro_vocals_status = "Instrumental Only"
         elif has_pro_vocals:
-            pro_vocals_status = "Mic Vocals Supported"
+            pro_vocals_status = "Karaoke Supported"
 
         embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} · {pro_vocals_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         

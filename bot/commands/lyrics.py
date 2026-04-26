@@ -110,7 +110,7 @@ class LyricsHandler():
         pro_vocals_track = discord.utils.find(lambda t: t.name == 'PRO VOCALS', tracks)
 
         if not pro_vocals_track:
-            raise LyricsError('Mic Vocals not supported')
+            raise LyricsError('Karaoke not supported')
 
         messages = list(_to_abstime(pro_vocals_track))
         messages_only_notes = list(filter(lambda m: m.type == 'note_on' or m.type == 'note_off', messages))
