@@ -128,7 +128,8 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # brand                 (139, 79, 176)
 # [13] chappell         (241, 138, 181)
 # [14] laufey           (71, 132, 178)
-SEASON_COLOUR = (71, 132, 178)
+# [14] esdeekid         (0, 0, 0)
+SEASON_COLOUR = (0, 0, 0)
 
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
@@ -505,7 +506,7 @@ class Instruments(enum.Enum):
     ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR", emoji="<:proguitar:1327742543571583179>")
     ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS", emoji="<:probass:1327742553558093858>")
     ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
-    ProCymbals = Instrument(english="Pro Cymbals", lb_code="Solo_PeripheralCymbals", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, path_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
+    ProCymbals = Instrument(english="Pro Drums + Cymbals", lb_code="Solo_PeripheralCymbals", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, path_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
     MicVocals = Instrument(english="Karaoke", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=True, path_enabled=False, emoji="<:provocals:1464755018052931708>")
 
     # The @classmethod decorator just works!
@@ -541,7 +542,7 @@ class AllTimeLBTypes(enum.Enum):
     ProLead = AllTimeLBType(english="Pro Lead", code="Solo_PeripheralGuitar")
     ProBass = AllTimeLBType(english="Pro Bass", code="Solo_PeripheralBass")
     ProDrums = AllTimeLBType(english="Pro Drums", code="Solo_PeripheralDrum")
-    ProCymbals = AllTimeLBType(english="Pro Cymbals", code="Solo_PeripheralCymbals")
+    ProCymbals = AllTimeLBType(english="Pro Drums + Cymbals", code="Solo_PeripheralCymbals")
     MicVocals = AllTimeLBType(english="Karaoke", code="Solo_PeripheralVocals")
     BandDuos = AllTimeLBType(english="Band Duos", code="Band_Duets", is_band=True)
     BandTrios = AllTimeLBType(english="Band Trios", code="Band_Trios", is_band=True)
