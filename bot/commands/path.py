@@ -14,20 +14,18 @@ class PathCommandHandler():
         self.midi_tool = MidiArchiveTools()
 
     # Function to call chopt.exe and capture its output
-    def run_chopt(self, midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: constants.Instrument = None, difficulty: str = 'expert', extra_args: list = []):
+    def run_chopt(self, midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: constants.Instrument = None, difficulty: str = 'expert', extra_args: list = [], binary_id = 1):
         engine = 'fnf'
-        
-        # if instrument.midi == 'PLASTIC DRUMS':
-        #     engine = 'ch' 
-            # Sir Reginald's Jolly Good Rock 'n' Roll Ensemble Extravaganza: The Third Installment of Harmonious Merriment and Musical Shenanigans
-            # this guy is broken
 
         script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        if instrument.midi == 'PLASTIC DRUMS' and binary_id == 1:
+            engine = 'ch'
         
         if os.name == 'nt':
-            chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Windows', 'CHOpt', 'CHOpt.exe')
+            chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Windows', 'CHOpt', str(binary_id), 'CHOpt.exe')
         else:
-            chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Linux', 'CHOpt', 'CHOpt.sh')
+            chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Linux', 'CHOpt', str(binary_id), 'CHOpt.sh')
 
         chopt_command = [
             chopt_exe, 
@@ -48,6 +46,8 @@ class PathCommandHandler():
         ])
 
         chopt_command.extend(extra_args)
+
+        logging.info(f'Running CHOpt: "{' '.join(chopt_command)}"')
 
         result = subprocess.run(chopt_command, text=True, capture_output=True)
 
@@ -96,6 +96,10 @@ class PathCommandHandler():
         if extra_args[4]: # No Time Sigs
             extra_arguments.append('--no-time-sigs')
             field_argument_descriptors.append(f'**No Time Signatures:** Yes')
+
+        if extra_args[5]:
+            extra_arguments.append('--no-double-kick')
+            field_argument_descriptors.append(f'**No 2X Kick:** Yes')
 
         # basically the code from leaderboard.py
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
@@ -146,7 +150,9 @@ class PathCommandHandler():
         open(song_ini_w_path, 'w', encoding="utf-8").write("[song]\nname = " + track_title + "\n" + "artist = " + artist_title + "\n" + "charter = Festival Tracker")
 
         output_image = f"{short_name}_{chosen_instrument.chopt.lower()}_path_{session_hash}.png".replace(' ', '_')
-        chopt_output = self.run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument=chosen_instrument, difficulty=chosen_diff.chopt,extra_args=extra_arguments)
+
+        binary_id = chosen_instrument.binary_id
+        chopt_output = self.run_chopt(midi_file, command_instrument, output_image, squeeze_percent, instrument=chosen_instrument, difficulty=chosen_diff.chopt,extra_args=extra_arguments, binary_id=binary_id)
 
         filtered_output = '\n'.join([line for line in chopt_output.splitlines() if "Optimising, please wait..." not in line])
 
@@ -182,8 +188,15 @@ class PathCommandHandler():
             total_acts = len(acts)
             phrases, overlaps = self.process_acts(acts)
 
-            no_sp_score = filtered_output.split('\n')[1].split(' ').pop()
-            total_score = filtered_output.split('\n')[2].split(' ').pop()
+            no_sp_score = "N/A"
+            total_score = "N/A"
+
+            try:
+                no_sp_score = filtered_output.split('\n')[1].split(' ').pop()
+                total_score = filtered_output.split('\n')[2].split(' ').pop()
+            except:
+                # we dont really care
+                pass
 
             stats_text = f"**Phrases:** {phrases}\n**Activations:** {total_acts}\n**Overlaps:** {overlaps}\n**No OD Score:** {no_sp_score}\n**Total Score:** {total_score}"
             # container.add_item(
@@ -225,7 +238,10 @@ class PathCommandHandler():
 
             if chosen_instrument.midi == "PLASTIC DRUMS":
                 container.add_item(discord.ui.Separator())
-                container.add_item(discord.ui.TextDisplay('-# Disclaimer: Pro Drums Paths are generated with the Clone Hero engine and may not be accurate to the in-game engine.'))
+                container.add_item(discord.ui.TextDisplay('-# Disclaimer: Pro Drums Paths are generated with an experimental custom engine by [VenxmHG](https://github.com/VenxmHG).'))
+            elif chosen_instrument.midi == "PRO VOCALS":
+                container.add_item(discord.ui.Separator())
+                container.add_item(discord.ui.TextDisplay('-# Disclaimer: Karaoke Paths are generated with an experimental custom engine by [VenxmHG](https://github.com/VenxmHG).'))
 
             container.add_item(discord.ui.Separator())
             container.add_item(discord.ui.TextDisplay("-# Festival Tracker"))

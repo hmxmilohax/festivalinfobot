@@ -754,30 +754,36 @@ class FestivalTracker(commands.AutoShardedBot):
 
             await interaction.response.send_message(file=discord.File(io.StringIO(json.dumps(track, indent=4)), f'{track["track"]["sn"]}_metadata.json'))
 
-        @self.tree.command(name="path", description="Generates an Overdrive path for a song using CHOpt.")
+        @self.tree.command(name="path", description="Generates an Overdrive path for a Jam Track.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
         @app_commands.describe(instrument = "The instrument to view the path of.")
         @app_commands.describe(difficulty = "The difficulty to view the path for.")
-        @app_commands.describe(squeeze_percent = "Change CHOpt's Squeeze parameter.")
-        @app_commands.describe(lefty_flip = "Enable CHOpt to render in Lefty Flip mode.")
+        @app_commands.describe(squeeze_percent = "Change Squeeze % parameter - Defaults: 20% (All) 95% (Karaoke)")
+        @app_commands.describe(lefty_flip = "Enable render in Lefty Flip mode.")
         @app_commands.describe(act_opacity = "Set the opacity of activations in images.")
         @app_commands.describe(no_bpms = "If set to True, CHOpt will not draw BPMs.")
         @app_commands.describe(no_solos = "If set to True, CHOpt will not draw Solo Sections.")
+        @app_commands.describe(no_2xkick = "If set to True, 2X Kick will be disabled on Pro Drums.")
         @app_commands.describe(no_time_signatures = "If set to True, CHOpt will not draw Time Signatures.")
         @app_commands.choices(
             instrument=[
                 app_commands.Choice(name=kt.value.english, value=kt.value.lb_code) for kt in constants.Instruments.__members__.values() if kt.value.path_enabled
             ]
         )
-        async def path_command(interaction: discord.Interaction, song:str, instrument:app_commands.Choice[str], difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: str = '20', lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_time_signatures: bool = False):
+        async def path_command(interaction: discord.Interaction, song:str, instrument:app_commands.Choice[str], difficulty:constants.Difficulties = constants.Difficulties.Expert, squeeze_percent: str = '-1', lefty_flip : bool = False, act_opacity: discord.app_commands.Range[int, 0, 100] = None, no_bpms: bool = False, no_solos: bool = False, no_2xkick: bool = False, no_time_signatures: bool = False):
+            if squeeze_percent == '-1': # is default value
+                if instrument.value == 'Solo_PeripheralVocals':
+                    squeeze_percent = '95'
+                else:
+                    squeeze_percent = '20'
 
             real_instrument: constants.Instruments = None
             values = constants.Instruments.__members__.values()
             real_instrument = discord.utils.find(lambda v: v.value.lb_code == instrument.value, values)
 
-            real_squeeze_percent = int(squeeze_percent)
+            real_squeeze_percent = int(squeeze_percent.replace('%', ''))
 
             await self.path_handler.handle_interaction(
                 interaction,
@@ -790,7 +796,8 @@ class FestivalTracker(commands.AutoShardedBot):
                     act_opacity,
                     no_bpms,
                     no_solos,
-                    no_time_signatures
+                    no_time_signatures,
+                    no_2xkick,
                 ]
             )
 
