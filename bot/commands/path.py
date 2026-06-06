@@ -17,8 +17,8 @@ class PathCommandHandler():
     def run_chopt(self, midi_file: str, command_instrument: str, output_image: str, squeeze_percent: int = 20, instrument: constants.Instrument = None, difficulty: str = 'expert', extra_args: list = []):
         engine = 'fnf'
         
-        if instrument.midi == 'PLASTIC DRUMS':
-            engine = 'ch' 
+        # if instrument.midi == 'PLASTIC DRUMS':
+        #     engine = 'ch' 
             # Sir Reginald's Jolly Good Rock 'n' Roll Ensemble Extravaganza: The Third Installment of Harmonious Merriment and Musical Shenanigans
             # this guy is broken
 

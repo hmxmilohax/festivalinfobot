@@ -499,15 +499,78 @@ class ModeType:
         return f"ModeType({self.english=}, {self.code=})".replace('self.', '')
 
 class Instruments(enum.Enum):
-    Lead = Instrument(english="Lead", lb_code="Solo_Guitar", chopt="guitar", midi="PART GUITAR", emoji="<:guitar:1327742677856420003>")
-    Bass = Instrument(english="Bass", lb_code="Solo_Bass", chopt="bass", midi="PART BASS", emoji="<:bass:1327742687025168555>")
-    Drums = Instrument(english="Drums", lb_code="Solo_Drums", chopt="drums", midi="PART DRUMS", emoji="<:drums:1327742563762835598>")
-    Vocals = Instrument(english="Tap Vocals", lb_code="Solo_Vocals", chopt="vocals", midi="PART VOCALS", emoji="<:vocals:1327742697695350936>")
-    ProLead = Instrument(english="Pro Lead", lb_code="Solo_PeripheralGuitar", plastic=True, chopt="proguitar", midi="PLASTIC GUITAR", emoji="<:proguitar:1327742543571583179>")
-    ProBass = Instrument(english="Pro Bass", lb_code="Solo_PeripheralBass", plastic=True, chopt="probass", midi="PLASTIC BASS", emoji="<:probass:1327742553558093858>")
-    ProDrums = Instrument(english="Pro Drums", lb_code="Solo_PeripheralDrum", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
-    ProCymbals = Instrument(english="Pro Drums + Cymbals", lb_code="Solo_PeripheralCymbals", plastic=True, chopt="drums", midi="PLASTIC DRUMS", lb_enabled=True, path_enabled=False, replace="PART DRUMS", emoji="<:prodrums:1464755636796526776>")
-    MicVocals = Instrument(english="Karaoke", lb_code="Solo_PeripheralVocals", plastic=True, chopt="vocals", midi="PRO VOCALS", lb_enabled=True, path_enabled=False, emoji="<:provocals:1464755018052931708>")
+    Lead = Instrument(
+        english="Lead", 
+        lb_code="Solo_Guitar", 
+        chopt="guitar", 
+        midi="PART GUITAR", 
+        emoji="<:guitar:1327742677856420003>"
+        )
+    Bass = Instrument(
+        english="Bass", 
+        lb_code="Solo_Bass", 
+        chopt="bass", 
+        midi="PART BASS", 
+        emoji="<:bass:1327742687025168555>"
+        )
+    Drums = Instrument(
+        english="Drums", 
+        lb_code="Solo_Drums", 
+        chopt="drums", 
+        midi="PART DRUMS", 
+        emoji="<:drums:1327742563762835598>"
+        )
+    Vocals = Instrument(
+        english="Tap Vocals", 
+        lb_code="Solo_Vocals", 
+        chopt="vocals", 
+        midi="PART VOCALS", 
+        emoji="<:vocals:1327742697695350936>"
+        )
+    ProLead = Instrument(
+        english="Pro Lead", 
+        lb_code="Solo_PeripheralGuitar", 
+        plastic=True, 
+        chopt="proguitar", 
+        midi="PLASTIC GUITAR", 
+        emoji="<:proguitar:1327742543571583179>"
+        )
+    ProBass = Instrument(
+        english="Pro Bass", 
+        lb_code="Solo_PeripheralBass", 
+        plastic=True, 
+        chopt="probass", 
+        midi="PLASTIC BASS", 
+        emoji="<:probass:1327742553558093858>"
+        )
+    ProDrums = Instrument(
+        english="Pro Drums", 
+        lb_code="Solo_PeripheralDrum", 
+        plastic=True, 
+        chopt="prodrums", 
+        midi="PLASTIC DRUMS", 
+        lb_enabled=True, 
+        emoji="<:prodrums:1464755636796526776>"
+        )
+    ProCymbals = Instrument(
+        english="Pro Drums + Cymbals", 
+        lb_code="Solo_PeripheralCymbals", 
+        plastic=True, 
+        chopt="prodrums", 
+        midi="PLASTIC DRUMS", 
+        lb_enabled=True, 
+        emoji="<:prodrums:1464755636796526776>"
+        )
+    MicVocals = Instrument(
+        english="Karaoke", 
+        lb_code="Solo_PeripheralVocals", 
+        plastic=True, 
+        chopt="vocals", 
+        midi="PRO VOCALS", 
+        lb_enabled=True, 
+        path_enabled=False, 
+        emoji="<:provocals:1464755018052931708>"
+        )
 
     # The @classmethod decorator just works!
     @classmethod
