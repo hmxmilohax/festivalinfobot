@@ -212,6 +212,7 @@ class SearchEmbedHandler:
         a = round(avg_diff, 1)
 
         difficulties = (
+            f"Karaoke:    {constants.generate_difficulty_bar(band_diff)}\n"
             f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
             f"Bass:       {constants.generate_difficulty_bar(bass_diff)}\n"
             f"Drums:      {constants.generate_difficulty_bar(drums_diff)}\n"
@@ -219,7 +220,6 @@ class SearchEmbedHandler:
             f"Pro Lead:   {constants.generate_difficulty_bar(pro_guitar_diff)}\n"
             f"Pro Bass:   {constants.generate_difficulty_bar(pro_bass_diff)}\n"
             f"Pro Drums:  {constants.generate_difficulty_bar(pro_drums_diff)}\n"
-            f"Karaoke:    {constants.generate_difficulty_bar(band_diff)}\n"
             f"Average {a} {constants.generate_difficulty_bar(int(avg_diff - 1))}"
         )
 
