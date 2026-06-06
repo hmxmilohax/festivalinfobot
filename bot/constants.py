@@ -420,7 +420,18 @@ class ButtonedView(discord.ui.View):
             logging.error(f"An error occurred during on_timeout: {e}, {type(e)}, {self.message}")
 
 class Instrument:
-    def __init__(self, english:str = "Tap Vocals", lb_code:str = "Solo_Vocals", plastic:bool = False, chopt:str = "vocals", midi:str = "PART VOCALS", replace:str = None, lb_enabled:bool = True, path_enabled: bool = True, emoji: str = None) -> None:
+    def __init__(self, 
+    english:str = "Tap Vocals", 
+    lb_code:str = "Solo_Vocals", 
+    plastic:bool = False, 
+    chopt:str = "vocals", 
+    midi:str = "PART VOCALS", 
+    replace:str = None, 
+    lb_enabled:bool = True, 
+    path_enabled: bool = True, 
+    emoji: str = None,
+    binary_id: int = 1
+    ) -> None:
         """Creates an instrument, for easier internal handling.
 
         Properties:
@@ -442,9 +453,10 @@ class Instrument:
         self.lb_enabled = lb_enabled
         self.path_enabled = path_enabled
         self.emoji = emoji
+        self.binary_id = binary_id
 
     def __str__(self) -> str:
-        return f"Instrument({self.english=}, {self.lb_code=}, {self.plastic=}, {self.chopt=}, {self.midi=}, {self.replace=}, {self.lb_enabled=}, {self.path_enabled=}, {self.emoji=})".replace('self.', '')
+        return f"Instrument({self.english=}, {self.lb_code=}, {self.plastic=}, {self.chopt=}, {self.midi=}, {self.replace=}, {self.lb_enabled=}, {self.path_enabled=}, {self.emoji=}, {self.binary_id=})".replace('self.', '')
     
 class Difficulty:
     def __init__(self, english:str = "Expert", chopt:str = "expert", pitch_ranges = [96, 100], diff_4k:bool = False) -> None:
@@ -499,6 +511,16 @@ class ModeType:
         return f"ModeType({self.english=}, {self.code=})".replace('self.', '')
 
 class Instruments(enum.Enum):
+    MicVocals = Instrument(
+        english="Karaoke", 
+        lb_code="Solo_PeripheralVocals", 
+        plastic=True, 
+        chopt="vocals", 
+        midi="PRO VOCALS", 
+        lb_enabled=True, 
+        path_enabled=False, 
+        emoji="<:provocals:1464755018052931708>"
+        )
     Lead = Instrument(
         english="Lead", 
         lb_code="Solo_Guitar", 
@@ -560,16 +582,6 @@ class Instruments(enum.Enum):
         midi="PLASTIC DRUMS", 
         lb_enabled=True, 
         emoji="<:prodrums:1464755636796526776>"
-        )
-    MicVocals = Instrument(
-        english="Karaoke", 
-        lb_code="Solo_PeripheralVocals", 
-        plastic=True, 
-        chopt="vocals", 
-        midi="PRO VOCALS", 
-        lb_enabled=True, 
-        path_enabled=False, 
-        emoji="<:provocals:1464755018052931708>"
         )
 
     # The @classmethod decorator just works!
