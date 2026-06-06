@@ -97,9 +97,13 @@ class PathCommandHandler():
             extra_arguments.append('--no-time-sigs')
             field_argument_descriptors.append(f'**No Time Signatures:** Yes')
 
+        twoxkickdisabled = False
         if extra_args[5]:
             extra_arguments.append('--no-double-kick')
-            field_argument_descriptors.append(f'**No 2X Kick:** Yes')
+            twoxkickdisabled = True
+
+        if chosen_instrument.midi == 'PLASTIC DRUMS':
+            field_argument_descriptors.append(f'**2X Kick:** {'Yes' if not twoxkickdisabled else 'No'}')
 
         # basically the code from leaderboard.py
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
