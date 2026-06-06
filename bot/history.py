@@ -437,14 +437,11 @@ class LoopCheckHandler():
     async def handle_activity_task(self):
         tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=600)
         num_tracks = len(tracks)
-        random_jam_track = random.choice(tracks)
-
-        servers = random.choice([True, False]) # bruh
 
         activity = discord.Activity(
-            type=discord.ActivityType.watching if servers else discord.ActivityType.playing,
-            name=f"{len(self.bot.guilds)} servers" if servers else f"{num_tracks} Jam Tracks",
-            state=f"{random_jam_track['track']['tt']} - {random_jam_track['track']['an']}",
+            type=discord.ActivityType.watching,
+            name=f"{len(self.bot.guilds)} servers | /help",
+            state=f"{num_tracks} Jam Tracks"
         )
 
         # activity = discord.Game("IMPORTANT-Read bio")
