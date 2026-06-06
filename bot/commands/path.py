@@ -107,7 +107,7 @@ class PathCommandHandler():
 
         tracklist = constants.get_jam_tracks(use_cache=False) # no caching for path generation
         if not tracklist:
-            await interaction.edit_original_response(embed=constants.common_error_embed(f"Could not get tracks."), ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"Could not get tracks."))
             return
         
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
