@@ -363,7 +363,7 @@ class JumpPageModal(discord.ui.Modal):
             await self.view.force_update()
 
         except ValueError:
-            await interaction.edit_original_response(embed=constants.common_error_embed(f"The page must be a number between 1 to {self.view.total_pages}."), ephemeral=True)
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"The page must be a number between 1 to {self.view.total_pages}."))
             return
         
 class JumpPlayerModal(discord.ui.Modal):
@@ -426,7 +426,7 @@ class JumpPlayerModal(discord.ui.Modal):
             if len(accounts) == 1:
                 await self.jump_to_account_id(accounts[0].account_id, interaction)
             else:
-                interaction.response.send_message(embed=discord.Embed(colour=0x3AB00B, title="Select the user", description=f"{constants.SEARCH_EMOJI} Select the correct user to continue."))
+                await interaction.response.send_message(embed=discord.Embed(colour=0x3AB00B, title="Select the user", description=f"{constants.SEARCH_EMOJI} Select the correct user to continue."))
 
 class LeaderboardEmbedHandler():
     def __init__(self) -> None:
