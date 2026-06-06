@@ -70,7 +70,106 @@ class StatsCommandEmbedHandler():
 class SearchEmbedHandler:
     def __init__(self) -> None:
         pass
-    
+
+    def fast_check_note_95(self, file_path: str) -> bool:
+        # written by gemini because midi is the worst file format ever (mido is slow)
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read()
+        except IOError:
+            print(f"Error reading {file_path}")
+            return False
+
+        try:
+            # Check for MThd (Standard MIDI File Header)
+            if data[0:4] != b'MThd':
+                return False
+                
+            # Standard MThd is usually 14 bytes (4 magic, 4 length, 6 data)
+            idx = 14 
+            length = len(data)
+
+            # Iterate through chunks (MTrk)
+            while idx < length:
+                chunk_type = data[idx:idx+4]
+                chunk_len = int.from_bytes(data[idx+4:idx+8], 'big')
+                idx += 8
+                
+                if chunk_type == b'MTrk':
+                    track_end = idx + chunk_len
+                    status = 0 # Holds the current Running Status
+                    
+                    while idx < track_end:
+                        # 1. Skip Delta Time (Variable Length Quantity)
+                        # High bit (0x80) indicates another byte follows
+                        while data[idx] & 0x80:
+                            idx += 1
+                        idx += 1 
+                        
+                        if idx >= track_end: 
+                            break
+                        
+                        # 2. Check for Event Status Byte
+                        event_byte = data[idx]
+                        if event_byte & 0x80:
+                            status = event_byte
+                            idx += 1
+                        # If the high bit is 0, it's a "Running Status" 
+                        
+                        if idx >= track_end: 
+                            break
+                        
+                        # 3. Process Event based on Status
+                        event_type = status & 0xF0
+                        
+                        if event_type == 0x90 or event_type == 0x80: 
+                            # Note On (0x90) or Note Off (0x80)
+                            if data[idx] == 95:
+                                return True # Short-circuit
+                            idx += 2 # Skip the note and velocity bytes
+                            
+                        elif event_type in (0xA0, 0xB0, 0xE0):
+                            # Aftertouch, Control Change, Pitch Bend (all 2 data bytes)
+                            idx += 2 
+                            
+                        elif event_type in (0xC0, 0xD0):
+                            # Program Change, Channel Pressure (all 1 data byte)
+                            idx += 1 
+                            
+                        elif status == 0xFF: 
+                            # Meta Event
+                            idx += 1 # Skip Meta Type byte
+                            
+                            # Parse VLQ to find the length of the meta event data
+                            vlq_len = 0
+                            while True:
+                                b = data[idx]
+                                idx += 1
+                                vlq_len = (vlq_len << 7) | (b & 0x7F)
+                                if not (b & 0x80): 
+                                    break
+                            idx += vlq_len # Jump over the meta text/data
+                            
+                        elif status in (0xF0, 0xF7): 
+                            # SysEx Event
+                            # Parse VLQ to find the length of the SysEx data
+                            vlq_len = 0
+                            while True:
+                                b = data[idx]
+                                idx += 1
+                                vlq_len = (vlq_len << 7) | (b & 0x7F)
+                                if not (b & 0x80): 
+                                    break
+                            idx += vlq_len # Jump over the SysEx data
+                else:
+                    # If it's a non-MTrk chunk (like proprietary sequencer data), skip it completely
+                    idx += chunk_len
+                    
+        except IndexError:
+            pass
+            
+        return False
+        
     async def generate_track_embed(self, track_data, is_new=False, is_removed=False, is_random=False, is_detail=False):
         track = track_data['track']
         if is_new:
@@ -148,7 +247,7 @@ class SearchEmbedHandler:
         # user_id = track.get('ry', 2025)
         # session_hash = constants.generate_session_hash(user_id, track['sn'])
         midi_file = await midi_tool.save_chart(track['mu'])
-        has_pro_vocals = b'PRO VOCALS' in open(midi_file, 'rb').read()
+        has_double_kick = self.fast_check_note_95(midi_file)
 
         # ----------
 
@@ -189,9 +288,6 @@ class SearchEmbedHandler:
             embed.add_field(name="MIDI Url", value=track.get('mu', 'N/A'), inline=False)
             embed.add_field(name="Lip Sync Asset Url", value=track.get('ld', 'N/A'), inline=False)
             embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
-
-            if has_pro_vocals:
-                embed.add_field(name="Karaoke", value="Yes", inline=True)
             
             embed.add_field(name="Rating", value=f"`{track.get('ar', 'N/A')}`", inline=True)
 
@@ -211,8 +307,12 @@ class SearchEmbedHandler:
         # embed.add_field(name="Med. Difficulty", value=f'{med_diff}/7 (`{constants.generate_difficulty_bar(int(med_diff - 1))}`)')
         a = round(avg_diff, 1)
 
+        karaoke_diff_bar = "N/A"
+        if band_diff != -1:
+            karaoke_diff_bar = constants.generate_difficulty_bar(band_diff)
+
         difficulties = (
-            f"Karaoke:    {constants.generate_difficulty_bar(band_diff)}\n"
+            f"Karaoke:    {karaoke_diff_bar}\n"
             f"Lead:       {constants.generate_difficulty_bar(guitar_diff)}\n"
             f"Bass:       {constants.generate_difficulty_bar(bass_diff)}\n"
             f"Drums:      {constants.generate_difficulty_bar(drums_diff)}\n"
@@ -234,13 +334,11 @@ class SearchEmbedHandler:
         else:
             rating_description = rating
 
-        pro_vocals_status = "Karaoke Not Available"
-        if is_instrumental:
-            pro_vocals_status = "Instrumental Only"
-        elif has_pro_vocals:
-            pro_vocals_status = "Karaoke Supported"
+        doublekick_status = ""
+        if has_double_kick:
+            doublekick_status = "· Double Kick Supported"
 
-        embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} · {pro_vocals_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
+        embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} {doublekick_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         
         embed.set_thumbnail(url=track['au'])
         
