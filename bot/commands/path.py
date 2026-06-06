@@ -102,9 +102,6 @@ class PathCommandHandler():
             extra_arguments.append('--no-double-kick')
             twoxkickdisabled = True
 
-        if chosen_instrument.midi == 'PLASTIC DRUMS':
-            field_argument_descriptors.append(f'**2X Kick:** {'Yes' if not twoxkickdisabled else 'No'}')
-
         # basically the code from leaderboard.py
         chosen_instrument = constants.Instruments[str(instrument).replace('Instruments.', '')].value
         chosen_diff = constants.Difficulties[str(difficulty).replace('Difficulties.', '')].value
@@ -112,6 +109,9 @@ class PathCommandHandler():
         if not chosen_instrument.path_enabled:
             await interaction.edit_original_response(embed=constants.common_error_embed(f"Paths are not supported for {chosen_instrument.english}. Please use a different instrument."))
             return
+
+        if chosen_instrument.midi == 'PLASTIC DRUMS':
+            field_argument_descriptors.append(f'**2X Kick:** {'Yes' if not twoxkickdisabled else 'No'}')
 
         tracklist = constants.get_jam_tracks(use_cache=False) # no caching for path generation
         if not tracklist:
