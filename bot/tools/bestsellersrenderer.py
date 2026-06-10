@@ -19,11 +19,11 @@ class BestsellersRenderer:
         leaving_today_string = []
 
         # we r making the value containing the ids for new and leaving soon tracks
-        logging.debug(f'[GET] {constants.SHOP_API}')
+        logging.debug(f'[GET] {constants.FN_CATALOG}')
         headers = {
             'Authorization': self.bot.oauth_manager.session_token
         }
-        response = requests.get(constants.SHOP_API, headers=headers)
+        response = requests.get(constants.FN_CATALOG, headers=headers)
         if response.status_code == 401 or response.status_code == 403:
             self.bot.oauth_manager._create_token()
             raise Exception('Please try again.')

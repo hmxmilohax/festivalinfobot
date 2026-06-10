@@ -18,11 +18,11 @@ class SetlistHandler():
 
         await interaction.response.defer()
 
-        logging.debug(f'[GET] {constants.DAILY_API}')
+        logging.debug(f'[GET] {constants.FN_CALENDAR}')
         headers = {
             'Authorization': self.bot.oauth_manager.session_token
         }
-        response = requests.get(constants.DAILY_API, headers=headers)
+        response = requests.get(constants.FN_CALENDAR, headers=headers)
         data = response.json()
 
         print(data)

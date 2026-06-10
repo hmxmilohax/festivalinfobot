@@ -34,8 +34,8 @@ import bot.tools.sparks_tracks as sparks_tracks
 
 def save_known_songs(songs):
     # Fetch jam tracks using the API call
-    # logging.debug(f'[GET] {constants.CONTENT_API}')
-    # response = requests.get(constants.CONTENT_API)
+    # logging.debug(f'[GET] {constants.FN_CONTENT}')
+    # response = requests.get(constants.FN_CONTENT)
     # response.raise_for_status()
 
     # data = response.json()
@@ -471,11 +471,11 @@ class LoopCheckHandler():
                 f.write(req.content)
 
             # archive shop response
-            logging.debug(f'[GET] {constants.SHOP_API}')
+            logging.debug(f'[GET] {constants.FN_CATALOG}')
             headers = {
                 'Authorization': self.bot.oauth_manager.session_token
             }
-            response = requests.get(constants.SHOP_API, headers=headers)
+            response = requests.get(constants.FN_CATALOG, headers=headers)
             data = response.json()
             with open(f'{archive_path}Shop.json', 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=4)

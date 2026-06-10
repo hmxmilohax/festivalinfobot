@@ -99,10 +99,9 @@ SONGS_FILE = 'known_tracks.json'  # File to save known songs
 SHORTNAME_FILE = 'known_songs.json'  # File to save known shortnames
 
 # APIs which the bot uses to source its information
-CONTENT_API = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
-DAILY_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/calendar/v1/timeline'
-SHOP_API = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
-LEADERBOARD_DB_URL = 'https://raw.githubusercontent.com/FNLookup/festival-leaderboards/main/' # unused
+FN_CONTENT = 'https://fortnitecontent-website-prod07.ol.epicgames.com/content/api/pages/fortnite-game/spark-tracks'
+FN_CALENDAR = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/calendar/v1/timeline'
+FN_CATALOG = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/storefront/v2/catalog'
 
 ERROR_EMOJI = '<:error:1349038414644641864>'
 SUCCESS_EMOJI = '<:checkmark:1349038447385645157>'
@@ -129,7 +128,7 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # [13] chappell         (241, 138, 181)
 # [14] laufey           (71, 132, 178)
 # [14] esdeekid         (0, 0, 0)
-SEASON_COLOUR = (0, 0, 0)
+SEASON_COLOUR = (71, 132, 178)
 
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
@@ -667,7 +666,7 @@ def get_jam_tracks(use_cache: bool = False, max_cache_age: int = 300):
     max_cache_age = max_cache_age - 2 # the libraries are too accurate man
 
     global JAM_TRACK_CACHE, JAM_TRACK_CACHED_AT
-    content_url = CONTENT_API
+    content_url = FN_CONTENT
 
     logging.debug(f'[GET] {content_url}')
     try:

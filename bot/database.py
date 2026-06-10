@@ -19,10 +19,47 @@ class JamTrackEvent():
         self.desc = desc
 
 class JamTrackEvents(enum.Enum):
-    Added = JamTrackEvent('added', 'Jam Track Added', desc='A Jam Track has been added to the API.')
-    Modified = JamTrackEvent('modified', 'Jam Track Modified', desc='A Jam Track has been modified.')
-    Removed = JamTrackEvent('removed', 'Jam Track Removed', desc='A Jam Track has been removed from the API.')
-    Announcements = JamTrackEvent('announcements', 'Announcements', desc='Important Festival Tracker announcements and bugfixes. (Recommended)')
+    Added = JamTrackEvent(
+        _id='added', 
+        english='Jam Track Added', 
+        desc='A Jam Track has been added to the API.'
+    )
+    Modified = JamTrackEvent(
+        _id='modified', 
+        english='Jam Track Modified', 
+        desc='A Jam Track has been modified.'
+    )
+    Removed = JamTrackEvent(
+        _id='removed', 
+        english='Jam Track Removed', 
+        desc='A Jam Track has been removed from the API.'
+    )
+    Announcements = JamTrackEvent(
+        _id='announcements', 
+        english='Announcements', 
+        desc='Important Festival Tracker announcements and bugfixes. (Recommended)'
+    )
+    # Setlists = JamTrackEvent(
+    #     _id='setlists', 
+    #     english='Setlists', 
+    #     desc='A Setlist has been modified.'
+    # )
+    # Shop = JamTrackEvent(
+    #     _id='shop', 
+    #     english='Shop', 
+    #     desc='The Item Shop\'s Jam Track rotation has been modified.'
+    # )
+    # Rotation = JamTrackEvent(
+    #     _id='rotation', 
+    #     english='Rotation', 
+    #     desc='The free Jam Track rotation has been modified.'
+    # )
+    # BestSellers = JamTrackEvent(
+    #     _id='best_sellers', 
+    #     english='Best Sellers', 
+    #     # TODO: festival items
+    #     desc='The best-selling Jam Tracks in the Item Shop have been updated.'
+    # )
 
     def get_all_events(): # type: ignore
         return list(JamTrackEvents.__members__.values())

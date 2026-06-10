@@ -231,11 +231,11 @@ class DailyCommandHandler:
 
     def fetch_daily_shortnames(self):
         try:
-            logging.debug(f'[GET] {constants.DAILY_API}')
+            logging.debug(f'[GET] {constants.FN_CALENDAR}')
             headers = {
                 'Authorization': self.bot.oauth_manager.session_token
             }
-            response = requests.get(constants.DAILY_API, headers=headers)
+            response = requests.get(constants.FN_CALENDAR, headers=headers)
             data = response.json()
 
             track_list = constants.get_jam_tracks(use_cache=True)
@@ -373,11 +373,11 @@ class ShopCommandHandler:
         view.message = await interaction.edit_original_response(embed=view.get_embed(), view=view)
 
     def fetch_shop_tracks(self) -> list:
-        logging.debug(f'[GET] {constants.SHOP_API}')
+        logging.debug(f'[GET] {constants.FN_CATALOG}')
         headers = {
             'Authorization': self.bot.oauth_manager.session_token
         }
-        response = requests.get(constants.SHOP_API, headers=headers)
+        response = requests.get(constants.FN_CATALOG, headers=headers)
         if response.status_code == 401 or response.status_code == 403:
             self.bot.oauth_manager._create_token()
             raise Exception('Please try again.')
