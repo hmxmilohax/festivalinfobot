@@ -1,3 +1,5 @@
+import json
+import requests
 import logging
 import discord
 from bot import constants, database
@@ -34,7 +36,7 @@ class WishlistManager():
 
                 if entry.lock_rotation_active:
                     # the lock is active so we unlock the wishlist entry so that we can notify the user again
-                    await self.config.wishlist('set_lock_status', lock_type='rotation', entry=entry, lock_status=False)
+                    await self.config.wishlist('set_lock_status', lock_type='rotation', entry=entry, lock_status=0)
 
                     # we notify the user that the track is no longer in rotation
                     embed = discord.Embed(
@@ -68,7 +70,7 @@ class WishlistManager():
             print(f"Track {track['track']['sn']} is in rotation, notifying user {entry.user.id}")
 
             # we lock the wishlist entry so that we don't notify the user again
-            await self.config.wishlist('set_lock_status', lock_type='rotation', entry=entry, lock_status=True)
+            await self.config.wishlist('set_lock_status', lock_type='rotation', entry=entry, lock_status=1)
 
             embed = discord.Embed(
                 title="A Jam Track from your wishlist is in rotation!",
@@ -91,18 +93,95 @@ class WishlistManager():
                     logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
         # handle everything again but this time for shop
-        shop_tracks = self.shop_handler.fetch_shop_tracks()
+
+
+
+
+
+
+
+
+
+
+
+
+        logging.debug(f'[GET] {constants.SHOP_API}')
+        headers = {
+            'Authorization': self.bot.oauth_manager.session_token
+        }
+        response = requests.get(constants.SHOP_API, headers=headers)
+        if response.status_code == 401 or response.status_code == 403:
+            self.bot.oauth_manager._create_token()
+            raise Exception('Please try again.')
+
+        data = response.json()
+
+        fortnite_api_shop_data_url = 'https://fortnite-api.com/v2/shop' # TODO: language target
+        response = requests.get(fortnite_api_shop_data_url)
+        marlon_data = response.json()
+
+        storefront = discord.utils.find(lambda storefront: storefront['name'] == 'BRWeeklyStorefront', data['storefronts'])
+        # open('shop_test.json', 'w').write(json.dumps(storefront, indent=4))
+
+        shop_tracks = list(filter(lambda item: item['meta']['templateId'].startswith('SparksSong:'), storefront['catalogEntries']))
+        bundles = list(filter(lambda item: item['offerType'] == 'DynamicBundle', storefront['catalogEntries']))
 
         for entry in all_wishlists:
             track = discord.utils.find(lambda x: x['track']['sn'] == entry.shortname, all_tracks)
             shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track['track']['ti'], shop_tracks)
 
-            # the track is NOT in the current shop
-            if not shop_entry:
+            bundle_with_track = None
 
-                if entry.lock_shop_active:
+            shop_notification_level = entry.lock_shop_active
+            # LOCK LEVELS
+            # 0 10 = not in bundle, not itself         10
+            # 2 11 = in bundle,     not itself         11
+            # 1 12 = not in bundle, itself             12
+            # 3 13 = in bundle,     itself             13
+
+            # transitions correction
+            corrected_state = -1
+            # I am NOT messing around
+            if shop_notification_level == 0:
+                corrected_state = 10
+            if shop_notification_level == 2:
+                corrected_state = 11
+            if shop_notification_level == 1:
+                corrected_state = 12
+            if shop_notification_level == 3:
+                corrected_state = 13
+
+            # is this costly?
+            for bundle in bundles:
+                track_template_id = track['track']['ti']
+                bundle_offers = bundle['dynamicBundleInfo']['bundleItems']
+                for item in bundle_offers:
+                    # pass
+                    if item['item']['templateId'] == track_template_id:
+                        bundle_with_track = bundle
+                        break
+
+            print(bundle_with_track)
+
+            track_not_in_shop = (shop_entry is None) and (bundle_with_track is None)
+            # the track is NOT in the current shop
+
+            current_state = 10
+            new_notification_level = 0
+            if bundle_with_track:
+                new_notification_level = 2
+                current_state = 11
+            if shop_entry:
+                new_notification_level = 1
+                current_state = 12
+            if shop_entry and bundle_with_track:
+                new_notification_level = 3
+                current_state = 13
+
+            if track_not_in_shop:
+                if corrected_state in [11, 12, 13] and current_state == 10:
                     # the lock is active so we unlock the wishlist entry so that we can notify the user again
-                    await self.config.wishlist('set_lock_status', lock_type='shop', entry=entry, lock_status=False)
+                    await self.config.wishlist('set_lock_status', lock_type='shop', entry=entry, lock_status=0)
 
                     # we notify the user that the track is no longer in shop
                     embed = discord.Embed(
@@ -129,24 +208,103 @@ class WishlistManager():
                 continue
 
             # we already notified this user that this track is in shop
-            if entry.lock_shop_active:
+            if current_state == corrected_state:
                 continue
 
             # we now proceed to notify the user
-            print(f"Track {track['track']['sn']} is in shop, notifying user {entry.user.id}")
+            print(f"Track {track['track']['sn']} is in shop for {entry.user.id} with state {corrected_state} -> {current_state}")
+
+            embed_title = ""
+            # transition 10 -> 11
+            if corrected_state == 10 and current_state == 11:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop within a bundle!"
+
+            # default transitions from 10
+            if corrected_state == 10 and current_state == 12:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop!"
+            if corrected_state == 10 and current_state == 13:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop!"
+
+            # transitions from 11
+            if corrected_state == 11 and current_state == 12:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop only by itself!"
+            if corrected_state == 11 and current_state == 13:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop by itself!"
+
+            # transition 12 -> 13
+            if corrected_state == 12 and current_state == 13:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop within a bundle!"
+
+            # transition 13 -> 12
+            if corrected_state == 13 and current_state == 12:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop only by itself!"
+            # transition 13 -> 11
+            if corrected_state == 13 and current_state == 11:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop only within a bundle!"
+
+            # transition 12 -> 11
+            if corrected_state == 12 and current_state == 11:
+                embed_title = "A Jam Track from your wishlist is now in the Item Shop only within a bundle!"
+            
             embed = discord.Embed(
-                title="A Jam Track from your wishlist is in the Item Shop!",
+                title=embed_title,
                 colour=constants.ACCENT_COLOUR
             )
             embed.add_field(
-                name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is now available in the shop.",
+                name="", value=f"**{track['track']['tt']}** - *{track['track']['an']}* is available in the shop.",
                 inline=False
             )
-            embed.add_field(
-                name="Available until",
-                value=constants.format_date(shop_entry['meta']['outDate'])
-            )
-            embed.set_thumbnail(url=track['track']['au'])
+
+            if current_state in [12, 13]:
+                if shop_entry:
+                    embed.add_field(
+                        name="Standalone Availability",
+                        value=f"Available in the Item Shop for {shop_entry['prices'][0]['regularPrice']} V-Bucks!",
+                        inline=False
+                    )
+
+                    embed.add_field(
+                        name="Available until",
+                        value=constants.format_date(shop_entry['meta']['outDate']),
+                        inline=False
+                    )
+
+                    embed.set_thumbnail(url=track['track']['au'])
+
+            if current_state in [11, 13]:
+                if bundle_with_track:
+                    # cross reference bundle's offer id with the unofficial api data
+                    offer_id1 = bundle_with_track['offerId']
+                    unofficial_bundle = discord.utils.find(lambda x: x['offerId'] == offer_id1, marlon_data['data']['entries'])
+
+                    bundle_price = bundle_with_track['dynamicBundleInfo']['floorPrice']
+                    bundle_offers = bundle['dynamicBundleInfo']['bundleItems']
+                    for item in bundle_offers:
+                        bundle_price += item['regularPrice']
+
+                    bundle_alert = ""
+                    if unofficial_bundle.get('banner', None):
+                        bundle_alert = f" [{unofficial_bundle['banner']['value']}]"
+
+                    if unofficial_bundle:
+                        embed.add_field(
+                            name=f"Bundle: {unofficial_bundle['bundle']['name']}",
+                            value=f"Price: {bundle_price} V-Bucks{bundle_alert}\n" +
+                            f"**{track['track']['tt']}** - *{track['track']['an']}* and {len(bundle_offers) - 1} more items.",
+                            inline=False
+                        )
+                        embed.add_field(
+                            name="Available until",
+                            value=constants.format_date(bundle_with_track['meta']['outDate']),
+                            inline=False
+                        )
+                        embed.set_thumbnail(url=unofficial_bundle['bundle']['image'])
+                    else:
+                        embed.add_field(
+                            name="Bundle Details",
+                            value=f"We're currently unable to fetch the details for this bundle. Sorry!",
+                        )
+
             embed.set_footer(
                 text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
             )
@@ -159,7 +317,7 @@ class WishlistManager():
                     logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
             # we lock the wishlist entry so that we don't notify the user again
-            await self.config.wishlist('set_lock_status', lock_type='shop', entry=entry, lock_status=True)
+            await self.config.wishlist('set_lock_status', lock_type='shop', entry=entry, lock_status=new_notification_level)
 
     async def handle_display(self, interaction: discord.Interaction, page = 0):
         first_time = not interaction.response.is_done()

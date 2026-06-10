@@ -49,7 +49,7 @@ class SubscriptionUser(SubscriptionObject):
         self.type = 'user'
 
 class WishlistEntry():
-    def __init__(self, user: discord.Object, shortname: str, created_at: datetime, lock_rotation_active: bool = False, lock_shop_active: bool = False) -> None:
+    def __init__(self, user: discord.Object, shortname: str, created_at: datetime, lock_rotation_active: bool = False, lock_shop_active: int = 0) -> None:
         self.user = user
         self.shortname = shortname
         self.created_at = created_at
@@ -301,7 +301,7 @@ class Config:
     async def wishlist(self, operation: Literal['get_all']) -> list[WishlistEntry]: ...
 
     @overload
-    async def wishlist(self, operation: Literal['set_lock_status'], lock_type: Literal['shop', 'rotation'], entry: WishlistEntry, lock_status: bool) -> None: ...
+    async def wishlist(self, operation: Literal['set_lock_status'], lock_type: Literal['shop', 'rotation'], entry: WishlistEntry, lock_status: int) -> None: ...
 
     async def wishlist(self, operation: Literal['add', 'remove', 'check', 'get', 'get_all', 'set_lock_status'], **kwargs) -> list[WishlistEntry] | bool | None:
         async with self.lock:
@@ -348,7 +348,7 @@ class Config:
                                 row[0],
                                 datetime.fromisoformat(row[1]),
                                 bool(row[2]),
-                                bool(row[3])
+                                int(row[3])
                             )
                             for row in rows
                         ] if rows else []
@@ -362,19 +362,19 @@ class Config:
                             shortname=row[1],
                             created_at=datetime.fromisoformat(row[2]),
                             lock_rotation_active=bool(row[3]),
-                            lock_shop_active=bool(row[4])
+                            lock_shop_active=int(row[4])
                         )
                         for row in rows
                     ] if rows else []
             elif operation == 'set_lock_status':
                 lock_type = kwargs.get('lock_type')
                 entry = kwargs.get('entry')
-                lock_status = kwargs.get('lock_status')
+                lock_status: int = kwargs.get('lock_status')
                 if lock_type and entry and lock_status is not None:
                     column = f"lock_{lock_type}_active"
                     await self.db.execute(
                         f"UPDATE wishlists SET {column} = ? WHERE user_id = ? AND shortname = ?",
-                        (1 if lock_status else 0, str(entry.user.id), entry.shortname)
+                        (lock_status, str(entry.user.id), entry.shortname)
                     )
                     await self.db.commit()
             return None
