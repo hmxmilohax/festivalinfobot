@@ -111,6 +111,7 @@ note_name_maps = {
         98: "EXPERT Yellow",
         97: "EXPERT Red",
         96: "EXPERT Kick",
+        95: "Double Kick",
         88: "HARD Green",
         87: "HARD Blue",
         86: "HARD Yellow",
