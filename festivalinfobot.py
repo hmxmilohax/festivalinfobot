@@ -103,6 +103,16 @@ class FestivalTracker(commands.AutoShardedBot):
         self.add_dynamic_items(WishlistButton)
         self.add_dynamic_items(ActionSelect)
 
+        logging.debug("Registering bestsellers cacher loop every 1m")
+        @tasks.loop(minutes=1.0)
+        async def bestsellers_cacher_task():
+            try:
+                await self.bestsellers_renderer.handle_cacher()
+            except Exception as e:
+                logging.error('Bestsellers cacher task could not be finished', exc_info=e)
+
+        self.bestsellers_cacher_loop = bestsellers_cacher_task
+
         logging.debug("setup_hook finished!")
 
     def custom_parse_guild_members_chunk(self, data: any):
@@ -209,6 +219,10 @@ class FestivalTracker(commands.AutoShardedBot):
         if not self.utility_loop_task.is_running():
             logging.debug("Starting utility loop task...")
             self.utility_loop_task.start()
+
+        if not self.bestsellers_cacher_loop.is_running():
+            logging.debug("Starting bestsellers cacher loop task...")
+            self.bestsellers_cacher_loop.start()
 
         logging.debug("on_ready finished!")
 

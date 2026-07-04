@@ -19,8 +19,8 @@ class PathCommandHandler():
 
         script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-        if instrument.midi == 'PLASTIC DRUMS' and binary_id == 1:
-            engine = 'ch'
+        # if instrument.midi == 'PLASTIC DRUMS' and binary_id == 1:
+        #     engine = 'ch'
         
         if os.name == 'nt':
             chopt_exe = os.path.join(script_dir, 'data', 'Binaries', 'Windows', 'CHOpt', str(binary_id), 'CHOpt.exe')

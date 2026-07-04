@@ -570,8 +570,7 @@ class Instruments(enum.Enum):
         chopt="prodrums", 
         midi="PLASTIC DRUMS", 
         lb_enabled=True, 
-        emoji="<:prodrums:1464755636796526776>",
-        binary_id=2
+        emoji="<:prodrums:1464755636796526776>"
         )
     ProCymbals = Instrument(
         english="Pro Drums + Cymbals", 
@@ -581,8 +580,7 @@ class Instruments(enum.Enum):
         midi="PLASTIC DRUMS", 
         lb_enabled=True,
         path_enabled=False, 
-        emoji="<:prodrums:1464755636796526776>",
-        binary_id=2
+        emoji="<:prodrums:1464755636796526776>"
         )
 
     # The @classmethod decorator just works!
