@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 from datetime import datetime, timezone
 import hashlib
 import logging
@@ -72,41 +73,7 @@ class BestsellersRenderer:
 
         return leaving_today_string, new_jam_track_string
 
-    async def get_track_number_config_url(self, total_tracks: int):
-        host = "festivaltracker.org"
-        base_url = f"https://{host}/5604c25f39614cbb_do_not_index-bestsellers-img-generator"
-        params: str = "?stopalerts=1&callbacktype=image"
-
-        leaving_today_string, new_jam_track_string = await self.get_leaving_new_lists()
-        leaving_today_string = ":".join(leaving_today_string)
-        new_jam_track_string = ":".join(new_jam_track_string)
-
-        # encode as base64 url
-        leaving_today_string = base64.urlsafe_b64encode(leaving_today_string.encode('utf-8')).decode('utf-8').rstrip('=')
-        new_jam_track_string = base64.urlsafe_b64encode(new_jam_track_string.encode('utf-8')).decode('utf-8').rstrip('=')
-
-        params += f"&leavingtoday={leaving_today_string}&newjam={new_jam_track_string}"
-
-        if total_tracks == 1:
-            params += "&gridcols=1&paddinghorizontal=300&paddingvertical=100&textsize=50&infopadding=30"
-        elif total_tracks == 2:
-            params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=50"
-        elif total_tracks == 3:
-            params += "&gridcols=2&textsize=40&infopadding=30&paddingvertical=70&height=1300"
-        elif total_tracks == 4:
-            params += "&gridcols=2&textsize=40&infopadding=30&height=1300&paddingvertical=70"
-        elif total_tracks == 5 or total_tracks == 6:
-            params += "&gridcols=3&textsize=30&infopadding=20&height=1080&paddingvertical=70"
-        elif total_tracks == 7 or total_tracks == 8 or total_tracks == 9:
-            params += "&gridcols=3&textsize=30&infopadding=20&height=1300&paddingvertical=40"
-        elif total_tracks == 10 or total_tracks == 11 or total_tracks == 12:
-            params += "&gridcols=4&height=1080&paddingvertical=40"
-        elif total_tracks == 13 or total_tracks == 14 or total_tracks == 15 or total_tracks == 16:
-            params += "&gridcols=4&height=1250&paddingvertical=20"
-
-        return base_url + params
-
-    async def capture_renderer_screenshot(self, auto: bool = True, cols: int = 2, width: int = 1920, height: int = 1080, paddingverticalpx: int = 20, paddinghorizontal: int = 0, textsize: int = 24, infopadding: int = 10) -> str:
+    async def capture_renderer_screenshot(self, auto: bool = True, cols: int = 4) -> str:
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
@@ -135,7 +102,7 @@ class BestsellersRenderer:
             # encode as base64 url
             leaving_today_string = base64.urlsafe_b64encode(leaving_today_string.encode('utf-8')).decode('utf-8').rstrip('=')
             new_jam_track_string = base64.urlsafe_b64encode(new_jam_track_string.encode('utf-8')).decode('utf-8').rstrip('=')
-            url = f"https://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}&width={width}&height={height}&paddingvertical={paddingverticalpx}&paddinghorizontal={paddinghorizontal}&textsize={textsize}&infopadding={infopadding}&stopalerts=1&callbacktype={initial_cbtype}&leavingtoday={leaving_today_string}&newjam={new_jam_track_string}"
+            url = f"http://festivaltracker.org/5604c25f39614cbb_do_not_index-bestsellers-img-generator?gridcols={cols}"
 
             print(url)
 
@@ -418,10 +385,12 @@ class BestsellersRenderer:
 
             open('items.json', 'w').write(json.dumps(data_to_give_to_website, indent=4))
 
-            # raise Exception("error")
-
             logging.debug(f"Navigating to {url}")
             await page.goto(url)
+
+            await asyncio.sleep(2)
+            await page.evaluate(f"window.setBestsellersData({json.dumps(data_to_give_to_website)})", None)
+            await asyncio.sleep(3)
 
             try:
                 output_path = constants.CACHE_FOLDER + "bestsellers.png"
