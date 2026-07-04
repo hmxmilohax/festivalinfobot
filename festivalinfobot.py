@@ -199,6 +199,10 @@ class FestivalTracker(commands.AutoShardedBot):
             except Exception as e:
                 logging.error("Could not send ready message", exc_info=e)                
 
+        if not self.bestsellers_cacher_loop.is_running():
+            logging.debug("Starting bestsellers cacher loop task...")
+            self.bestsellers_cacher_loop.start()
+
         self._connection.parsers['GUILD_MEMBERS_CHUNK'] = self.custom_parse_guild_members_chunk
         logging.debug("Guilds chunking...")
 
@@ -219,10 +223,6 @@ class FestivalTracker(commands.AutoShardedBot):
         if not self.utility_loop_task.is_running():
             logging.debug("Starting utility loop task...")
             self.utility_loop_task.start()
-
-        if not self.bestsellers_cacher_loop.is_running():
-            logging.debug("Starting bestsellers cacher loop task...")
-            self.bestsellers_cacher_loop.start()
 
         logging.debug("on_ready finished!")
 
