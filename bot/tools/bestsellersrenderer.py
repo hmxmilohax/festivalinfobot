@@ -199,13 +199,13 @@ class BestsellersRenderer:
                     continue
                 
                 offer_type = offer_info['meta']['templateId'].split(":")[0]
-                print(offer_type)
+                # print(offer_type)
 
                 devname = offer_info['devName']
-                print(devname)
+                # print(devname)
 
                 offer_countries = per_offer_id[offer]['countries']
-                print(offer_countries)
+                # print(offer_countries)
 
                 # first locate the item in shop_data
                 offer_in_shop_data = discord.utils.find(lambda x: x['offerId'] == offer, shop_entries)
@@ -308,6 +308,8 @@ class BestsellersRenderer:
                                         continue
 
                         item_name = item.get('name', 'Name Not Available')
+                        if item_name == 'Name Not Available':
+                            pass
                         item_subtitle = english_item_types[item_type]
 
                         if item_type == 'SparksSong':
@@ -349,22 +351,44 @@ class BestsellersRenderer:
                         'subtitle': first_item_subtitle,
                         'remaining': remaining_item,
                         'icon': bundle_icon,
-                        'countries': offer_countries
+                        'countries': list(sorted(offer_countries, key=lambda x: x['rank']))
                     }
 
                     if len(image_urls) > 0:
                         data_to_give_to_website['items'].append(item_template_data)
 
-                elif offer_type in allowed_item_types:                        
+                elif offer_type in allowed_item_types:
+                    brItems = offer_in_shop_data.get('brItems', [])
+                    tracks = offer_in_shop_data.get('tracks', [])
+                    instruments = offer_in_shop_data.get('instruments', [])
+
+                    item = None
+                    # instruments first, then tracks, then brItems (the order matters)
+                    if len(instruments) > 0:
+                        item = instruments[0]
+                    elif len(tracks) > 0:
+                        item = tracks[0]
+                    elif len(brItems) > 0:
+                        item = brItems[0]
+
                     item_name = offer_in_shop_data.get('name', 'Name Not Available')
+                    if item_name == 'Name Not Available':
+                        print('NAME NOT FOUND', offer_in_shop_data)
+                        if item:
+                            item_name = item.get('name', 'Name Not Available x2')
+                        else:
+                            logging.warning(f"Item {item_id} not found in {offer_in_shop_data['devName']} {offer_type}s.")
 
                     print(item_name, offer_type)
                     
                     background = None
                     try:
-                        background = offer_in_shop_data['series']['image']
+                        background = item['series']['image']
                     except:
-                        pass
+                        try:
+                            background = offer_in_shop_data['series']['image']
+                        except:
+                            pass
 
                     subtitle = english_item_types[offer_type]
                     if offer_type == "SparksSong":
@@ -378,7 +402,7 @@ class BestsellersRenderer:
                         'name': item_name,
                         'subtitle': subtitle,
                         'icon': music_icon,
-                        'countries': offer_countries
+                        'countries': list(sorted(offer_countries, key=lambda x: x['rank']))
                     }
 
                     data_to_give_to_website['items'].append(item_template_data)
