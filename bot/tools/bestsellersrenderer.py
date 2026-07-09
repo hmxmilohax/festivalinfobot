@@ -258,6 +258,8 @@ class BestsellersRenderer:
 
                     bundle_image_url = None
 
+                    bundle_name = "Cannot access bundle name"
+
                     try:
                         bundle_name = offer_in_shop_data['bundle']['name']
                         bundle_image_url = offer_in_shop_data['bundle']['image']
