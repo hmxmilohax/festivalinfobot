@@ -322,7 +322,7 @@ class ActionView(discord.ui.View):
                 emoji="⭐" if wishlist_button_action == 'add' else "🗑️",
                 label="Wishlist" if wishlist_button_action == 'add' else "Unwishlist",
                 # this is gonna be a headache to localise
-                description=f"{'Add' if wishlist_button_action == 'add' else 'Remove'} this Jam Track from your wishlist.",
+                description=f"{'Add' if wishlist_button_action == 'add' else 'Remove'} this Jam Track {'to' if wishlist_button_action == 'add' else 'from'} your wishlist.",
                 value=f"wishlist:3:{base64.urlsafe_b64encode(wishlist_metad.encode('utf-8')).decode('utf-8')}"
             )
         )

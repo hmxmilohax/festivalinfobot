@@ -59,8 +59,8 @@ class HistoryView(discord.ui.LayoutView): # YES YES YES
             discord.ui.Section(
                 discord.ui.TextDisplay(f"**{self.track_data['track']['tt']}** - *{self.track_data['track']['an']}*"),
                 discord.ui.TextDisplay(f"Detected {len(_attchs)} track change(s) in v{self.current_page + 2}"),
-                discord.ui.TextDisplay(f"From {pdata.get('last_modified_old', 'Unknown')}\n" +
-                                       f"To {pdata.get('last_modified_new', 'Unknown')}\n" + 
+                discord.ui.TextDisplay(f"From {pdata.get('last_modified_old', 'Unknown')} [`{pdata.get('m_name_old', 'Unknown MIDI Name')}`]\n" +
+                                       f"To {pdata.get('last_modified_new', 'Unknown')} [`{pdata.get('m_name_new', 'Unknown MIDI Name')}`]\n" + 
                                        f"Since {pdata.get('last_modified_new', 'Unknown').replace('F', 'R')}"),
                 accessory=discord.ui.Thumbnail(self.track_data['track']['au'])
             ),

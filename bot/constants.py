@@ -128,7 +128,8 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # [13] chappell         (241, 138, 181)
 # [14] laufey           (71, 132, 178)
 # [14] esdeekid         (0, 0, 0)
-SEASON_COLOUR = (71, 132, 178)
+# [14] olivia rodrigo   (246, 192, 215)
+SEASON_COLOUR = (246, 192, 215)
 
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
@@ -772,17 +773,27 @@ def format_date(date_string):
 def add_fields(track_data, embed, weekly_tracks, shop_tracks):
     track_devname = track_data['track']['sn']
     weekly_track = discord.utils.find(lambda offer: offer['metadata']['track']['sn'] == track_devname, weekly_tracks)
+
+    status_text = []
+
     if weekly_track != None:
-        embed.add_field(name="Weekly Rotation", value=f"Currently in the free rotation.", inline=False)
+        text = "* Currently in the Free Jam Track Rotation"
 
         if weekly_track['in_spotlight'] == True:
-            embed.add_field(name="Spotlight", value=f"Currently in rotation spotlight.", inline=False)
+            text += " and Spotlight"
+
+        text += "."
+        
+        status_text.append(text)
 
     shop_entry = discord.utils.find(lambda offer: offer['meta']['templateId'] == track_data['track']['ti'], shop_tracks)
 
     if shop_entry:
         out_date = shop_entry['meta'].get('outDate')
-        embed.add_field(name="Item Shop", value=f"Currently in the shop until {format_date(out_date)}.", inline=False)
+        status_text.append(f"* Currently in the Shop until {format_date(out_date)}.")
+
+    if len(status_text) > 0:
+        embed.add_field(name="Item Shop & Rotation", value="\n".join(status_text), inline=False)
     
 def common_error_embed(text) -> discord.Embed:
     return discord.Embed(colour=0xbe2625, title="Error", description=f"{ERROR_EMOJI} {text}")

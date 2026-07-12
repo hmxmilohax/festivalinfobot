@@ -179,20 +179,24 @@ class SearchEmbedHandler:
         elif is_random:
             title = f"Your Random Jam Track:"
         else:
-            title = ""
+            title = "Jam Track"
 
         embed = discord.Embed(title=title, description=f"**{track['tt']}** - *{track['an']}*", colour=constants.ACCENT_COLOUR)
         embed.add_field(name="\n", value="", inline=False)
 
         # ----------
 
-        embed.add_field(name="Release Year", value=track.get('ry', 'Unknown'), inline=True)
+        year = track.get('ry', 'Unknown')
+        duration = track.get('dn', 0)
+        duration_str = f"{duration // 60}:{duration % 60}"
 
-        album = track.get('ab', 'N/A')
-        embed.add_field(name="Album", value=album, inline=True)
+        embed.add_field(name="Year & Duration", value=f"{year}, {duration_str}", inline=True)
+
+        # album = track.get('ab', 'N/A')
+        # embed.add_field(name="Album", value=album, inline=True)
         
-        genre = track.get('ge', ['N/A'])
-        embed.add_field(name="Genre", value=", ".join(genre), inline=True)
+        # genre = track.get('ge', ['N/A'])
+        # embed.add_field(name="Genre", value=", ".join(genre), inline=True)
 
         # ----------
 
@@ -202,27 +206,29 @@ class SearchEmbedHandler:
         key = discord.utils.find(lambda v: v.value.code == _key, constants.KeyTypes.__members__.values()).value.english
         key = f"{key} {mode}"
 
-        duration = track.get('dn', 0)
-        embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
+        # duration = track.get('dn', 0)
+        # embed.add_field(name="Duration", value=f"{duration // 60}m {duration % 60}s", inline=True)
 
-        if not is_detail:
-            embed.add_field(name="Key", value=key, inline=True)
-        else:
-            embed.add_field(name="Key", value=_key, inline=True)
-            embed.add_field(name="Mode", value=mode, inline=True)
+        # if not is_detail:
+        #     embed.add_field(name="Key", value=key, inline=True)
+        # else:
+        #     embed.add_field(name="Key", value=_key, inline=True)
+        #     embed.add_field(name="Mode", value=mode, inline=True)
 
-        embed.add_field(name="BPM", value=str(track.get('mt', 'Unknown')), inline=True)
+        key_bpm_str = f"{key}, {str(track.get('mt', 'Unknown'))}"
+
+        embed.add_field(name="Key & BPM", value=key_bpm_str, inline=True)
 
         # ----------
 
-        if not is_detail:
-            embed.add_field(name="Shortname & ID", value=track['sn'] + ' [' + track.get('ti').replace('SparksSong:sid_placeholder_', '') + ']', inline=True)
-        else:
-            embed.add_field(name="Shortname", value=track['sn'], inline=True)
-            embed.add_field(name="Item ID", value=track.get('ti'), inline=True)
+        # if not is_detail:
+        embed.add_field(name="Shortname & ID", value=track['sn'] + ' [' + track.get('ti').replace('SparksSong:sid_placeholder_', '') + ']', inline=True)
+        # else:
+        #     embed.add_field(name="Shortname", value=track['sn'], inline=True)
+        #     embed.add_field(name="Item ID", value=track.get('ti'), inline=True)
         
-        embed.add_field(name="Jam Loop Code", value=track.get('jc', 'N/A'), inline=True)
-        embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
+        # embed.add_field(name="Jam Loop Code", value=track.get('jc', 'N/A'), inline=True)
+        # embed.add_field(name="ISRC", value=track.get('isrc', 'N/A'))
         
         # ----------
         
@@ -265,9 +271,9 @@ class SearchEmbedHandler:
 
         # ----------
 
-        gameplay_tags = track.get('gt')
-        if gameplay_tags and not is_detail:
-            embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
+        # gameplay_tags = track.get('gt')
+        # if gameplay_tags and not is_detail:
+        #     embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
 
         if is_detail:
             embed.add_field(name="Animation Genre", value=track.get('ag', 'N/A'), inline=True)

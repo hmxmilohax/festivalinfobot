@@ -365,7 +365,7 @@ class WishlistManager():
                     discord.ui.TextDisplay(
                         f"**{track['track']['tt']}** - *{track['track']['an']}*\n" +
                         f"Added {discord.utils.format_dt(wishlist_entry.created_at, 'F')}\n-# " +
-                        f"In Shop? " + (constants.SUCCESS_EMOJI if wishlist_entry.lock_shop_active else constants.ERROR_EMOJI) + " · " +
+                        f"In Shop? " + (constants.SUCCESS_EMOJI if wishlist_entry.lock_shop_active != 0 else constants.ERROR_EMOJI) + " · " +
                         f"In Rotation? " + (constants.SUCCESS_EMOJI if wishlist_entry.lock_rotation_active else constants.ERROR_EMOJI)
                     ),
                     accessory=btn

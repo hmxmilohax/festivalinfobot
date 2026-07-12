@@ -1,3 +1,4 @@
+import mido
 import asyncio
 import json
 import os
@@ -636,3 +637,80 @@ class TestCog(commands.Cog):
         await conf.agreement(operation="update", user=discord.Object(int(user_id)), agreement_type="terms_of_service", agreement_version=terms_of_service_version, agreement_accepted=False)
 
         await interaction.edit_original_response(content=f"Agreements wiped for user <@{user_id}>")
+
+    @test_group.command(name="compare_midi_generations", description="Compare the midi generations of a song")
+    @app_commands.describe(shortname = "The shortname of the song to compare")
+    async def compare_midi_generations(self, interaction: discord.Interaction, shortname: str):
+        await interaction.response.defer()
+
+        jam_tracks = constants.get_jam_tracks(use_cache=True)
+        track = discord.utils.find(lambda t: t['track']['sn'] == shortname, jam_tracks)
+        if not track:
+            await interaction.edit_original_response(content="Track not found")
+            return
+
+        json_files = [f for f in os.listdir(constants.LOCAL_JSON_FOLDER) if f.endswith('.json')]
+        json_files.sort(key=lambda x: os.path.getmtime(os.path.join(constants.LOCAL_JSON_FOLDER, x)))
+        
+        midi_tool = MidiArchiveTools()
+        midi_url_list = [] # also the "generations"
+        for json_file in json_files:
+            file_path = os.path.join(constants.LOCAL_JSON_FOLDER, json_file)
+            file_content = open(file_path, 'r').read()
+
+            # easy skip
+            if shortname not in file_content:
+                continue
+
+            file_data = json.loads(file_content)
+            # print(file_data.keys())
+            # find the jam track
+            for key in file_data.keys():
+                if not key.startswith('_') and key != 'lastModified': # a jam track
+                    song = file_data[key]
+                    # print(song)
+                    if song['track']['sn'] == shortname: # the song
+                        midi_url = song['track']['mu']
+                        if midi_url not in midi_url_list:
+                            midi_url_list.append(midi_url)
+                        break
+
+        last_generation = midi_url_list[-1]
+        before_last_generation = None
+        try:
+            before_last_generation = midi_url_list[-2]
+        except IndexError:
+            before_last_generation = last_generation
+            
+        midis = {}
+
+        for midi_url in [before_last_generation, last_generation]:
+            midi_file = await midi_tool.save_chart(midi_url)
+            if not os.path.exists(midi_file):
+                continue
+            
+            mido_parse = mido.MidiFile(midi_file)
+            mido_eventlist_as_repr = []
+            for track in mido_parse.tracks:
+                for msg in track:
+                    mido_eventlist_as_repr.append(repr(msg))
+
+            midis[midi_url] = mido_eventlist_as_repr
+
+        import difflib
+
+        old_lines = midis[before_last_generation]
+        new_lines = midis[last_generation]
+
+        diff = difflib.unified_diff(
+            old_lines, new_lines,
+            fromfile=before_last_generation,
+            tofile=last_generation,
+            lineterm=''
+        )
+
+        end_string = "\n".join(diff)
+
+        print(end_string)
+
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(end_string.encode()), 'diff.txt')])

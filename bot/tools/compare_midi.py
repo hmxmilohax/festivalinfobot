@@ -411,6 +411,13 @@ def load_midi_tracks(file_path):
 
     tracks = {}
     tempo_events = []
+
+    midi_name_evt = mid.tracks[0][0]
+    midi_name_evt_type = getattr(midi_name_evt, 'type', None)
+    midi_name = "Unknown MIDI Name"
+    if midi_name_evt_type == 'track_name':
+        midi_name = getattr(midi_name_evt, 'name', None)
+
     for track in mid.tracks:
         track_name = None
         for msg in track:
@@ -422,7 +429,7 @@ def load_midi_tracks(file_path):
             for msg in track:
                 if msg.type == 'set_tempo':
                     tempo_events.append((msg.time, msg.tempo))
-    return tracks, tempo_events
+    return tracks, tempo_events, midi_name
 
 def compare_tempo_events(tempo_events1, tempo_events2):
     differences = []
@@ -485,7 +492,7 @@ def extract_session_id(file_name):
         return match.group(1)  # Return the hash
     return None
 
-def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2):
+def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2, midi_name = None):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -569,6 +576,12 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
     track_name = track_name.replace(' ', '_')
     watermark = ax.text(0.99, 0.01, "festivaltracker.org", fontsize=12, color='black', ha='right', va='bottom', alpha=1, transform=ax.transAxes)
     watermark.set_path_effects([
+        path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
+    ])
+
+    # midi name is like watermark but its on the left side
+    midi_name_watermark = ax.text(0.01, 0.01, f'{midi_name}', fontsize=8, color='black', ha='left', va='bottom', alpha=0.5, transform=ax.transAxes)
+    midi_name_watermark.set_path_effects([
         path_effects.Stroke(linewidth=3, foreground='white'), path_effects.Normal()
     ])
 
@@ -696,24 +709,24 @@ def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)
 
     if not session_id:
         logging.debug("Error: Could not extract session ID from the arg.")
-        return False
+        return False, None, None
 
     output_folder = constants.TEMP_FOLDER
     os.makedirs(output_folder, exist_ok=True)
 
     if not os.path.exists(midi_file2):
         logging.debug(f"Update file '{midi_file2}' is missing.")
-        return False
+        return False, None, None
 
-    tracks1, tempo_events1 = load_midi_tracks(midi_file1)
+    tracks1, tempo_events1, midi_name_old = load_midi_tracks(midi_file1)
     if tracks1 is None:
         logging.debug(f"Error loading base MIDI file '{midi_file1}'.")
-        return False
+        return False, None, None
 
-    tracks2, tempo_events2 = load_midi_tracks(midi_file2)
+    tracks2, tempo_events2, midi_name = load_midi_tracks(midi_file2)
     if tracks2 is None:
         logging.debug(f"Error loading update MIDI file '{midi_file2}'.")
-        return False
+        return False, None, None
 
     # Compare tempo events
     tempo_differences = compare_tempo_events(tempo_events1, tempo_events2)
@@ -748,10 +761,10 @@ def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)
         
         if differences or text_differences:
             #logging.debug(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2)
+            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2, midi_name)
         else:
             logging.debug(f"'{track_name}' unchanged")
-    return True
+    return True, midi_name_old, midi_name
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
@@ -762,16 +775,16 @@ if __name__ == "__main__":
         session_id = sys.argv[3]
         song_name = sys.argv[4] if len(sys.argv) > 4 else "Unknown Track"
         
-        result = main(midi_file1, midi_file2, session_id, song_name)
+        result, _, _ = main(midi_file1, midi_file2, session_id, song_name)
         if result:
             logging.debug("MIDI comparison completed successfully.")
         else:
             logging.debug("MIDI comparison failed.")
 
 def run_comparison(midi_file1, midi_file2, session_id, song_name = 'unknown'):
-    result = main(midi_file1, midi_file2, session_id, song_name)
+    result, m_old, m_new = main(midi_file1, midi_file2, session_id, song_name)
     if result:
         logging.debug("MIDI comparison completed successfully.")
     else:
         logging.debug("MIDI comparison failed.")
-    return result
+    return result, m_old, m_new

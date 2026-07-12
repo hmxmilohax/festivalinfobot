@@ -202,7 +202,7 @@ class HistoryHandler():
             # if result.returncode != 0:
             #     return None
 
-            comparison_result = await self.bot.loop.run_in_executor(self.process_executor, comparison)
+            comparison_result, m_name_old, m_name_new = await self.bot.loop.run_in_executor(self.process_executor, comparison)
 
             # Check for the completion flag in the output
             if comparison_result == True:
@@ -224,12 +224,16 @@ class HistoryHandler():
                     return ({
                         'last_modified_old': last_modified_old_str,
                         'last_modified_new': last_modified_new_str,
-                        'shortname': track_name
+                        'shortname': track_name,
+                        'm_name_old': m_name_old,
+                        'm_name_new': m_name_new
                     }, list_of_images)
         return ({
                         'last_modified_old': last_modified_old_str,
                         'last_modified_new': last_modified_new_str,
-                        'shortname': track_name
+                        'shortname': track_name,
+                        'm_name_old': "Unknown MIDI Name",
+                        'm_name_new': "Unknown MIDI Name"
                     }, [])
 
     def fetch_local_history(self):
@@ -660,7 +664,9 @@ class LoopCheckHandler():
                         track_data = discord.utils.find(lambda x: x['track']['sn'] == song_data['shortname'], tracks)
                         container = discord.ui.Container(
                                 discord.ui.Section(
-                                    discord.ui.TextDisplay(f'**{track_data["track"]["tt"]}** - *{track_data["track"]["an"]}*\nDetected changes between:\n{song_data['last_modified_old']} and {song_data['last_modified_new']}',),
+                                    discord.ui.TextDisplay(f'**{track_data["track"]["tt"]}** - *{track_data["track"]["an"]}*' +
+                                        f'\n🟥 {song_data['last_modified_old']}: `{song_data['m_name_old']}`' +
+                                        f'\n🟩 {song_data['last_modified_new']}: `{song_data['m_name_new']}`',),
                                     accessory=discord.ui.Thumbnail(track_data['track']['au'])
                                 ),
                                 discord.ui.MediaGallery(
