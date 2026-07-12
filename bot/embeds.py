@@ -215,7 +215,7 @@ class SearchEmbedHandler:
         #     embed.add_field(name="Key", value=_key, inline=True)
         #     embed.add_field(name="Mode", value=mode, inline=True)
 
-        key_bpm_str = f"{key}, {str(track.get('mt', 'Unknown'))}"
+        key_bpm_str = f"{key}, {str(track.get('mt', 'Unknown'))} BPM"
 
         embed.add_field(name="Key & BPM", value=key_bpm_str, inline=True)
 
