@@ -13,7 +13,7 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
     def __init__(self, user_id: int) -> None:
         super().__init__(
             discord.ui.Select(
-                placeholder='[NEW] Wishlist, Preview, Lyrics & more...',
+                placeholder='Wishlist, Preview, Lyrics...',
                 max_values=1,
                 min_values=1,
                 custom_id=f'actionmenu:{user_id}',
