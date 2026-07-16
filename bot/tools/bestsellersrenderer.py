@@ -220,8 +220,25 @@ class BestsellersRenderer:
                     'SparksSong',
                     'SparksGuitar',
                     'SparksBass',
-                    'SparksMicrophone'
+                    'SparksMicrophone',
+                    'SparksKeytar',
+                    'SparksDrums',
+                    'SparksAura',
+                    'SparksDrum', # for good measure
+                    'SparksDrumkit' # good measure again
                 ]
+
+                english_item_types = {
+                    'SparksSong': 'Jam Track',
+                    'SparksMicrophone': 'Microphone',
+                    'SparksGuitar': 'Guitar',
+                    'SparksBass': 'Bass',
+                    'SparksKeytar': 'Keytar',
+                    'SparksDrums': 'Drums',
+                    'SparksAura': 'Aura',
+                    'SparksDrum': 'Drums',
+                    'SparksDrumkit': 'Drums'
+                }
 
                 # why fortnite-api.com?
                 try: 
@@ -237,13 +254,6 @@ class BestsellersRenderer:
                                 item_image_url = offer_in_shop_data['images']['large']
                             except:
                                 logging.warning(f"image not found")
-                    
-                english_item_types = {
-                    'SparksSong': 'Jam Track',
-                    'SparksMicrophone': 'Microphone',
-                    'SparksGuitar': 'Guitar',
-                    'SparksBass': 'Bass',
-                }
                 
                 if offer_type == "DynamicBundle":
                     bundle_items = offer_info['dynamicBundleInfo']['bundleItems']
