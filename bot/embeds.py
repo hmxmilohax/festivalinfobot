@@ -188,7 +188,11 @@ class SearchEmbedHandler:
 
         year = track.get('ry', 'Unknown')
         duration = track.get('dn', 0)
-        duration_str = f"{duration // 60}:{duration % 60}"
+        duration_secs = duration % 60
+        duration_secs_str = f"0{duration_secs}"
+        if duration_secs > 9:
+            duration_secs_str = f"{duration_secs}"
+        duration_str = f"{duration // 60}:{duration_secs_str}"
 
         embed.add_field(name="Year & Duration", value=f"{year}, {duration_str}", inline=True)
 
@@ -215,7 +219,7 @@ class SearchEmbedHandler:
         #     embed.add_field(name="Key", value=_key, inline=True)
         #     embed.add_field(name="Mode", value=mode, inline=True)
 
-        key_bpm_str = f"{key}, {str(track.get('mt', 'Unknown'))}"
+        key_bpm_str = f"{key}, {str(track.get('mt', 'Unknown'))} BPM"
 
         embed.add_field(name="Key & BPM", value=key_bpm_str, inline=True)
 
