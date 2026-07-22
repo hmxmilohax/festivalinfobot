@@ -139,7 +139,7 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
             path_command_handler = PathCommandHandler()
             # defer because path command dont do it for us
             await interaction.response.defer(thinking=True, ephemeral=True)
-            await path_command_handler.handle_interaction(interaction, song=chosen_metadata, extra_args=[False, False, False, False, False])
+            await path_command_handler.handle_interaction(interaction, song=chosen_metadata, extra_args=[False, False, False, False, False, False])
         elif chosen_action == 'download' and chosen_action_version == '1':
             # import here to avoid circular import
             jam_tracks = constants.get_jam_tracks(use_cache=True)
