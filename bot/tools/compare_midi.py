@@ -35,7 +35,7 @@ english_names = {
     'PLASTIC GUITAR': 'Pro Lead',
     'PLASTIC BASS': 'Pro Bass',
     'PLASTIC DRUMS': 'Pro Drums',
-    'PRO VOCALS': 'Pro Vocals',
+    'PRO VOCALS': 'Karaoke',
     'PART GUITAR': 'Lead',
     'PART BASS': 'Bass',
     'PART DRUMS': 'Drums',
