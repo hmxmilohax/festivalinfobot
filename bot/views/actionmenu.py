@@ -65,7 +65,9 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
         streaming_action_version = "1"
 
         if chosen_action == 'preview' and chosen_action_version == preview_action_version:
-            await interaction.response.defer(thinking=True, ephemeral=True)
+            is_dm = interaction.guild is None
+
+            await interaction.response.defer(thinking=True, ephemeral=not is_dm)
 
             track_list = constants.get_jam_tracks()
             track = discord.utils.find(lambda t: t['track']['sn'] == chosen_metadata, track_list)
