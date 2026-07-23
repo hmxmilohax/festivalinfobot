@@ -178,7 +178,7 @@ class HistoryHandler():
     def comparison_process(self, old_midi_file, new_midi_file, session_hash, track_name):
         return midi_comparison.run_comparison(old_midi_file, new_midi_file, session_hash, track_name)
 
-    async def process_chart_url_change(self, old_url:str, new_url:str, track_name:str, last_modified_old, last_modified_new, session_hash:str):
+    async def process_chart_url_change(self, old_url:str, new_url:str, track_name:str, last_modified_old, last_modified_new, session_hash:str, title: str = 'No title', artist: str = 'No artist'):
         """
         # dict: song information
         # list(str): files
@@ -194,7 +194,7 @@ class HistoryHandler():
             shutil.copy(old_midi_file, old_midi_out_path)
             shutil.copy(new_midi_file, new_midi_out_path)
 
-            comparison = functools.partial(midi_comparison.run_comparison, old_midi_out_path, new_midi_out_path, session_hash, track_name)
+            comparison = functools.partial(midi_comparison.run_comparison, old_midi_out_path, new_midi_out_path, session_hash, song_name=title, artist_name=artist)
 
             # comparison_command = ['python', 'compare_midi.py', old_midi_out_path, new_midi_out_path, session_hash, track_name]
             # result = subprocess.run(comparison_command, capture_output=True, text=True)
@@ -367,7 +367,7 @@ class HistoryHandler():
             real_session_hash = f"{session_hash}_{i}"
 
             this_res = await self.process_chart_url_change(
-                old_midi_file, new_midi_file, shortname, old_midi[0], new_midi[0], real_session_hash
+                old_midi_file, new_midi_file, shortname, old_midi[0], new_midi[0], real_session_hash, title=actual_title, artist=actual_artist
             )
             logging.info(this_res)
             results.append(this_res)
@@ -570,8 +570,10 @@ class LoopCheckHandler():
                     track_name=short_name, 
                     last_modified_old=last_modified_old, 
                     last_modified_new=last_modified_new, 
-                    session_hash=session_hash
-                ) # this makes me dizzy lol
+                    session_hash=session_hash,
+                    title=track_name,
+                    artist=artist_name
+                )
 
             container = self.embed_handler.generate_modified_track_embed(old=old_song, new=new_song)
 

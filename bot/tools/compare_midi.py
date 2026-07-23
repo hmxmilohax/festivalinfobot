@@ -31,6 +31,17 @@ fm.fontManager.addfont(jetbrains_mono_path)
 
 plt.rcParams['font.family'] = font_name
 
+english_names = {
+    'PLASTIC GUITAR': 'Pro Lead',
+    'PLASTIC BASS': 'Pro Bass',
+    'PLASTIC DRUMS': 'Pro Drums',
+    'PRO VOCALS': 'Pro Vocals',
+    'PART GUITAR': 'Lead',
+    'PART BASS': 'Bass',
+    'PART DRUMS': 'Drums',
+    'PART VOCALS': 'Vocals'
+}
+
 note_name_maps = {
     # Pro Charts
     'PLASTIC GUITAR': {
@@ -492,7 +503,7 @@ def extract_session_id(file_name):
         return match.group(1)  # Return the hash
     return None
 
-def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2, midi_name = None):
+def visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2, midi_name = None, artist_name = 'No artist'):
     """Visualize MIDI changes between two tracks, including note and text event changes, and save as an image."""
     fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -561,7 +572,13 @@ def visualize_midi_changes(differences, text_differences, note_name_map, track_n
 
     ax.set_xlabel('Beat (Time)')
     ax.set_ylabel('MIDI Note/Text')
-    ax.set_title(f'{track_name} Track Diff. ({song_name})')
+
+    ax.set_title(f'{artist_name} - {song_name}', fontsize=14, pad=20)
+
+    plot_title = f"{track_name} Diff."
+    if track_name in english_names.keys():
+        plot_title = f"{english_names[track_name]} ({track_name}) Diff."
+    ax.text(0.5, 1.01, plot_title, fontsize=10, ha='center', va='bottom', transform=ax.transAxes)
     
     # Set y-ticks based on the sorted MIDI note numbers (highest to lowest)
     ax.set_yticks(np.arange(len(unique_notes) + 1))  # Include extra space for text events
@@ -702,7 +719,7 @@ def save_filtered_midi(input_file, output_file, tracks_to_remove, tempo_events):
         new_mid.save(output_file)
         logging.debug(f"Filtered update MIDI saved to '{output_file}'")
 
-def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)):
+def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128), artist_name = 'No artist'):
     base_name1, ext1 = os.path.splitext(midi_file1)
     base_name2, ext2 = os.path.splitext(midi_file2)
     session_id, ext3 = os.path.splitext(session_id)
@@ -761,7 +778,7 @@ def main(midi_file1, midi_file2, session_id, song_name, note_range=range(1, 128)
         
         if differences or text_differences:
             #logging.debug(f"Differences found in track '{track_name}':")
-            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2, midi_name)
+            visualize_midi_changes(differences, text_differences, note_name_map, track_name, output_folder, session_id, song_name, midi_file2, midi_name, artist_name)
         else:
             logging.debug(f"'{track_name}' unchanged")
     return True, midi_name_old, midi_name
@@ -781,8 +798,8 @@ if __name__ == "__main__":
         else:
             logging.debug("MIDI comparison failed.")
 
-def run_comparison(midi_file1, midi_file2, session_id, song_name = 'unknown'):
-    result, m_old, m_new = main(midi_file1, midi_file2, session_id, song_name)
+def run_comparison(midi_file1, midi_file2, session_id, song_name = 'unknown', artist_name = 'No artist'):
+    result, m_old, m_new = main(midi_file1, midi_file2, session_id, song_name, artist_name = artist_name)
     if result:
         logging.debug("MIDI comparison completed successfully.")
     else:
