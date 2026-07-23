@@ -71,14 +71,23 @@ class SearchEmbedHandler:
     def __init__(self) -> None:
         pass
 
-    def fast_check_note_95(self, file_path: str) -> bool:
+    def fast_check_note_95(self, file_path: str = None, file_bytes: bytes = None) -> bool:
         # written by gemini because midi is the worst file format ever (mido is slow)
-        try:
-            with open(file_path, 'rb') as f:
-                data = f.read()
-        except IOError:
-            print(f"Error reading {file_path}")
-            return False
+        data = None
+
+        if file_path:
+            try:
+                with open(file_path, 'rb') as f:
+                    data = f.read()
+            except IOError:
+                print(f"Error reading {file_path}")
+                return False
+        
+        if file_bytes is not None:
+            data = file_bytes
+        
+        elif not data:
+            raise ValueError("No file_path or file_bytes provided")
 
         try:
             # Check for MThd (Standard MIDI File Header)
@@ -166,6 +175,7 @@ class SearchEmbedHandler:
                     idx += chunk_len
                     
         except IndexError:
+            print(f'midi length is {len(data)}')
             pass
             
         return False
@@ -257,7 +267,7 @@ class SearchEmbedHandler:
         # user_id = track.get('ry', 2025)
         # session_hash = constants.generate_session_hash(user_id, track['sn'])
         midi_file = await midi_tool.save_chart(track['mu'])
-        has_double_kick = self.fast_check_note_95(midi_file)
+        has_double_kick = self.fast_check_note_95(file_path=midi_file)
 
         # ----------
 
@@ -418,17 +428,17 @@ class SearchEmbedHandler:
 
                 if value == 'dn':
                     # duration field
-                    old = old_track_data.get(value, 0)
-                    new = new_track_data.get(value, 0)
-                    previous_s = old // 60
-                    previous_m = old % 60
-                    current_s = new // 60
-                    current_m = new % 60
+                    old_duration = old_track_data.get(value, 0)
+                    new_duration = new_track_data.get(value, 0)
+                    previous_s = old_duration // 60
+                    previous_m = old_duration % 60
+                    current_s = new_duration // 60
+                    current_m = new_duration % 60
                     prev_val = f"{previous_s}m {previous_m}s"
                     cur_val = f"{current_s}m {current_m}s"
                     container.add_item(
                         discord.ui.TextDisplay(
-                            f"```Old: \"{old}\" ({prev_val})\nNew: \"{new}\" ({cur_val})```"
+                            f"```Old: \"{old_duration}\" ({prev_val})\nNew: \"{new_duration}\" ({cur_val})```"
                         )
                     )
                     continue
@@ -458,6 +468,7 @@ class SearchEmbedHandler:
                     discord.ui.TextDisplay(f"```Found: {constants.generate_difficulty_bar(new_track_data['in'][key], append_real_diff=True)}```")
                 )
 
+        logging.debug(old)
         if old.get('lastModified') != new.get('lastModified'):
             old_date = 'N/A'
             if old.get('lastModified', None) != None:

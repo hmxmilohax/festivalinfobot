@@ -1,3 +1,4 @@
+from bot.embeds import SearchEmbedHandler
 import asyncio
 import difflib
 import io
@@ -692,13 +693,15 @@ class FestivalTracker(commands.AutoShardedBot):
         async def bestsellers_command(interaction: discord.Interaction):
             await self.bestsellers_renderer.handle_interaction(interaction=interaction)
 
-        @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
+        @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival, including Karaoke and Double Kick supported tracks.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def count_command(interaction: discord.Interaction):
+            await interaction.response.defer()
+
             track_list = constants.get_jam_tracks(use_cache=False)
             if not track_list:
-                await interaction.response.send_message(embed=constants.common_error_embed('Could not get tracks.'), ephemeral=True)
+                await interaction.edit_original_response(embed=constants.common_error_embed('Could not get tracks.'))
                 return
 
             embed = discord.Embed(
@@ -710,9 +713,11 @@ class FestivalTracker(commands.AutoShardedBot):
             epic = [t for t in track_list if t['track']['an'] == 'Epic Games']
             percentage = round((len(epic) / len(track_list)) * 100, 2)
 
+            search_embed_handler = SearchEmbedHandler()
+
             embed.add_field(name="Epic Games", value=f"**{len(epic)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
-            def get_pro_vocals_counts() -> tuple[list, list, list]:
+            def get_pro_vocals_and_twoxkick_counts() -> tuple[list, list, list, list, list]:
                 tracks = constants.get_jam_tracks(use_cache=True)
 
                 all_midi = [{'mid': f'{track['track']['mu'].split('/')[3].split('.')[0]}.mid', 'sn': track['track']['sn']} for track in tracks]
@@ -720,34 +725,47 @@ class FestivalTracker(commands.AutoShardedBot):
 
                 songs_with_pro_vocals = []
                 songs_without_pro_vocals = []
+                songs_with_double_kick = []
+                songs_without_double_kick = []
 
                 for t in all_midi:
                     midi = t['mid']
                     if not os.path.exists(constants.MIDI_FOLDER + midi):
                         missing_midi.append(midi)
                     else:
-                        mid = open(constants.MIDI_FOLDER + midi, 'rb')
-                        pro_vocals_track = b'PRO VOCALS' in mid.read() # the easiest way
+                        path_to_mid = constants.MIDI_FOLDER + midi
+                        mid = open(path_to_mid, 'rb')
+
+                        mid_bytes = mid.read()
+                        pro_vocals_track = b'PRO VOCALS' in mid_bytes # the easiest way
+                        has_double_kick = search_embed_handler.fast_check_note_95(file_bytes=mid_bytes)
                         mid.close()
                         if pro_vocals_track:
                             songs_with_pro_vocals.append(t)
                         else:
                             songs_without_pro_vocals.append(t)
+                        if has_double_kick:
+                            songs_with_double_kick.append(t)
+                        else:
+                            songs_without_double_kick.append(t)
 
-                return (songs_with_pro_vocals, songs_without_pro_vocals, missing_midi)
+                return (songs_with_pro_vocals, songs_without_pro_vocals, songs_with_double_kick, songs_without_double_kick, missing_midi)
 
-            provocals_data = get_pro_vocals_counts()
+            provocals_data = get_pro_vocals_and_twoxkick_counts()
+            songs_with, songs_without, songs_with_2x_kick, songs_without_2x_kick, missing_midi = provocals_data
 
-            songs_with, songs_without, missing_midi = provocals_data
             percentage = round((len(songs_with) / len(track_list)) * 100, 2)
             embed.add_field(name="Karaoke", value=f"**{len(songs_with)}**/**{len(track_list)}** ({percentage}%)", inline=False)
+
+            percentage = round((len(songs_with_2x_kick) / len(track_list)) * 100, 2)
+            embed.add_field(name="Double Kick", value=f"**{len(songs_with_2x_kick)}**/**{len(track_list)}** ({percentage}%)", inline=False)
 
             if len(missing_midi) > 0:
                 embed.add_field(name="Missing Files", value=f"{len(missing_midi)} files not found, these were not counted", inline=False)
 
             embed.set_footer(text="Festival Tracker")
 
-            await interaction.response.send_message(embed=embed)
+            await interaction.edit_original_response(embed=embed)
 
         @self.tree.command(name="metadata", description="Get the metadata of a song as a .json file.")
         @app_commands.describe(song = "A search query: an artist, song name, or shortname.")
