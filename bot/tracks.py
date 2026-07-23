@@ -49,7 +49,6 @@ class JamTrackHandler:
                 'lockedandloaded',
                 'whatareyouwaitingfor'
             ],
-            'peak': ['larrysplace', 'nevergiveup', 'freebird'],
             'comingsoon': ['juicy'],
             'cowabunga': ['streetsignite'],
             'one': ['one'],
@@ -73,10 +72,12 @@ class JamTrackHandler:
             'trns': ['transparentsoul'],
             'transparent': ['transparentsoul'],
             'pppa': ['ppap'],
+            'ppp': ['ppap'],
             'scooby doo': ['whatsnewscoobydoo'],
             'phonk': [
                 'montagemtomada',
-                'slay'
+                'slay',
+                'passobemsolto'
             ],
             'pnd': ['breakfromtoronto'],
             'superbowl': [
@@ -104,7 +105,25 @@ class JamTrackHandler:
             'fall guys': [
                 'fallguys', 
                 'crownjam'
-            ]
+            ],
+            'backports': [
+                'bloom',
+                'sillybros',
+                'dreamer',
+                'thenightporter',
+                'somp',
+                'magentaride',
+                'larrysplace',
+                'cherrycordial',
+                'dexting',
+                'thelastcavallard',
+                'move',
+                'intotheunderworld',
+                'chyldofdawn',
+                'friendlyfire'
+            ],
+            'headliner': constants.HEADLINER_SONGS,
+            'collab': constants.HEADLINER_COLLAB_SONGS
         }
 
         if search_term in custom_results.keys():
@@ -115,6 +134,9 @@ class JamTrackHandler:
                     premature_matches.append(r)
                 else:
                     logging.warning(f'what is {result}?')
+
+            if len(premature_matches) == 0:
+                raise Exception("This pretedermined search shortcut has no set results")
 
             return premature_matches
 

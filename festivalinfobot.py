@@ -706,7 +706,7 @@ class FestivalTracker(commands.AutoShardedBot):
         async def bestsellers_command(interaction: discord.Interaction):
             await self.bestsellers_renderer.handle_interaction(interaction=interaction)
 
-        @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival, including Karaoke and Double Kick supported tracks.")
+        @self.tree.command(name="count", description="View the total number of Jam Tracks in Fortnite Festival.")
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         async def count_command(interaction: discord.Interaction):

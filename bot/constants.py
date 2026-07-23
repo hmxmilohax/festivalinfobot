@@ -137,6 +137,24 @@ if IS_DEVELOPER_ENVIRONMENT:
 
 ACCENT_COLOUR = (SEASON_COLOUR[0] << 16) + (SEASON_COLOUR[1] << 8) + SEASON_COLOUR[2]
 
+# laufey
+HEADLINER_SONGS = [
+    'fromthestart',
+    'lovergirl',
+    'toughluck',
+    'madwoman'
+]
+
+# olivia rodrigo
+HEADLINER_COLLAB_SONGS = [
+    'vampire',
+    'good4u',
+    'gethimback',
+    'dejavu',
+    'dropdead',
+    'maggotsforbrains'
+]
+
 EVENT_NAMES = {
     'added': "Track Added",
     'removed': "Track Removed",
