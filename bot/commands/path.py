@@ -111,7 +111,8 @@ class PathCommandHandler():
             return
 
         if chosen_instrument.midi == 'PLASTIC DRUMS':
-            field_argument_descriptors.append(f'**2X Kick:** {'Yes' if not twoxkickdisabled else 'No'}')
+            if twoxkickdisabled:
+                field_argument_descriptors.append(f'**2X Kick:** Disabled')
 
         tracklist = constants.get_jam_tracks(use_cache=False) # no caching for path generation
         if not tracklist:
