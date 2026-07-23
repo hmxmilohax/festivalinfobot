@@ -530,11 +530,24 @@ class FestivalTracker(commands.AutoShardedBot):
             if not (ctx.author.id in constants.BOT_OWNERS):
                 return
             
-            await self.analytics_task()
-            await ctx.message.add_reaction("✅")
-
             python_executable = sys.executable
             script_path = os.path.abspath(sys.argv[0])
+
+            # Check if the python executable compiles
+            compile_check = subprocess.run([python_executable, "-m", "py_compile", script_path], capture_output=True, text=True)
+            if compile_check.returncode != 0:
+                try:
+                    await ctx.message.add_reaction("❌")
+                except Exception:
+                    pass
+                error_msg = compile_check.stderr
+                if len(error_msg) > 1900:
+                    error_msg = error_msg[:1900] + "... (truncated)"
+                await ctx.send(f"**Compilation failed!** Cannot restart.\n```\n{error_msg}```")
+                return
+
+            await self.analytics_task()
+            await ctx.message.add_reaction("✅")
             print('\n' * 10)
 
             args = ctx.message.content.split(' ')[1:]
