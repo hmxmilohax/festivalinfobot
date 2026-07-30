@@ -122,6 +122,12 @@ class JamTrackHandler:
                 'chyldofdawn',
                 'friendlyfire'
             ],
+            '500 pounds': ['fivehundredlbs'],
+            'five hundred pounds': ['fivehundredlbs'],
+            'fivehundred pounds': ['fivehundredlbs'],
+            'fivehundredpounds': ['fivehundredlbs'],
+            '500 lb': ['fivehundredlbs'],
+            'fivehundred lb': ['fivehundredlbs'],
             'headliner': constants.HEADLINER_SONGS,
             'collab': constants.HEADLINER_COLLAB_SONGS
         }
