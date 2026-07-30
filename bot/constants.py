@@ -82,9 +82,10 @@ SEASONS = {
     11: 'season011',
     12: 'season012',
     13: 'season013',
-    14: 'season014'
+    14: 'season014',
+    15: 'season015'
 }
-SEASON_NUMBER = 14
+SEASON_NUMBER = 15
 
 keyart_config = ConfigParser()
 keyart_config.read('bot/data/KeyArt/KeyArtOptions.ini')
@@ -139,21 +140,14 @@ ACCENT_COLOUR = (SEASON_COLOUR[0] << 16) + (SEASON_COLOUR[1] << 8) + SEASON_COLO
 
 # laufey
 HEADLINER_SONGS = [
-    'fromthestart',
-    'lovergirl',
-    'toughluck',
-    'madwoman'
+    'ransom',
+    'darkthoughts',
+    'loveme',
+    'fivehundredlbs'
 ]
 
 # olivia rodrigo
-HEADLINER_COLLAB_SONGS = [
-    'vampire',
-    'good4u',
-    'gethimback',
-    'dejavu',
-    'dropdead',
-    'maggotsforbrains'
-]
+HEADLINER_COLLAB_SONGS = []
 
 EVENT_NAMES = {
     'added': "Track Added",
