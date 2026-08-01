@@ -130,7 +130,8 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # [14] laufey           (71, 132, 178)
 # [14] esdeekid         (0, 0, 0)
 # [14] olivia rodrigo   (246, 192, 215)
-SEASON_COLOUR = (246, 192, 215)
+# [15] lil tecca        (45, 52, 80)
+SEASON_COLOUR = (45, 52, 80)
 
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
@@ -138,7 +139,7 @@ if IS_DEVELOPER_ENVIRONMENT:
 
 ACCENT_COLOUR = (SEASON_COLOUR[0] << 16) + (SEASON_COLOUR[1] << 8) + SEASON_COLOUR[2]
 
-# laufey
+# lil tecca
 HEADLINER_SONGS = [
     'ransom',
     'darkthoughts',
@@ -146,7 +147,7 @@ HEADLINER_SONGS = [
     'fivehundredlbs'
 ]
 
-# olivia rodrigo
+# no collab at the moment
 HEADLINER_COLLAB_SONGS = []
 
 EVENT_NAMES = {
