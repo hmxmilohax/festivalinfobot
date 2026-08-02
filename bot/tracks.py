@@ -1,3 +1,5 @@
+from bot.views.votebutton import UpdateVotesButton
+from bot.views.votebutton import VoteButton
 import base64
 from datetime import datetime
 from difflib import get_close_matches
@@ -299,7 +301,7 @@ class SearchCommandHandler:
         embed = await self.embed_handler.generate_track_embed(track, is_detail=detail)
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
 
-        view = ActionView(interaction.user.id, track)
+        view = ActionView(self.bot, track, user_id=interaction.user.id)
         await view.setup()
         message = await interaction.edit_original_response(embed=embed, view=view)
 
@@ -407,3 +409,22 @@ class ActionView(discord.ui.View):
         )
 
         self.add_item(action_select)
+
+        if constants.VOTING_IS_ENABLED:
+            vote_counts = await self.bot.config.get_vote_counts(track['track']['sn'])
+
+            # add votes buttons
+            self.votes_positive_button = VoteButton('1', track['track']['sn'], '1', 
+                label=f'{vote_counts["upvotes"]}',
+                style=discord.ButtonStyle.success
+            )
+            self.votes_negative_button = VoteButton('1', track['track']['sn'], '0', 
+                label=f'{vote_counts["downvotes"]}',
+                style=discord.ButtonStyle.danger
+            )
+
+            self.refresh_votes_button = UpdateVotesButton('1', track['track']['sn'])
+
+            self.add_item(self.votes_positive_button)
+            self.add_item(self.votes_negative_button)
+            self.add_item(self.refresh_votes_button)

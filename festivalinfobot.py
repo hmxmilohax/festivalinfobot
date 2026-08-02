@@ -1,3 +1,5 @@
+from bot.views.votebutton import UpdateVotesButton
+from bot.views.votebutton import VoteButton
 from bot.embeds import SearchEmbedHandler
 import asyncio
 import difflib
@@ -103,6 +105,8 @@ class FestivalTracker(commands.AutoShardedBot):
         self.add_dynamic_items(PreviewButton)
         self.add_dynamic_items(WishlistButton)
         self.add_dynamic_items(ActionSelect)
+        self.add_dynamic_items(VoteButton)
+        self.add_dynamic_items(UpdateVotesButton)
 
         logging.debug("Registering bestsellers cacher loop every 1m")
         @tasks.loop(minutes=1.0)

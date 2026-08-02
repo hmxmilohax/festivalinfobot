@@ -130,7 +130,6 @@ class Config:
                 );
             ''')
 
-            # tokens are encoded in base64 after being encrypted with AES-256-GCM
             await self.db.execute('''
                 CREATE TABLE IF NOT EXISTS profiles (
                     user_id TEXT PRIMARY KEY
@@ -145,6 +144,28 @@ class Config:
                     privacy_policy_version TEXT,
                     terms_of_service_accepted INTEGER DEFAULT 0,
                     terms_of_service_version TEXT
+                );
+            ''')
+            await self.db.commit()
+
+            # voting
+            # vote direction:
+            # 0 is negative
+            # 1 is positive
+            # timestamp in UTC is iso8601 format
+
+            # vote_made_within_new_until_window is unused
+            await self.db.execute('''
+                CREATE TABLE IF NOT EXISTS votes (
+                    user_id TEXT,
+                    shortname TEXT,
+                    timestamp TEXT,
+                    vote_direction INTEGER,
+                    vote_channel_id TEXT,
+                    vote_server_id TEXT,
+                    vote_source_window TEXT,
+                    vote_made_within_new_until_window INTEGER,
+                    PRIMARY KEY (user_id, shortname)
                 );
             ''')
             await self.db.commit()
@@ -471,3 +492,117 @@ class Config:
                         )
                     await self.db.commit()
             return None
+
+    @overload
+    async def vote(self, operation: Literal['add'], user: discord.User | discord.Object | str, shortname: str, vote_direction: int, vote_channel_id: int, vote_server_id: int, vote_source_window: str, vote_made_within_new_until_window: bool) -> None: ...
+    
+    @overload
+    async def vote(self, operation: Literal['update'], user: discord.User | discord.Object | str, shortname: str, vote_direction: int, vote_channel_id: int, vote_server_id: int, vote_source_window: str, vote_made_within_new_until_window: bool) -> None: ...
+
+    @overload
+    async def vote(self, operation: Literal['remove'], user: discord.User | discord.Object | str, shortname: str) -> dict | None: ...
+    
+    # gets the user's vote direction for a song
+    @overload
+    async def vote(self, operation: Literal['get'], user: discord.User | discord.Object | str, shortname: str) -> int: ...
+    
+    async def vote(self, operation: Literal['add', 'update', 'remove', 'get'], user: discord.User | discord.Object | str, shortname: str = None, **kwargs) -> int | dict | None:
+        async with self.lock:
+            user_id = user if isinstance(user, str) else str(user.id)
+            if shortname is None:
+                shortname = kwargs.get('shortname')
+
+            if operation in ('add', 'update'):
+                # check if user has accepted policies directly to avoid self.lock deadlock
+                async with self.db.execute(
+                    "SELECT privacy_policy_accepted, terms_of_service_accepted FROM agreements WHERE user_id = ?",
+                    (user_id,)
+                ) as cursor:
+                    row = await cursor.fetchone()
+                
+                if not row or not (row[0] and row[1]):
+                    return None
+
+                vote_direction = kwargs.get('vote_direction')
+                vote_channel_id = kwargs.get('vote_channel_id')
+                vote_server_id = kwargs.get('vote_server_id')
+                vote_source_window = kwargs.get('vote_source_window')
+                vote_made_within_new_until_window = kwargs.get('vote_made_within_new_until_window')
+                
+                if shortname and vote_direction is not None:
+                    # INSERT OR REPLACE automatically updates the row if user_id + shortname already exists
+                    await self.db.execute("""
+                        INSERT OR REPLACE INTO votes (
+                            user_id, 
+                            shortname, 
+                            timestamp,
+                            vote_direction, 
+                            vote_channel_id, 
+                            vote_server_id, 
+                            vote_source_window, 
+                            vote_made_within_new_until_window
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        user_id,
+                        shortname,
+                        datetime.utcnow().isoformat(),
+                        vote_direction,
+                        str(vote_channel_id) if vote_channel_id is not None else None,
+                        str(vote_server_id) if vote_server_id is not None else None,
+                        vote_source_window,
+                        1 if vote_made_within_new_until_window else 0
+                    ))
+                    await self.db.commit()
+            elif operation == 'remove':
+                if shortname:
+                    async with self.db.execute(
+                        "SELECT vote_direction, vote_channel_id, vote_server_id, vote_source_window, vote_made_within_new_until_window FROM votes WHERE user_id = ? AND shortname = ?",
+                        (user_id, shortname)
+                    ) as cursor:
+                        row = await cursor.fetchone()
+                    
+                    if row:
+                        old_vote = {
+                            "vote_direction": row[0],
+                            "vote_channel_id": row[1],
+                            "vote_server_id": row[2],
+                            "vote_source_window": row[3],
+                            "vote_made_within_new_until_window": bool(row[4])
+                        }
+                    else:
+                        old_vote = None
+
+                    await self.db.execute(
+                        "DELETE FROM votes WHERE user_id = ? AND shortname = ?",
+                        (user_id, shortname)
+                    )
+                    await self.db.commit()
+                    return old_vote
+            elif operation == 'get':
+                if shortname:
+                    async with self.db.execute(
+                        "SELECT vote_direction FROM votes WHERE user_id = ? AND shortname = ?",
+                        (user_id, shortname)
+                    ) as cursor:
+                        row = await cursor.fetchone()
+                        return row[0] if row is not None else None
+                
+            return None
+
+    async def get_vote_counts(self, shortname: str) -> dict[str, int]:
+        async with self.lock:
+            async with self.db.execute('''
+                SELECT 
+                    SUM(CASE WHEN vote_direction = 1 THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN vote_direction = 0 THEN 1 ELSE 0 END)
+                FROM votes WHERE shortname = ?
+            ''', (shortname,)) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "upvotes": row[0] or 0,
+                        "downvotes": row[1] or 0
+                    }
+                return {"upvotes": 0, "downvotes": 0}
+
+    

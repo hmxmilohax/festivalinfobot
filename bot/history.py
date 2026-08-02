@@ -630,11 +630,7 @@ class LoopCheckHandler():
                 for new_song in new_songs:
                     embed = await self.embed_handler.generate_track_embed(new_song, is_new=True)
 
-                    # view = discord.ui.View(timeout=None)
-                    # view.add_item(PreviewButton(new_song['track']['sn']))
-                    # view.add_item(WishlistButton(new_song['track']['sn'], 'add', channel.id))
-
-                    view = ActionView(None, new_song)
+                    view = ActionView(self.bot, new_song)
                     await view.setup()
 
                     try:

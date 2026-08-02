@@ -17,7 +17,8 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
                 max_values=1,
                 min_values=1,
                 custom_id=f'actionmenu:{user_id}',
-                disabled=False
+                disabled=False,
+                row=1
             )
         )
         self.user_id: int = int(user_id) if user_id else None
