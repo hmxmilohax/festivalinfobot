@@ -37,6 +37,10 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
         return cls(version, shortname, direction)
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if not constants.VOTING_IS_ENABLED:
+            await interaction.response.send_message('Voting is currently disabled.', ephemeral=True)
+            return
+
         db: Config = interaction.client.config
         voting_action_version = '1'
         
@@ -114,6 +118,10 @@ class UpdateVotesButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vo
         return cls(version, shortname)
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if not constants.VOTING_IS_ENABLED:
+            await interaction.response.send_message('Voting is currently disabled.', ephemeral=True)
+            return
+
         await interaction.response.defer(ephemeral=True, thinking=True)
         await update_view(interaction, self.shortname)
         await interaction.edit_original_response(embed=constants.common_success_embed("Votes updated successfully."))
@@ -130,15 +138,16 @@ async def update_view(interaction: discord.Interaction, shortname: str):
         if isinstance(child, discord.ui.Button):
             # were gonna update both buttons here.
             child_cid = child.custom_id
-            button_action = child_cid.split(':')[0]
-            if button_action == 'vote':
-                child_shortname = child_cid.split(':')[2]
-                if child_shortname == shortname:
-                    child_vote_direction = int(child_cid.split(':')[3])
-                    count = vote_counts['upvotes'] if child_vote_direction == 1 else vote_counts['downvotes']
-                    child.label = f"{count}"
-                else:
-                    logging.warning(f"update_view: button shortname {child_shortname} does not match track shortname {shortname}")
+            if child_cid:
+                button_action = child_cid.split(':')[0]
+                if button_action == 'vote':
+                    child_shortname = child_cid.split(':')[2]
+                    if child_shortname == shortname:
+                        child_vote_direction = int(child_cid.split(':')[3])
+                        count = vote_counts['upvotes'] if child_vote_direction == 1 else vote_counts['downvotes']
+                        child.label = f"{count}"
+                    else:
+                        logging.warning(f"update_view: button shortname {child_shortname} does not match track shortname {shortname}")
 
     await interaction.message.edit(view=view)
 
@@ -154,11 +163,18 @@ class VoteRemovalConfirmationView(discord.ui.View):
         style=discord.ButtonStyle.danger,
     )
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Here you would remove the vote from your database
+        if not constants.VOTING_IS_ENABLED:
+            await interaction.response.send_message('Voting is currently disabled.', ephemeral=True)
+            return
+
+        # Remove the vote from database
+        await interaction.response.defer()
+
         db: Config = interaction.client.config
         await db.vote('remove', self.user, self.shortname)
 
         await update_view(self.original_interaction, self.shortname)
+        # Edit using this button interaction to acknowledge it and avoid "Interaction Failed" errors
         await self.original_interaction.edit_original_response(embed=constants.common_success_embed("Vote removed successfully."), view=None)
 
         self.stop()
@@ -168,5 +184,17 @@ class VoteRemovalConfirmationView(discord.ui.View):
         style=discord.ButtonStyle.secondary
     )
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        # Edit using this button interaction to acknowledge it and avoid "Interaction Failed" errors
         await self.original_interaction.edit_original_response(embed=constants.common_error_embed("Vote removal cancelled."), view=None)
         self.stop()
+
+    async def on_timeout(self) -> None:
+        try:
+            # If the user doesn't respond in 60s, clean up the original ephemeral message
+            await self.original_interaction.edit_original_response(
+                embed=constants.common_error_embed("Vote removal timed out."), 
+                view=None
+            )
+        except Exception:
+            pass
