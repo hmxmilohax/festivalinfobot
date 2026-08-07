@@ -131,7 +131,8 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # [14] esdeekid         (0, 0, 0)
 # [14] olivia rodrigo   (246, 192, 215)
 # [15] lil tecca        (45, 52, 80)
-SEASON_COLOUR = (45, 52, 80)
+# [15] addiSON rae      (251, 131, 202)
+SEASON_COLOUR = (251, 131, 202)
 
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
