@@ -38,7 +38,7 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if not constants.VOTING_IS_ENABLED:
-            await interaction.response.send_message('Voting is currently disabled.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed("Voting is currently disabled."), ephemeral=True)
             return
 
         db: Config = interaction.client.config
@@ -119,7 +119,7 @@ class UpdateVotesButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vo
 
     async def callback(self, interaction: discord.Interaction) -> None:
         if not constants.VOTING_IS_ENABLED:
-            await interaction.response.send_message('Voting is currently disabled.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed("Voting is currently disabled."), ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -164,7 +164,7 @@ class VoteRemovalConfirmationView(discord.ui.View):
     )
     async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not constants.VOTING_IS_ENABLED:
-            await interaction.response.send_message('Voting is currently disabled.', ephemeral=True)
+            await interaction.response.send_message(embed=constants.common_error_embed("Voting is currently disabled."), ephemeral=True)
             return
 
         # Remove the vote from database
