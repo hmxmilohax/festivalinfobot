@@ -134,6 +134,9 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # [15] addiSON rae      (251, 131, 202)
 SEASON_COLOUR = (251, 131, 202)
 
+# DO NOT USE
+SEASON_COLOUR_COPY = tuple(c for c in SEASON_COLOUR)
+
 # invert the colour if in developer environment 
 if IS_DEVELOPER_ENVIRONMENT:
     SEASON_COLOUR = tuple(255 - c for c in SEASON_COLOUR)

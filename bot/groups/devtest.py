@@ -1,3 +1,4 @@
+from bot.tools.brand import make_discord_pfp
 import mido
 import asyncio
 import json
@@ -7,6 +8,7 @@ import cloudscraper
 import discord.ext.tasks as tasks
 import io
 import logging
+from PIL import Image
 from typing import List, Literal, Union
 import discord
 from discord import app_commands
@@ -21,7 +23,6 @@ from bot.tools.oauthmanager import OAuthManager
 from bot.tracks import JamTrackHandler
 from bot.tools.bestsellersrenderer import BestsellersRenderer
 
-# jnack and tpose's personal commands
 class TestCog(commands.Cog):
     def __init__(self, bot: constants.BotExt):
         self.bot = bot
@@ -714,3 +715,49 @@ class TestCog(commands.Cog):
         print(end_string)
 
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(end_string.encode()), 'diff.txt')])
+
+    @test_group.command(name="brand", description="Generates brand assets for a given colour.")
+    @app_commands.describe(red = "Red (0-255) - Leave None for current accent colour.")
+    @app_commands.describe(green = "Green (0-255) - Leave None for current accent colour.")
+    @app_commands.describe(blue = "Blue (0-255) - Leave None for current accent colour.")
+    async def brand(self, interaction: discord.Interaction, red: app_commands.Range[int, 0, 255] = None, green: app_commands.Range[int, 0, 255] = None, blue: app_commands.Range[int, 0, 255] = None):
+        await interaction.response.defer()
+        
+        if red is None or green is None or blue is None:
+            primary_colour = constants.SEASON_COLOUR_COPY
+        else:
+            primary_colour = (red, green, blue)
+
+        # try to import brand script
+        try:
+            from bot.tools import brand as brand_module
+        except Exception as e:
+            await interaction.edit_original_response(content=f"Error: {e}\nYou are probably missing the brand module.")
+            return
+
+        print("Generating brand assets...")
+        print("Generating Discord PNG pfp...")
+        await asyncio.to_thread(brand_module.make_discord_pfp, primary_colour, "discord_pfp.png")
+        print("Generating Discord animated pfp...")
+        await asyncio.to_thread(brand_module.make_discord_pfp_anim, primary_colour, "discord_pfp.webp", size=512)
+        # convert animated webp to GIF (also ensures its below 5 mb)
+        await asyncio.to_thread(lambda: Image.open("discord_pfp.webp").save("discord_pfp.gif", format="GIF", save_all=True, optimize=True))
+        await asyncio.to_thread(brand_module.make_twitter_pfp, primary_colour, "twitter_pfp.png")
+        print("Generating Discord PNG banner...")
+        await asyncio.to_thread(brand_module.make_discord_banner, primary_colour, "discord_banner.png")
+        print("Generating Twitter banner...")
+        await asyncio.to_thread(brand_module.make_twitter_banner, primary_colour, "twitter_banner.png")
+
+        # invert the primary colour
+        inverted_color = tuple(255 - c for c in primary_colour)
+        await asyncio.to_thread(brand_module.make_discord_pfp, inverted_color, "discord_pfp_dev.png")
+        
+        await interaction.edit_original_response(content="Done!", attachments=[
+            discord.File("discord_pfp.png"), 
+            discord.File("discord_pfp.webp"),
+            discord.File("discord_pfp.gif"),
+            discord.File("twitter_pfp.png"), 
+            discord.File("discord_banner.png"), 
+            discord.File("twitter_banner.png"), 
+            discord.File("discord_pfp_dev.png")
+        ])
