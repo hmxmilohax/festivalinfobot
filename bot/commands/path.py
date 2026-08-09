@@ -163,7 +163,7 @@ class PathCommandHandler():
 
         description = (
             f"**Instrument & Diff.:** {display_instrument} ({chosen_diff.english})\n"
-            f"**Squeeze %:** {squeeze_percent}%\n"
+            f"**Squeeze:** {squeeze_percent}%\n"
         )
 
         for arg in field_argument_descriptors:
