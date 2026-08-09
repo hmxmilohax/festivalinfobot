@@ -1,19 +1,25 @@
-import asyncio
-import discord.ext.tasks as tasks
-import io
-import logging
-from typing import List, Literal, Union
+"""
+subscriptionmanager.py
+----------------------
+Manages the /subscriptions command UI.
+
+Architecture: single SubscriptionManagerView with a page-rendering model.
+- One discord.ui.View lives for the entire interaction lifetime.
+- self._page drives which items are rendered.
+- render() clears all children and rebuilds them for the current page.
+- All mutable state (target channel, pending events/roles) lives on the view.
+
+rewritten by claude!
+"""
+
+from typing import List
 import discord
-from discord import app_commands
 from discord.ext import commands
-import requests
 
 from bot import constants, database
-from bot.tools.oauthmanager import OAuthManager
 from bot.views.suggestions import SuggestionModal
-from bot.tracks import JamTrackHandler
 
-class SubscriptionManager():
+class SubscriptionManager:
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -22,508 +28,858 @@ class SubscriptionManager():
         message = await interaction.original_response()
 
         if not self.bot.is_ready:
-            await interaction.edit_original_response(embed=constants.common_error_embed("Festival Tracker is not ready yet. Please try again in a moment."))
+            await interaction.edit_original_response(
+                embed=constants.common_error_embed(
+                    "Festival Tracker is not ready yet. Please try again in a moment."
+                )
+            )
             return
 
-        view = SubscriptionsView(self.bot)
-        await view.reply_to_initial(message)
+        view = SubscriptionManagerView(self.bot, message, interaction.user)
+        await view.render()
 
-class SubscriptionsView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, timeout=180):
-        super().__init__(timeout=timeout)
 
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
+# ---------------------------------------------------------------------------
+# Single-view implementation
+# ---------------------------------------------------------------------------
 
-        self.add_item(SubscriptionTypesDropdown())
+class SubscriptionManagerView(discord.ui.View):
+    """
+    One view to rule them all.
 
-        async def problemsf(interaction: discord.Interaction):
+    Pages
+    -----
+    home                  - landing; choose server or user subscription
+    server                - list subscribed channels; add / unsubscribe server
+    server_add            - pick a channel to subscribe
+    server_channel_setup  - pick events + roles for a new channel
+    server_channel_confirm- confirm and finish (includes Test button)
+    server_channel_manage - manage an existing subscribed channel
+    user                  - manage personal subscription events
+    """
+
+    TIMEOUT = 180  # seconds
+
+    def __init__(
+        self,
+        bot: commands.Bot,
+        message: discord.Message,
+        user: discord.User | discord.Member,
+    ):
+        super().__init__(timeout=self.TIMEOUT)
+
+        self.bot = bot
+        self.message = message
+        self.user = user
+
+        # Navigation state
+        self._page: str = "home"
+
+        # Server-flow state
+        self._target_channel: discord.TextChannel | None = None
+        self._pending_events: list[str] = ["announcements"]
+        self._pending_roles: list[discord.Role] = []
+        self._test_sent: bool = False
+
+    # ------------------------------------------------------------------
+    # Core renderer – clears items and rebuilds for the current page
+    # ------------------------------------------------------------------
+
+    async def render(self):
+        """Clear all children and render items for self._page, then edit the message."""
+        self.clear_items()
+
+        match self._page:
+            case "home":
+                embed, content = await self._build_home()
+            case "server":
+                embed, content = await self._build_server()
+            case "server_add":
+                embed, content = await self._build_server_add()
+            case "server_channel_setup":
+                embed, content = await self._build_server_channel_setup()
+            case "server_channel_confirm":
+                embed, content = await self._build_server_channel_confirm()
+            case "server_channel_manage":
+                embed, content = await self._build_server_channel_manage()
+            case "user":
+                embed, content = await self._build_user()
+            case _:
+                embed = constants.common_error_embed("Unknown page. Please run the command again.")
+                content = {}
+
+        await self.message.edit(embed=embed, view=self, **content)
+
+    # ------------------------------------------------------------------
+    # Timeout handler
+    # ------------------------------------------------------------------
+
+    async def on_timeout(self):
+        try:
+            self.clear_items()
+            await self.message.edit(view=self)
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # Helper: navigation shortcut
+    # ------------------------------------------------------------------
+
+    def _nav_button(self, label: str, page: str, row: int = 0, emoji=None, style=discord.ButtonStyle.secondary):
+        """Create and add a button that navigates to *page* when clicked."""
+        btn = discord.ui.Button(label=label, style=style, emoji=emoji, row=row)
+
+        async def _cb(interaction: discord.Interaction):
+            self._page = page
+            await interaction.response.defer()
+            await self.render()
+
+        btn.callback = _cb
+        self.add_item(btn)
+
+    # ------------------------------------------------------------------
+    # Page: home
+    # ------------------------------------------------------------------
+
+    async def _build_home(self):
+        embed = discord.Embed(
+            title="Subscription Manager",
+            description="Manage your subscriptions to Festival Tracker.",
+            colour=constants.ACCENT_COLOUR,
+        )
+        embed.add_field(
+            name="",
+            value="Select the type of subscription to manage.",
+            inline=False,
+        )
+
+        # ── Server Subscriptions button ──────────────────────────────
+        server_btn = discord.ui.Button(
+            label="Server Subscriptions",
+            style=discord.ButtonStyle.primary,
+            emoji="🧑‍🤝‍🧑",
+            row=0,
+        )
+
+        async def _server_cb(interaction: discord.Interaction):
+            guild = self.message.guild
+            if not guild:
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed("You are not in a server!"),
+                    ephemeral=True,
+                )
+                return
+
+            try:
+                member = await guild.fetch_member(interaction.user.id)
+            except discord.HTTPException:
+                member = None
+
+            if not member:
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed(
+                        "We are unable to verify your permissions in this server. "
+                        "You cannot manage Server Subscriptions right now."
+                    ),
+                    ephemeral=True,
+                )
+                return
+
+            is_admin = member.guild_permissions.administrator
+            is_owner = member.id in constants.BOT_OWNERS
+
+            if not (is_admin or is_owner):
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed(
+                        "You need **Administrator** permissions to manage server subscriptions."
+                    ),
+                    ephemeral=True,
+                )
+                return
+
+            self._page = "server"
+            await interaction.response.defer()
+            await self.render()
+
+        server_btn.callback = _server_cb
+        self.add_item(server_btn)
+
+        # ── My Subscription button ───────────────────────────────────
+        user_btn = discord.ui.Button(
+            label="My Subscription",
+            style=discord.ButtonStyle.primary,
+            emoji="🧍",
+            row=0,
+        )
+
+        async def _user_cb(interaction: discord.Interaction):
+            self._page = "user"
+            await interaction.response.defer()
+            await self.render()
+
+        user_btn.callback = _user_cb
+        self.add_item(user_btn)
+
+        # ── Problems button ──────────────────────────────────────────
+        problems_btn = discord.ui.Button(
+            label="Problems / Concerns?",
+            emoji=constants.ERROR_EMOJI,
+            style=discord.ButtonStyle.secondary,
+            row=1,
+        )
+
+        async def _problems_cb(interaction: discord.Interaction):
             await interaction.response.send_modal(SuggestionModal(self.bot))
 
-        problems = discord.ui.Button(label="Problems with Subscriptions / Concerns?", emoji=constants.ERROR_EMOJI, style=discord.ButtonStyle.secondary, row=1)
-        problems.callback = problemsf
-        self.add_item(problems)
+        problems_btn.callback = _problems_cb
+        self.add_item(problems_btn)
 
-    async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Subscription Manager", description="Manage your subscriptions to Festival Tracker.", colour=constants.ACCENT_COLOUR)
-        embed.add_field(name="", value="To continue, please select the type of subscription to manage.")
-        await message.edit(embed=embed, view=self)
-        self.message = message
+        return embed, {}
 
-class SubscriptionTypesDropdown(discord.ui.Select):
-    def __init__(self):
+    # ------------------------------------------------------------------
+    # Page: server
+    # ------------------------------------------------------------------
 
-        # Set the options that will be presented inside the dropdown
-        options = [
-            discord.SelectOption(label='Server Subscriptions', description='Manage the subscriptions in this server', value='server'),
-            discord.SelectOption(label='My Subscription', description='Manage your subscription')
-        ]
+    async def _build_server(self):
+        guild = self.message.guild
+        embed = discord.Embed(
+            title="Server Subscriptions",
+            description=f"Manage the subscriptions for **{guild.name if guild else 'this server'}**",
+            colour=constants.ACCENT_COLOUR,
+        )
 
-        super().__init__(placeholder='Select the subscription type...', min_values=1, max_values=1, options=options)
+        channels_subscribed: List[database.SubscriptionChannel] = (
+            await self.bot.config.subscription_guild("get_channels", guild=guild)
+        )
 
-    async def callback(self, interaction: discord.Interaction):
-        # Use the interaction object to send a response message containing
-        # the user's favourite colour or choice. The self object refers to the
-        # Select object, and the values attribute gets a list of the user's
-        # selected options. We only want the first one.
-        view: SubscriptionsView = self.view
-        message = view.message
-        if self.values[0] == "server":
-            if not message.guild:
-                await interaction.response.send_message(embed=constants.common_error_embed("You are not in a server!"), ephemeral=True)
-                return
-            
-            member = await message.guild.fetch_member(interaction.user.id)
-            if not member:
-                await interaction.response.send_message(embed=constants.common_error_embed("We are unable to check your permissions in this server. Due to this, you are currently unable to manage Server Subscriptions."), ephemeral=True)
-                return
-            
-            doesnt_have_admin = not member.guild_permissions.administrator
-            isnt_bot_owner = not (member.id in constants.BOT_OWNERS)
+        # Build channel list text
+        channel_lines: list[str] = []
+        for sub_ch in channels_subscribed:
+            resolved = self.bot.get_channel(sub_ch.id)
+            if resolved:
+                channel_lines.append(f"<#{resolved.id}>")
+            else:
+                channel_lines.append(f"*(deleted channel {sub_ch.id})*")
 
-            if doesnt_have_admin and isnt_bot_owner:
-                await interaction.response.send_message(embed=constants.common_error_embed("You do not have permission to manage subscriptions in this server! You need Administrator permissions."), ephemeral=True)
-                return
+        embed.add_field(
+            name="Subscribed Channels",
+            value="\n".join(channel_lines) if channel_lines else "*No channels subscribed yet.*",
+            inline=False,
+        )
+        embed.add_field(
+            name="Manage",
+            value="Pick a channel from the dropdown to manage it, or use the buttons below.",
+            inline=False,
+        )
 
+        # ── Back ────────────────────────────────────────────────────
+        self._nav_button("Back", "home", row=0, emoji=constants.PREVIOUS_EMOJI)
+
+        # ── Add New ─────────────────────────────────────────────────
+        add_btn = discord.ui.Button(
+            label="Add New",
+            style=discord.ButtonStyle.success,
+            emoji="➕",
+            row=0,
+        )
+
+        async def _add_cb(interaction: discord.Interaction):
+            self._page = "server_add"
             await interaction.response.defer()
-            new_view = ServerSubscriptionsView(view.bot)
-            await new_view.reply_to_initial(message)
-        else:
+            await self.render()
+
+        add_btn.callback = _add_cb
+        self.add_item(add_btn)
+
+        # ── Unsubscribe Server ───────────────────────────────────────
+        unsub_btn = discord.ui.Button(
+            label="Unsubscribe Server",
+            style=discord.ButtonStyle.danger,
+            row=0,
+        )
+
+        async def _unsub_cb(interaction: discord.Interaction):
             await interaction.response.defer()
-            new_view = UserSubscriptionsView(view.bot)
-            await new_view.reply_to_initial(message, interaction.user)
+            await constants.msg_log(self.bot, f"Guild {interaction.guild.id} unsubscribed")
+            await self.bot.config.subscription_guild("remove", guild=interaction.guild)
+            await self.render()
 
-class ServerSubscriptionsView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, timeout=30):
-        super().__init__(timeout=timeout)
+        unsub_btn.callback = _unsub_cb
+        self.add_item(unsub_btn)
 
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
+        # ── Channel management dropdown ──────────────────────────────
+        if channels_subscribed:
+            options = []
+            for sub_ch in channels_subscribed:
+                resolved = self.bot.get_channel(sub_ch.id)
+                if resolved:
+                    options.append(discord.SelectOption(label=f"#{resolved.name}", value=str(sub_ch.id)))
+                else:
+                    options.append(
+                        discord.SelectOption(
+                            label=f"Deleted channel ({sub_ch.id})",
+                            value=str(sub_ch.id),
+                        )
+                    )
 
-        async def on_back_button(interaction: discord.Interaction):
-            view = SubscriptionsView(self.bot)
-            await interaction.response.defer()
-            await view.reply_to_initial(self.message)
+            select = discord.ui.Select(
+                placeholder="Manage a subscribed channel...",
+                min_values=1,
+                max_values=1,
+                options=options,
+                row=1,
+            )
 
-        self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
+            async def _manage_select_cb(interaction: discord.Interaction):
+                channel_id = int(select.values[0])
+                channel = self.bot.get_channel(channel_id)
+                if not channel:
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            "That channel no longer exists. It may have been deleted."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
+                self._target_channel = channel
+                self._page = "server_channel_manage"
+                await interaction.response.defer()
+                await self.render()
 
-    async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscriptions for {message.guild.name}", colour=constants.ACCENT_COLOUR)
+            select.callback = _manage_select_cb
+            self.add_item(select)
 
-        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config.subscription_guild('get_channels', guild=message.guild)
-        channel_text = ""
+        return embed, {}
 
-        for sub_channel in channels_subscribed:
-            channel = self.bot.get_channel(sub_channel.id)
-            channel_text += f"<#{channel.id}>\n"
-        
-        if len(channels_subscribed) == 0:
-            channel_text = "There are no channels subscribed to Festival Tracker in this server!"
+    # ------------------------------------------------------------------
+    # Page: server_add
+    # ------------------------------------------------------------------
 
-        embed.add_field(name="Channels", value=channel_text, inline=False)
-        embed.add_field(name="Manage Channel", value="Select the channel from the dropdown to manage it", inline=False)
-        embed.add_field(name="Add New", value="Click on \"Add New\" to subscribe a channel", inline=False)
-
-        async def on_add_btn(interaction: discord.Interaction):
-            view = CreateServerSubscriptionView(self.bot)
-            await interaction.response.defer()
-            await view.reply_to_initial(self.message)
-
-        async def on_unsubscribe_btn(interaction: discord.Interaction):
-            await interaction.response.defer()
-
-            await constants.msg_log(self.bot, f'Guild {interaction.guild.id} unsubscribed')
-
-            await self.bot.config.subscription_guild('remove', guild=interaction.guild)
-            new_view = ServerSubscriptionsView(self.bot)
-            await new_view.reply_to_initial(self.message)
-
-        self.add_item(constants.StandaloneSimpleBtn(label="Add New", style=discord.ButtonStyle.secondary, on_press=on_add_btn))
-        self.add_item(constants.StandaloneSimpleBtn(label="Unsubscribe Server", style=discord.ButtonStyle.danger, on_press=on_unsubscribe_btn))
-        
-        if len(channels_subscribed) > 0:
-            self.add_item(GuildManageableSubscriptionChannelsDropdown(self.bot, channels_subscribed))
-
-        await message.edit(embed=embed, view=self)
-        self.message = message
-
-class UserSubscriptionsView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, timeout=30):
-        super().__init__(timeout=timeout)
-
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
-
-        async def on_back_button(interaction: discord.Interaction):
-            view = SubscriptionsView(self.bot)
-            await interaction.response.defer()
-            await view.reply_to_initial(self.message)
-
-        self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
-
-    async def reply_to_initial(self, message: discord.Message, user: discord.User):
-        embed = discord.Embed(title=f"My Subscription", description=f"Manage your subscription.", colour=constants.ACCENT_COLOUR)
-
-        embed.add_field(name="Managing", value="Select or deselect Jam Track events to be subscribed to.", inline=False)
-        embed.add_field(name="Information", value="You must share at least one (1) mutual server with Festival Tracker to receive subscription messages.", inline=False)
-
-        sub_user: database.SubscriptionUser = await self.bot.config.subscription_user('get', user=user)
-        self.add_item(UserSubscriptionTypesDropdown(self.bot, message, sub_user))
-
-        await message.edit(embed=embed, view=self)
-        self.message = message
-
-class UserSubscriptionTypesDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, message: discord.Message, sub_user: database.SubscriptionUser):
-        self.bot = bot
-        self.message = message
-        self.sub_user = sub_user
-
-        all_events = database.JamTrackEvents.get_all_events()
-
-        # Set the options that will be presented inside the dropdown
-        options = [
-            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id, default=False) for event in all_events
-        ]
-
-        if sub_user:
-            for option in options:
-                if option.value in sub_user.events:
-                    option.default = True
-
-        super().__init__(placeholder='Select subscription events...', min_values=0, max_values=len(options), options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        event_types = self.values
-        await self.bot.config.subscription_user('edit', user=interaction.user, events=event_types)
-
-        text = '[placeholder]'
-        if not self.sub_user:
-            await constants.msg_log(self.bot, f'User {interaction.user.id} subscribed')
-            text = 'You have been subscribed; changes saved successfully'
-        elif len(event_types) == 0:
-            await constants.msg_log(self.bot, f'User {interaction.user.id} unsubscribed')
-            text = 'You have been unsubscribed; changes saved successfully'
-        else:
-            text = 'Changes saved successfully'
-
-        await constants.msg_log(self.bot, f'User {interaction.user.id} edited feeds to {event_types}')
-
-        await interaction.response.send_message(embed=constants.common_success_embed(text), ephemeral=True)
-        new_view = UserSubscriptionsView(self.bot)
-        await new_view.reply_to_initial(self.message, interaction.user)
-
-class GuildManageableSubscriptionChannelsDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, subscribed_channels: List[database.SubscriptionChannel] = []):
-
-        self.bot = bot
-
-        # Set the options that will be presented inside the dropdown
-        options = [discord.SelectOption(label=f'#{self.bot.get_channel(ch.id).name}', value=str(ch.id)) for ch in subscribed_channels]
-        super().__init__(placeholder='Manage a channel...', min_values=1, max_values=1, options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        channel_id = self.values[0]
-        channel = self.bot.get_channel(int(channel_id))
-
-        view: SubscriptionsView = self.view
-        new_view = GuildManageChannelView(view.bot, channel)
-        await interaction.response.defer()
-        await new_view.reply_to_initial(view.message)
-        # await interaction.response.defer()
-
-class CreateServerSubscriptionView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, timeout=30):
-        super().__init__(timeout=timeout)
-
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
-
-        async def on_back_button(interaction: discord.Interaction):
-            view = ServerSubscriptionsView(self.bot)
-            await interaction.response.defer()
-            await view.reply_to_initial(self.message)
-
-        self.add_item(constants.StandaloneSimpleBtn(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI, on_press=on_back_button))
-    
-    async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe a channel", colour=constants.ACCENT_COLOUR)
-
-        channels_subscribed: List[database.SubscriptionChannel] = await self.bot.config.subscription_guild('get_channels', guild=message.guild)
-
-        embed.add_field(name="Select Channel", value="Please select a channel from the dropdown to continue.", inline=False)
-        embed.add_field(name="Required Permissions", value="- View Channel\n- Send Messages\n- Embed Links\n- Attach Files", inline=False)
+    async def _build_server_add(self):
+        guild = self.message.guild
+        embed = discord.Embed(
+            title="Server Subscriptions: Add New",
+            description="Subscribe a channel to Festival Tracker.",
+            colour=constants.ACCENT_COLOUR,
+        )
+        embed.add_field(
+            name="Enter Channel ID",
+            value=(
+                "Click **Enter Channel ID** and paste the channel's ID.\n"
+                "To copy a channel ID: right-click the channel then **Copy Channel ID** "
+                "(Developer Mode must be on in Discord settings)."
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="Required Permissions",
+            value="- View Channel\n- Send Messages\n- Embed Links\n- Attach Files",
+            inline=False,
+        )
         embed.add_field(name="Supported Channels", value="Text Channels, Announcement Channels", inline=False)
 
-        self.add_item(ServerSubscribableChannelsDropdown(self.bot, channels_subscribed, message.guild))
-        await message.edit(embed=embed, view=self)
-        self.message = message
+        # ── Back ────────────────────────────────────────────────────
+        self._nav_button("Back", "server", row=0, emoji=constants.PREVIOUS_EMOJI)
 
-class ServerSubscribableChannelsDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, subscribed_channels: List[database.SubscriptionChannel] = [], guild: discord.Guild = None):
+        # ── Load already-subscribed IDs for validation ────────────────
+        channels_subscribed: List[database.SubscriptionChannel] = (
+            await self.bot.config.subscription_guild("get_channels", guild=guild)
+        )
+        already_subbed_ids = {sub_ch.id for sub_ch in channels_subscribed}
 
-        self.bot = bot
+        # ── "Enter Channel ID" button → opens Modal ───────────────────
+        enter_btn = discord.ui.Button(
+            label="Enter Channel ID",
+            style=discord.ButtonStyle.primary,
+            emoji="🔍",
+            row=0,
+        )
 
-        candidates: list[discord.TextChannel] = []
+        # Capture already_subbed_ids and guild in closure
+        _already_subbed = already_subbed_ids
+        _guild = guild
+        _view = self
 
-        for channel in guild.channels:
-            if ((channel.type == discord.ChannelType.text) or (channel.type == discord.ChannelType.news)) and channel.permissions_for(guild.me).send_messages and channel.permissions_for(guild.me).embed_links and channel.permissions_for(guild.me).attach_files and channel.permissions_for(guild.me).view_channel:
-                candidates.append(channel)
+        class ChannelIDModal(discord.ui.Modal, title="Subscribe a Channel"):
+            channel_id_input = discord.ui.TextInput(
+                label="Channel ID",
+                placeholder="e.g. 123456789012345678",
+                min_length=17,
+                max_length=20,
+                required=True,
+            )
 
-        for channel in subscribed_channels:
-            if channel.id in [ch.id for ch in candidates]:
-                candidates.remove(discord.utils.find(lambda ch: ch.id == channel.id, candidates))
+            async def on_submit(self_modal, interaction: discord.Interaction):
+                raw = self_modal.channel_id_input.value.strip()
 
-        is_more_than_25 = len(candidates) > 20
-        candidates = candidates[:20]  # Discord only allows 25 options max
+                # Must be numeric
+                if not raw.isdigit():
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            f"`{raw}` is not a valid channel ID. IDs are numbers only."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
 
-        # Set the options that will be presented inside the dropdown
-        options = [discord.SelectOption(label=f'#{ch.name}', value=str(ch.id)) for ch in candidates]
-        super().__init__(placeholder=f"Select channel... {'[Truncated to 20 max.]' if is_more_than_25 else ''}", min_values=1, max_values=1, options=options)
+                cid = int(raw)
 
-    async def callback(self, interaction: discord.Interaction):
-        channel_id = self.values[0]
-        channel = self.bot.get_channel(int(channel_id))
+                # Resolve channel from bot cache
+                channel = _view.bot.get_channel(cid)
+                if not channel:
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            f"Channel `{cid}` could not be found. "
+                            "Make sure I am a member of that server and the ID is correct."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
 
-        view: SubscriptionsView = self.view
-        new_view = ChannelSetupView(view.bot, channel)
-        await interaction.response.defer()
-        await new_view.reply_to_initial(view.message)
-        # await interaction.response.defer()
+                # Must be in this guild
+                if not hasattr(channel, 'guild') or channel.guild.id != _guild.id:
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            "That channel is not in this server."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
 
-class SubscriptionEventTypesDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot):
-        self.bot = bot
+                # Must be text or news
+                if channel.type not in (discord.ChannelType.text, discord.ChannelType.news):
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            "Only Text Channels and Announcement Channels can be subscribed."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
 
-        all_events = database.JamTrackEvents.get_all_events()
+                # Must not already be subscribed
+                if cid in _already_subbed:
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            f"{channel.mention} is already subscribed to Festival Tracker."
+                        ),
+                        ephemeral=True,
+                    )
+                    return
 
-        # Set the options that will be presented inside the dropdown
-        options = [
-            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id, default=(True if event.value.id == 'announcements' else False)) for event in all_events
-        ]
+                # Check bot permissions
+                me = _guild.me
+                perms: discord.Permissions = channel.permissions_for(me)
+                missing = []
+                if not perms.view_channel:   missing.append("View Channel")
+                if not perms.send_messages:  missing.append("Send Messages")
+                if not perms.embed_links:    missing.append("Embed Links")
+                if not perms.attach_files:   missing.append("Attach Files")
 
-        super().__init__(placeholder='Select subscription events...', min_values=1, max_values=len(options), options=options)
+                if missing:
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            f"I am missing the following permissions in {channel.mention}:\n"
+                            + "\n".join(f"- {p}" for p in missing)
+                        ),
+                        ephemeral=True,
+                    )
+                    return
 
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+                # All checks passed — proceed to setup
+                _view._target_channel = channel
+                _view._pending_events = ["announcements"]
+                _view._pending_roles = []
+                _view._test_sent = False
+                _view._page = "server_channel_setup"
+                await interaction.response.defer()
+                await _view.render()
 
-class MentionableRolesDropdown(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, guild: discord.Guild):
-        self.bot = bot
+        async def _enter_btn_cb(interaction: discord.Interaction):
+            await interaction.response.send_modal(ChannelIDModal())
 
-        allowed_roles = [role for role in guild.roles if role.mentionable and role.id != guild.id]
-        if guild.me.guild_permissions.mention_everyone:
-            allowed_roles = [role for role in guild.roles if role.id != guild.id]
+        enter_btn.callback = _enter_btn_cb
+        self.add_item(enter_btn)
 
-        # Set the options that will be presented inside the dropdown
+        return embed, {}
 
-        options = [discord.SelectOption(label=f'@{role.name}', value=str(role.id)) for role in allowed_roles]
-        super().__init__(placeholder='Select roles to mention...', min_values=0, max_values=len(options), options=options)
+    # ------------------------------------------------------------------
+    # Page: server_channel_setup
+    # ------------------------------------------------------------------
 
-    async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+    async def _build_server_channel_setup(self):
+        channel = self._target_channel
+        embed = discord.Embed(
+            title="Server Subscriptions: Channel Setup",
+            description=f"Configuring {channel.mention if channel else '*(unknown channel)*'}",
+            colour=constants.ACCENT_COLOUR,
+        )
+        embed.add_field(
+            name="Subscription Events",
+            value="Choose which events to receive in this channel. Changes are saved when you click **Next**.",
+            inline=False,
+        )
+        embed.add_field(
+            name="Role Mentions",
+            value="Optionally select roles to ping when a message is sent.",
+            inline=False,
+        )
 
-class ChannelSetupView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, channel: discord.TextChannel, timeout=30):
-        super().__init__(timeout=timeout)
+        # ── Back ────────────────────────────────────────────────────
+        self._nav_button("Back", "server_add", row=0, emoji=constants.PREVIOUS_EMOJI)
 
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
-        self.channel: discord.TextChannel = channel
+        # ── Next button ──────────────────────────────────────────────
+        next_btn = discord.ui.Button(
+            label="Next",
+            style=discord.ButtonStyle.primary,
+            emoji=constants.NEXT_EMOJI,
+            row=0,
+        )
 
-        self.subtypes_view = SubscriptionEventTypesDropdown(self.bot)
-        self.roles_view = MentionableRolesDropdown(self.bot, channel.guild)
-
-    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI)
-    async def on_back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = CreateServerSubscriptionView(self.bot)
-        await interaction.response.defer()
-        await view.reply_to_initial(self.message)
-
-    @discord.ui.button(label="Next", style=discord.ButtonStyle.secondary, emoji=constants.NEXT_EMOJI)
-    async def on_next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        event_types = self.subtypes_view.values
-        role_ids = self.roles_view.values
-        
-        if len(event_types) == 0:
-            embed = constants.common_error_embed("You didn't select any events! \nThere is a Discord bug that if you don't mess with the dropdown before continuing, there will be nothing selected! Please deselect and reselect any event type to try to fix it.")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        else:
-            view = SubscriptionSetupConfirmationView(self.bot, self.channel, event_types, role_ids)
+        async def _next_cb(interaction: discord.Interaction):
+            if not self._pending_events:
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed(
+                        "Please select at least one subscription event before continuing."
+                    ),
+                    ephemeral=True,
+                )
+                return
+            self._page = "server_channel_confirm"
+            self._test_sent = False
             await interaction.response.defer()
-            await view.reply_to_initial(self.message)
+            await self.render()
 
-    async def reply_to_initial(self, message: discord.Message):
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Subscribe {self.channel.mention} to Festival Tracker", colour=constants.ACCENT_COLOUR)
+        next_btn.callback = _next_cb
+        self.add_item(next_btn)
 
-        embed.add_field(name="Select subscription events", value="Select or unselect the subscription events you wish to configure for this subscription.", inline=False)
-        embed.add_field(name="Select roles to mention", value="Select roles to mention on subscription messages.", inline=False)
-
-        self.add_item(self.subtypes_view)
-        self.add_item(self.roles_view)
-        await message.edit(embed=embed, view=self)
-        self.message = message
-
-class SubscriptionSetupConfirmationView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, channel: discord.TextChannel, event_types: list[str], role_ids: list[str], timeout=30):
-        super().__init__(timeout=timeout)
-
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
-        self.channel: discord.TextChannel = channel
-        self.event_types: list[str] = event_types
-        self.role_ids: list[str] = role_ids
-    
-    @discord.ui.button(label="Test", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI)
-    async def on_back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.channel.send("This channel is now subscribed to Festival Tracker.\n*This is a test message.*")
-        button.disabled = True
-        await interaction.response.defer()
-        await self.message.edit(view=self)
-
-    @discord.ui.button(label="Finish", style=discord.ButtonStyle.secondary, emoji=constants.NEXT_EMOJI)
-    async def on_next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        view = ServerSubscriptionsView(self.bot)
-        await view.reply_to_initial(self.message)
-
-    async def reply_to_initial(self, message: discord.Message):
-        await constants.msg_log(self.bot, f'Channel {self.channel.id} subscribed')
-
-        await self.bot.config._channel_add(self.channel, self.event_types, self.role_ids)
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"{self.channel.mention} has been subscribed successfully.", colour=constants.ACCENT_COLOUR)
-        await message.edit(embed=embed, view=self)
-        self.message = message
-
-class GuildManageChannelView(discord.ui.View):
-    def __init__(self, bot: commands.Bot, channel: discord.TextChannel, timeout=30):
-        super().__init__(timeout=timeout)
-
-        self.message: discord.Message = None
-        self.bot: commands.Bot = bot
-        self.channel: discord.TextChannel = channel
-
-    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary, emoji=constants.PREVIOUS_EMOJI)
-    async def on_next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        view = ServerSubscriptionsView(self.bot)
-        await view.reply_to_initial(self.message)
-
-    @discord.ui.button(label="Unsubscribe", style=discord.ButtonStyle.danger)
-    async def on_unsubscribe_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await constants.msg_log(self.bot, f'Channel {self.channel.id} unsubscribed')
-
-        await self.bot.config._channel_remove(self.channel)
-        view = ServerSubscriptionsView(self.bot)
-        await interaction.response.defer()
-        await view.reply_to_initial(self.message)
-
-    async def reply_to_initial(self, message: discord.Message):
-        self.message = message
-        embed = discord.Embed(title=f"Server Subscriptions", description=f"Manage the subscription for {self.channel.mention}", colour=constants.ACCENT_COLOUR)
-        channel_subscription: database.SubscriptionChannel = await self.bot.config._channel(self.channel)
-
-        embed.add_field(name="Subscription types", value=", ".join(channel_subscription.events), inline=False)
-
-        roles: list[discord.Role] = []
-        for role_id in channel_subscription.roles:
-            role = self.message.guild.get_role(role_id)
-            if role:
-                roles.append(role)
-
-        embed.add_field(name="Roles to mention", value=", ".join([role.mention for role in roles]), inline=False)
-
-        embed.add_field(name="How to", value="Use the dropdowns below to customize the subscription. Changes will automatically save.", inline=False)
-
-        self.add_item(ChannelManageEventTypesSelect(self.bot, self.message, self.channel, channel_subscription))
-        self.add_item(ChannelManageMentionableRolesSelect(self.bot, self.message, self.channel, channel_subscription))
-
-        await message.edit(embed=embed, view=self)
-
-class ChannelManageEventTypesSelect(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, message: discord.Message, channel: discord.TextChannel, sub_channel: database.SubscriptionObject):
-        self.bot = bot
-        self.message = message
-        self.channel = channel
-
+        # ── Events select ────────────────────────────────────────────
         all_events = database.JamTrackEvents.get_all_events()
-
-        # Set the options that will be presented inside the dropdown
-        valid_options = [
-            discord.SelectOption(label=event.value.english, description=event.value.desc, value=event.value.id) for event in all_events
+        event_options = [
+            discord.SelectOption(
+                label=ev.value.english,
+                description=ev.value.desc,
+                value=ev.value.id,
+                default=(ev.value.id in self._pending_events),
+            )
+            for ev in all_events
         ]
 
-        for option in valid_options:
-            if option.value in sub_channel.events:
-                option.default = True
+        events_select = discord.ui.Select(
+            placeholder="Select subscription events...",
+            min_values=1,
+            max_values=len(event_options),
+            options=event_options,
+            row=1,
+        )
 
-        super().__init__(placeholder='Select subscription events...', min_values=1, max_values=len(valid_options), options=valid_options)
+        async def _events_cb(interaction: discord.Interaction):
+            self._pending_events = list(events_select.values)
+            await interaction.response.defer()
+            await self.render()
 
-    async def callback(self, interaction: discord.Interaction):
-        event_types = self.values
-        await self.bot.config._channel_edit_events(self.channel, events=event_types)
+        events_select.callback = _events_cb
+        self.add_item(events_select)
 
-        await constants.msg_log(self.bot, f'Channel {self.channel.id} edited feeds to {event_types}')
+        # ── Roles select (RoleSelect handles all server roles natively) ──
+        role_select = discord.ui.RoleSelect(
+            placeholder="Select roles to mention (optional)...",
+            min_values=0,
+            max_values=25,
+            default_values=self._pending_roles,
+            row=2,
+        )
 
-        await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
-        new_view = GuildManageChannelView(self.bot, self.channel)
-        await new_view.reply_to_initial(self.message)
+        async def _roles_cb(interaction: discord.Interaction):
+            self._pending_roles = list(role_select.values)
+            await interaction.response.defer()
+            await self.render()
 
-class ChannelManageMentionableRolesSelect(discord.ui.Select):
-    def __init__(self, bot: commands.Bot, message: discord.Message, channel: discord.TextChannel, sub_channel: database.SubscriptionChannel):
-        self.bot = bot
-        self.message = message
-        self.channel = channel
-        guild = message.guild
+        role_select.callback = _roles_cb
+        self.add_item(role_select)
 
-        allowed_roles = [{
-            "id": role.id,
-            "name": role.name,
-            "default": False
-        } for role in guild.roles if role.mentionable and role.id != guild.id]
-        if guild.me.guild_permissions.mention_everyone:
-            allowed_roles = [{
-                "id": role.id,
-                "name": role.name,
-                "default": False
-            } for role in guild.roles if role.id != guild.id]
+        return embed, {}
 
-        for role_id in sub_channel.roles:
-            found_role = discord.utils.find(lambda r: r["id"] == role_id, allowed_roles)
-            if found_role:
-                found_role["default"] = True
+    # ------------------------------------------------------------------
+    # Page: server_channel_confirm
+    # ------------------------------------------------------------------
+
+    async def _build_server_channel_confirm(self):
+        channel = self._target_channel
+
+        # Write to DB on first arrival at this page
+        await constants.msg_log(self.bot, f"Channel {channel.id} subscribed")
+        await self.bot.config._channel_add(channel, self._pending_events, [str(r.id) for r in self._pending_roles])
+
+        event_names = [
+            constants.EVENT_NAMES.get(e, e) for e in self._pending_events
+        ]
+        # _pending_roles now holds discord.Role objects from RoleSelect
+        role_mentions = [role.mention for role in self._pending_roles]
+
+        embed = discord.Embed(
+            title="Server Subscriptions: Done!",
+            description=f"{channel.mention if channel else '*(unknown)*'} has been subscribed successfully. ✅",
+            colour=constants.ACCENT_COLOUR,
+        )
+        embed.add_field(name="Events", value=", ".join(event_names) or "*(none)*", inline=True)
+        embed.add_field(
+            name="Role Mentions",
+            value=", ".join(role_mentions) if role_mentions else "*(none)*",
+            inline=True,
+        )
+
+        # ── Test button ──────────────────────────────────────────────
+        test_btn = discord.ui.Button(
+            label="Send Test Message",
+            style=discord.ButtonStyle.secondary,
+            disabled=self._test_sent,
+            row=0,
+        )
+
+        async def _test_cb(interaction: discord.Interaction):
+            if channel:
+                try:
+                    await channel.send(
+                        "This channel is now subscribed to Festival Tracker.\n*This is a test message.*"
+                    )
+                    self._test_sent = True
+                    await interaction.response.defer()
+                    await self.render()
+                except discord.Forbidden:
+                    await interaction.response.send_message(
+                        embed=constants.common_error_embed(
+                            f"I don't have permission to send messages in {channel.mention}."
+                        ),
+                        ephemeral=True,
+                    )
             else:
-                if len(role_id) == 0:
-                    role_id = 'invalid'
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed("Channel not found."), ephemeral=True
+                )
 
-                allowed_roles.append({
-                    "id": role_id,
-                    "name": f"Unknown Role {role_id}",
-                    "default": True
-                })
+        test_btn.callback = _test_cb
+        self.add_item(test_btn)
 
-        # Set the options that will be presented inside the dropdown
+        # ── Finish button ────────────────────────────────────────────
+        finish_btn = discord.ui.Button(
+            label="Back to Server Subscriptions",
+            style=discord.ButtonStyle.primary,
+            emoji=constants.PREVIOUS_EMOJI,
+            row=0,
+        )
 
-        options = [discord.SelectOption(label=f'@{role["name"]}', value=str(role["id"]), default=role["default"]) for role in allowed_roles]
-        if len(options) == 0:
-            options = [discord.SelectOption(label='No mentionable roles', value='none', default=True, description="I can't mention any roles in your server.")]
-        if len(options) > 20:
-            options = [discord.SelectOption(label='Too many roles', value='none', default=True, description="Your server has too many roles.")]
+        async def _finish_cb(interaction: discord.Interaction):
+            self._page = "server"
+            self._target_channel = None
+            await interaction.response.defer()
+            await self.render()
 
-        super().__init__(placeholder='Select roles to mention...', min_values=0, max_values=len(options), options=options)
+        finish_btn.callback = _finish_cb
+        self.add_item(finish_btn)
 
-    async def callback(self, interaction: discord.Interaction):
-        role_ids = self.values
+        return embed, {}
 
-        if 'none' in role_ids:
-            await interaction.response.send_message(embed=constants.common_error_embed("Changes not saved"), ephemeral=True)
-            return
-        
-        role_ids = [role_id for role_id in role_ids if len(role_id) > 0]
-        role_ids = [role_id for role_id in role_ids if role_id != 'invalid']
+    # ------------------------------------------------------------------
+    # Page: server_channel_manage
+    # ------------------------------------------------------------------
 
-        await self.bot.config._channel_edit_roles(self.channel, [discord.Object(id=role_id) for role_id in role_ids])
+    async def _build_server_channel_manage(self):
+        channel = self._target_channel
+        embed = discord.Embed(
+            title="Server Subscriptions — Manage Channel",
+            description=f"Managing {channel.mention if channel else '*(unknown channel)*'}",
+            colour=constants.ACCENT_COLOUR,
+        )
 
-        await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
-        new_view = GuildManageChannelView(self.bot, self.channel)
-        await new_view.reply_to_initial(self.message)
+        # Load current subscription data
+        sub_data: database.SubscriptionChannel | None = await self.bot.config._channel(channel)
+
+        if not sub_data:
+            embed.description = f"No subscription found for {channel.mention if channel else 'that channel'}."
+            self._nav_button("Back", "server", row=0, emoji=constants.PREVIOUS_EMOJI)
+            return embed, {}
+
+        current_event_names = [constants.EVENT_NAMES.get(e, e) for e in sub_data.events]
+        embed.add_field(
+            name="Current Events",
+            value=", ".join(current_event_names) or "*(none)*",
+            inline=False,
+        )
+
+        current_roles = []
+        for rid in sub_data.roles:
+            role = self.message.guild.get_role(rid) if self.message.guild else None
+            current_roles.append(role.mention if role else f"*(deleted role {rid})*")
+        embed.add_field(
+            name="Current Role Mentions",
+            value=", ".join(current_roles) if current_roles else "*(none)*",
+            inline=False,
+        )
+        embed.add_field(
+            name="",
+            value="Changes to the dropdowns below are **saved immediately**.",
+            inline=False,
+        )
+
+        # ── Back ────────────────────────────────────────────────────
+        self._nav_button("Back", "server", row=0, emoji=constants.PREVIOUS_EMOJI)
+
+        # ── Unsubscribe channel ──────────────────────────────────────
+        unsub_btn = discord.ui.Button(
+            label="Unsubscribe Channel",
+            style=discord.ButtonStyle.danger,
+            row=0,
+        )
+
+        async def _unsub_cb(interaction: discord.Interaction):
+            await constants.msg_log(self.bot, f"Channel {channel.id} unsubscribed")
+            await self.bot.config._channel_remove(channel)
+            self._target_channel = None
+            self._page = "server"
+            await interaction.response.defer()
+            await self.render()
+
+        unsub_btn.callback = _unsub_cb
+        self.add_item(unsub_btn)
+
+        # ── Events select ────────────────────────────────────────────
+        all_events = database.JamTrackEvents.get_all_events()
+        event_options = [
+            discord.SelectOption(
+                label=ev.value.english,
+                description=ev.value.desc,
+                value=ev.value.id,
+                default=(ev.value.id in sub_data.events),
+            )
+            for ev in all_events
+        ]
+
+        events_select = discord.ui.Select(
+            placeholder="Change subscription events...",
+            min_values=1,
+            max_values=len(event_options),
+            options=event_options,
+            row=1,
+        )
+
+        async def _events_cb(interaction: discord.Interaction):
+            new_events = list(events_select.values)
+            await self.bot.config._channel_edit_events(channel, events=new_events)
+            await constants.msg_log(self.bot, f"Channel {channel.id} edited feeds to {new_events}")
+            await interaction.response.send_message(
+                embed=constants.common_success_embed("Event preferences saved."),
+                ephemeral=True,
+            )
+            await self.render()
+
+        events_select.callback = _events_cb
+        self.add_item(events_select)
+
+        # ── Roles select (RoleSelect handles all server roles natively) ──
+        # Build default_values from stored role IDs as discord.Object snowflakes
+        guild = channel.guild if channel else self.message.guild
+        default_role_objects = [
+            discord.Object(id=rid) for rid in sub_data.roles
+            if (guild and guild.get_role(rid)) is not None
+        ]
+
+        role_select = discord.ui.RoleSelect(
+            placeholder="Change role mentions...",
+            min_values=0,
+            max_values=25,
+            default_values=default_role_objects,
+            row=2,
+        )
+
+        async def _roles_cb(interaction: discord.Interaction):
+            await self.bot.config._channel_edit_roles(
+                channel,
+                [discord.Object(id=r.id) for r in role_select.values],
+            )
+            await interaction.response.send_message(
+                embed=constants.common_success_embed("Role preferences saved."),
+                ephemeral=True,
+            )
+            await self.render()
+
+        role_select.callback = _roles_cb
+        self.add_item(role_select)
+
+        return embed, {}
+
+    # ------------------------------------------------------------------
+    # Page: user
+    # ------------------------------------------------------------------
+
+    async def _build_user(self):
+        embed = discord.Embed(
+            title="My Subscription",
+            description="Manage your personal Festival Tracker subscription.",
+            colour=constants.ACCENT_COLOUR,
+        )
+        embed.add_field(
+            name="How it works",
+            value="Select the Jam Track events you want to be notified about via DM.",
+            inline=False,
+        )
+        embed.add_field(
+            name="Requirement",
+            value="You must share at least one mutual server with Festival Tracker to receive DMs.",
+            inline=False,
+        )
+
+        # ── Back ────────────────────────────────────────────────────
+        self._nav_button("Back", "home", row=0, emoji=constants.PREVIOUS_EMOJI)
+
+        # Load current user subscription
+        sub_user: database.SubscriptionUser | None = await self.bot.config.subscription_user(
+            "get", user=self.user
+        )
+
+        all_events = database.JamTrackEvents.get_all_events()
+        subscribed_event_ids = set(sub_user.events) if sub_user else set()
+
+        event_options = [
+            discord.SelectOption(
+                label=ev.value.english,
+                description=ev.value.desc,
+                value=ev.value.id,
+                default=(ev.value.id in subscribed_event_ids),
+            )
+            for ev in all_events
+        ]
+
+        user_select = discord.ui.Select(
+            placeholder="Select your subscription events...",
+            min_values=0,
+            max_values=len(event_options),
+            options=event_options,
+            row=1,
+        )
+
+        async def _user_select_cb(interaction: discord.Interaction):
+            chosen_events = list(user_select.values)
+            await self.bot.config.subscription_user("edit", user=interaction.user, events=chosen_events)
+
+            if not sub_user:
+                msg = "You have been subscribed. Changes saved!"
+                await constants.msg_log(self.bot, f"User {interaction.user.id} subscribed")
+            elif not chosen_events:
+                msg = "You have been unsubscribed. Changes saved!"
+                await constants.msg_log(self.bot, f"User {interaction.user.id} unsubscribed")
+            else:
+                msg = "Changes saved successfully."
+
+            await constants.msg_log(self.bot, f"User {interaction.user.id} edited feeds to {chosen_events}")
+
+            await interaction.response.send_message(
+                embed=constants.common_success_embed(msg),
+                ephemeral=True,
+            )
+            # Re-render so default selections reflect the new state
+            await self.render()
+
+        user_select.callback = _user_select_cb
+        self.add_item(user_select)
+
+        return embed, {}
