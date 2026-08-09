@@ -50,7 +50,7 @@ class FortniteCog(commands.Cog):
 
         await interaction.edit_original_response(embed=embed)
 
-    @fortnite_group.command(name="players", description="See how many players are active across the three Festival gamemodes.")
+    @fortnite_group.command(name="players", description="See how many players are active across the two Festival gamemodes.")
     async def mainstage_command(self, interaction: discord.Interaction):
         # battle stage: playlist_pilgrimbattlestage | set_battlestage_playlists
         # main stage: playlist_pilgrimquickplay
