@@ -105,6 +105,10 @@ class Config:
         # jolly good golly im NOT getting errors now, you silly wonkie toots!
         self.lock = asyncio.Lock()
 
+        # last usage for each uid of the update button to prevent spam
+        # only once every 10 seconds
+        self.voting_update_last_usage_per_user_dict: dict[int, datetime] = {}
+
     async def initialize(self) -> None:
         self.db = await aiosqlite.connect('festivaltracker.db')
         async with self.lock:

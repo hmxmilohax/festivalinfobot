@@ -87,6 +87,7 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
                 )
             else:
                 # add or update vote
+                # possibly dangerous but i dont wanna add a ratelimit because it drives frustration
                 await db.vote('add', user, shortname, 
                     vote_direction=vote_direction,
                     vote_channel_id=chid,
@@ -126,7 +127,23 @@ class UpdateVotesButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vo
             await interaction.response.send_message(embed=constants.common_error_embed("Voting is currently disabled."), ephemeral=True)
             return
 
+        db: Config = interaction.client.config
+        user_id = interaction.user.id
+        current_time = datetime.now(timezone.utc)
+
+        # rate limit: 10 second cooldown
+        if user_id in db.voting_update_last_usage_per_user_dict:
+            last_usage = db.voting_update_last_usage_per_user_dict[user_id]
+            if (current_time - last_usage).total_seconds() < 10:
+                time_remaining = 10 - int((current_time - last_usage).total_seconds())
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed(f"Please wait **{time_remaining} seconds** before updating votes again."), 
+                    ephemeral=True
+                )
+                return
+
         await interaction.response.defer(ephemeral=True, thinking=True)
+        db.voting_update_last_usage_per_user_dict[user_id] = current_time
         await update_view(interaction, self.shortname)
         await interaction.edit_original_response(embed=constants.common_success_embed("Votes updated successfully."))
 
