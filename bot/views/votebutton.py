@@ -17,7 +17,7 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
     def __init__(self, version: str, shortname: str, direction: int, **kwargs) -> None:
         super().__init__(
             discord.ui.Button(
-                emoji="👍" if int(direction) == 1 else "👎",
+                emoji="🔥" if int(direction) == 1 else "🗑️",
                 custom_id=f'vote:{version}:{shortname}:{direction}',
                 disabled=False,
                 row=2,
