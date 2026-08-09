@@ -1,3 +1,4 @@
+from typing import Literal
 from configparser import ConfigParser
 from datetime import datetime, timezone
 import enum
@@ -776,10 +777,10 @@ def create_track_embeds(track_list, title, chunk_size=10):
 
     return embeds
 
-def format_date(date_string):
+def format_date(date_string, fmt: Literal['D', 'F', 'R', 'T', 'd', 'f', 't'] = 'D'):
     if date_string:
         date_ts = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
-        return discord.utils.format_dt(date_ts, 'D')
+        return discord.utils.format_dt(date_ts, fmt)
     return "Unknown"
 
 def add_fields(track_data, embed, weekly_tracks, shop_tracks):

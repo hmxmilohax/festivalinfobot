@@ -474,13 +474,13 @@ class SearchEmbedHandler:
             if old.get('lastModified', None) != None:
                 date = old.get('lastModified')
                 print(date)
-                old_date = constants.format_date(date)
+                old_date = constants.format_date(date, 'F')
 
             new_date = 'N/A'
             if new.get('lastModified', None) != None:
                 date = new.get('lastModified')
                 print(date)
-                new_date = constants.format_date(date)
+                new_date = constants.format_date(date, 'F')
 
             container.add_item(
                 discord.ui.TextDisplay("Last Modified Date changed")
