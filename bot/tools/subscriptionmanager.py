@@ -116,7 +116,8 @@ class SubscriptionManagerView(discord.ui.View):
 
     async def on_timeout(self):
         try:
-            self.clear_items()
+            for child in self.children:
+                child.disabled = True
             await self.message.edit(view=self)
         except Exception:
             pass
@@ -544,6 +545,14 @@ class SubscriptionManagerView(discord.ui.View):
                     ephemeral=True,
                 )
                 return
+            # Save subscription to DB upon clicking Next
+            if self._target_channel:
+                await constants.msg_log(self.bot, f"Channel {self._target_channel.id} subscribed")
+                await self.bot.config._channel_add(
+                    self._target_channel,
+                    self._pending_events,
+                    [str(r.id) for r in self._pending_roles],
+                )
             self._page = "server_channel_confirm"
             self._test_sent = False
             await interaction.response.defer()
@@ -606,12 +615,8 @@ class SubscriptionManagerView(discord.ui.View):
     async def _build_server_channel_confirm(self):
         channel = self._target_channel
 
-        # Write to DB on first arrival at this page
-        await constants.msg_log(self.bot, f"Channel {channel.id} subscribed")
-        await self.bot.config._channel_add(channel, self._pending_events, [str(r.id) for r in self._pending_roles])
-
         event_names = [
-            constants.EVENT_NAMES.get(e, e) for e in self._pending_events
+            database.JamTrackEvents.get_name(e) for e in self._pending_events
         ]
         # _pending_roles now holds discord.Role objects from RoleSelect
         role_mentions = [role.mention for role in self._pending_roles]
@@ -699,7 +704,7 @@ class SubscriptionManagerView(discord.ui.View):
             self._nav_button("Back", "server", row=0, emoji=constants.PREVIOUS_EMOJI)
             return embed, {}
 
-        current_event_names = [constants.EVENT_NAMES.get(e, e) for e in sub_data.events]
+        current_event_names = [database.JamTrackEvents.get_name(e) for e in sub_data.events]
         embed.add_field(
             name="Current Events",
             value=", ".join(current_event_names) or "*(none)*",
@@ -717,7 +722,7 @@ class SubscriptionManagerView(discord.ui.View):
         )
         embed.add_field(
             name="",
-            value="Changes to the dropdowns below are **saved immediately**.",
+            value="Changes to the dropdowns below are saved **immediately**.",
             inline=False,
         )
 
@@ -764,6 +769,12 @@ class SubscriptionManagerView(discord.ui.View):
 
         async def _events_cb(interaction: discord.Interaction):
             new_events = list(events_select.values)
+            if not new_events:
+                await interaction.response.send_message(
+                    embed=constants.common_error_embed("You must keep at least one subscription event selected. To unsubscribe this channel completely, click 'Unsubscribe Channel'."),
+                    ephemeral=True,
+                )
+                return
             await self.bot.config._channel_edit_events(channel, events=new_events)
             await constants.msg_log(self.bot, f"Channel {channel.id} edited feeds to {new_events}")
             await interaction.response.send_message(

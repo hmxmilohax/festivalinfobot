@@ -58,15 +58,22 @@ class JamTrackEvents(enum.Enum):
     #     english='Rotation', 
     #     desc='The free Jam Track rotation has been modified.'
     # )
-    # BestSellers = JamTrackEvent(
-    #     _id='best_sellers', 
-    #     english='Best Sellers', 
-    #     # TODO: festival items
-    #     desc='The best-selling Jam Tracks in the Item Shop have been updated.'
-    # )
+    BestSellers = JamTrackEvent(
+        _id='best_sellers', 
+        english='Best Sellers', 
+        desc='The best-selling Jam Tracks and Items in the Item Shop have been updated.'
+    )
 
-    def get_all_events(): # type: ignore
-        return list(JamTrackEvents.__members__.values())
+    @classmethod
+    def get_all_events(cls):
+        return list(cls.__members__.values())
+
+    @classmethod
+    def get_name(cls, event_id: str) -> str:
+        for event in cls.get_all_events():
+            if event.value.id == event_id:
+                return event.value.english
+        return event_id
 
 class SubscriptionObject():
     id: int
@@ -204,7 +211,7 @@ class Config:
                     return SubscriptionChannel(int(channel_id), events, roles)
                 return None
             
-    async def _channel_add(self, channel: discord.TextChannel, default_events = ['added', 'modified', 'removed'], role_ids = []) -> None:
+    async def _channel_add(self, channel: discord.TextChannel, default_events = ['announcements'], role_ids = []) -> None:
         async with self.lock:
             await self.db.execute(
                 "INSERT OR IGNORE INTO channel_subscriptions (guild_id, channel_id, events, roles) VALUES (?, ?, ?, ?)",

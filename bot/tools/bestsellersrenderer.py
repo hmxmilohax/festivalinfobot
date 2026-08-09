@@ -1,4 +1,5 @@
-import asyncio
+from bot.database import JamTrackEvents, SubscriptionChannel, SubscriptionObject, Config
+import random
 import asyncio
 from datetime import datetime, timezone
 import hashlib
@@ -549,28 +550,66 @@ class BestsellersRenderer:
             f"\nUpstream: {best_sellers_hash}" +
             f"\nLast: {self.last_notified_hash}\nAt <t:{unix_ts}:F> (window active)")
 
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            logging.info(' WERE IN WERE IN  ')
-            # TODO: Get channels/users to send notifications to (e.g. combined channels filtered by best sellers event)
-            # TODO: Build embed and rendered image attachment
-            # Target send loop:
-            # await target.send(content=content, embed=embed, file=file)
+            db: Config = self.bot.config
+            await constants.msg_log(self.bot, f'Notifying subscribers of new bestsellers at <t:{unix_ts}:F>')
+
+            channels_to_send_to = []
+            combined_channels: list[SubscriptionObject] = await db.get_all()
+            target_id = 1328391774720229517
+            obj = discord.utils.find(lambda x: x.id == target_id, combined_channels)
+            if obj:
+                idx = combined_channels.index(obj)
+                if idx is not None:
+                    target = combined_channels.pop(idx)
+                    random.shuffle(combined_channels)
+                    combined_channels.insert(0, target)
+                else:
+                    random.shuffle(combined_channels)
+
+            date_now = datetime.now(timezone.utc)
+            date_formatted = f'{date_now.strftime("%A")} {date_now.strftime("%B %d, %Y")}'
+            original_content = f"## Best Sellers\nBest Selling Jam Tracks + Items in the Fortnite Item Shop\n\n{date_formatted}\n-# Festival Tracker"
+
+            for channel_to_send in combined_channels:
+                if channel_to_send.type == 'channel':
+                    channel = self.bot.get_channel(channel_to_send.id)
+                elif channel_to_send.type == 'user':
+                    channel = self.bot.get_user(channel_to_send.id)
+                    if not channel:
+                        try:
+                            channel = await self.bot.fetch_user(channel_to_send.id)
+                        except discord.NotFound:
+                            channel = None
+                        except discord.HTTPException as e:
+                            logging.error(f"HTTPException when fetching user {channel_to_send.id}, skipping.", exc_info=e)
+                        except Exception as e:
+                            logging.error(f"Unexpected error when fetching user {channel_to_send.id}, skipping.", exc_info=e)
+                else:
+                    channel = None
+
+                if not channel:
+                    logging.warning(f"{channel_to_send.type.capitalize()} with ID {channel_to_send.id} not found.")
+                    continue
+
+                if isinstance(channel, discord.abc.GuildChannel):
+                    if channel.permissions_for(channel.guild.me).send_messages == False:
+                        logging.warning(f"We do not have permission to send messages to {channel.id}, skipping.")
+                        continue
+
+                content = original_content + "\n"
+                if isinstance(channel_to_send, SubscriptionChannel):
+                    role_pings = []
+                    for role in channel_to_send.roles:
+                        role_pings.append(f"<@&{role}>")
+                    content += " ".join(role_pings)
+
+                if JamTrackEvents.BestSellers.value.id in channel_to_send.events:
+                    try:
+                        message = await channel.send(content=content, file=discord.File(constants.CACHE_FOLDER + "bestsellers.png", filename='bestsellers.png'))
+                    except discord.Forbidden as e:
+                        logging.warning(f"Channel {channel.id} cannot be sent messages to.", exc_info=e)
+                    except Exception as e:
+                        logging.warning(f"Error sending message to channel {channel.id}", exc_info=e)
 
             self.last_notified_hash = best_sellers_hash
 

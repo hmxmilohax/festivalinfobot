@@ -156,13 +156,6 @@ HEADLINER_SONGS = [
 # no collab at the moment
 HEADLINER_COLLAB_SONGS = []
 
-EVENT_NAMES = {
-    'added': "Track Added",
-    'removed': "Track Removed",
-    'modified': "Track Modified",
-    'announcements': "Announcements"
-}
-
 SIMPLE_COMPARISONS = {
     'tt': 'Title',
     'an': 'Artist',

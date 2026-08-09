@@ -761,3 +761,11 @@ class TestCog(commands.Cog):
             discord.File("twitter_banner.png"), 
             discord.File("discord_pfp_dev.png")
         ])
+
+    @test_group.command(name="force_bsellnotifhash_out_of_sync", description="Forces the bestsellers notification hash to be out of sync to test the notification.")
+    async def force_bsells_notif_hash_out_of_sync(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        self.bot.bestsellers_renderer.last_notified_hash = 'test'
+
+        await interaction.edit_original_response(content="Done!")
