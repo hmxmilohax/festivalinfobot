@@ -524,7 +524,7 @@ class LoopCheckHandler():
         start = datetime.now()
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending to {len(combined_channels)} channels")
+            await constants.msg_log(self.bot, f"Sending to {len(combined_channels)} channels")
 
         session_hashes_all = [session_hash]
 
@@ -707,7 +707,7 @@ class LoopCheckHandler():
         logging.info(f"Done checking for new songs: New: {len(new_songs)} | Modified: {len(modified_songs)} | Removed: {len(removed_songs)}")
 
         if len(new_songs) != 0 or len(modified_songs) != 0 or len(removed_songs) != 0:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f"Sending completed for {len(combined_channels)} channels! Took {(datetime.now() - start).seconds}s")
+            await constants.msg_log(self.bot, f"Sending completed for {len(combined_channels)} channels! Took {(datetime.now() - start).seconds}s")
 
         for _hash in session_hashes_all:
             constants.delete_session_files(str(_hash))

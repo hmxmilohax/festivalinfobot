@@ -192,7 +192,7 @@ class FestivalTracker(commands.AutoShardedBot):
         await self.oauth_manager.create_session()
 
         uptime = datetime.now() - datetime.fromtimestamp(self.connection_time)
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"Ready in {uptime.seconds}s")
+        await constants.msg_log(self, f"Ready in {uptime.seconds}s")
 
         restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
         if restart_arg:
@@ -222,7 +222,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
         guild_chunk_end_time = datetime.now() - guild_chunk_start_time
         logging.info(f"{total_guilds_chunked} guilds chunked in {guild_chunk_end_time.seconds}s")
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(content=f"{constants.tz()} Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
+        await constants.msg_log(self, f"Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
         self.is_done_chunking = True
 
         if not self.utility_loop_task.is_running():
@@ -234,10 +234,10 @@ class FestivalTracker(commands.AutoShardedBot):
         self.bot_is_ready = True
 
     async def on_shard_connect(self, shard_id: int):
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} connected")
+        await constants.msg_log(self, f"Shard {shard_id} connected")
 
     async def on_shard_disconnect(self, shard_id: int):
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Shard {shard_id} disconnected")
+        await constants.msg_log(self, f"Shard {shard_id} disconnected")
 
     async def on_socket_event_type(self, event_type: str):
         if event_type == "READY":
@@ -322,10 +322,10 @@ class FestivalTracker(commands.AutoShardedBot):
         self.run(DISCORD_TOKEN, log_handler=None)
 
     async def on_guild_join(self, guild: discord.Guild):
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await constants.msg_log(self, f"Joined guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_guild_remove(self, guild: discord.Guild):
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
+        await constants.msg_log(self, f"Left guild {guild.name} (`{guild.id}`) New server count: {len(self.guilds)}")
 
     async def on_interaction(self, interaction: discord.Interaction):
         pass
@@ -512,7 +512,7 @@ class FestivalTracker(commands.AutoShardedBot):
         if len(raw_namespace) > 0:
             parsed_namespace = f'\n```{raw_namespace}```'
             
-        await self.get_partial_messageable(constants.LOG_CHANNEL).send(f"{constants.tz()} `/{command.qualified_name}` invoked in {place}{parsed_namespace}")
+        await constants.msg_log(self, f'`/{command.qualified_name}` invoked in {place}{parsed_namespace}')
 
         analytic = constants.Analytic(interaction)
         self.analytics.append(analytic)

@@ -132,7 +132,7 @@ class ServerSubscriptionsView(discord.ui.View):
         async def on_unsubscribe_btn(interaction: discord.Interaction):
             await interaction.response.defer()
 
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Guild {interaction.guild.id} unsubscribed')
+            await constants.msg_log(self.bot, f'Guild {interaction.guild.id} unsubscribed')
 
             await self.bot.config.subscription_guild('remove', guild=interaction.guild)
             new_view = ServerSubscriptionsView(self.bot)
@@ -199,15 +199,15 @@ class UserSubscriptionTypesDropdown(discord.ui.Select):
 
         text = '[placeholder]'
         if not self.sub_user:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} subscribed')
+            await constants.msg_log(self.bot, f'User {interaction.user.id} subscribed')
             text = 'You have been subscribed; changes saved successfully'
         elif len(event_types) == 0:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} unsubscribed')
+            await constants.msg_log(self.bot, f'User {interaction.user.id} unsubscribed')
             text = 'You have been unsubscribed; changes saved successfully'
         else:
             text = 'Changes saved successfully'
 
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} User {interaction.user.id} edited feeds to {event_types}')
+        await constants.msg_log(self.bot, f'User {interaction.user.id} edited feeds to {event_types}')
 
         await interaction.response.send_message(embed=constants.common_success_embed(text), ephemeral=True)
         new_view = UserSubscriptionsView(self.bot)
@@ -388,7 +388,7 @@ class SubscriptionSetupConfirmationView(discord.ui.View):
         await view.reply_to_initial(self.message)
 
     async def reply_to_initial(self, message: discord.Message):
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} subscribed')
+        await constants.msg_log(self.bot, f'Channel {self.channel.id} subscribed')
 
         await self.bot.config._channel_add(self.channel, self.event_types, self.role_ids)
         embed = discord.Embed(title=f"Server Subscriptions", description=f"{self.channel.mention} has been subscribed successfully.", colour=constants.ACCENT_COLOUR)
@@ -411,7 +411,7 @@ class GuildManageChannelView(discord.ui.View):
 
     @discord.ui.button(label="Unsubscribe", style=discord.ButtonStyle.danger)
     async def on_unsubscribe_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} unsubscribed')
+        await constants.msg_log(self.bot, f'Channel {self.channel.id} unsubscribed')
 
         await self.bot.config._channel_remove(self.channel)
         view = ServerSubscriptionsView(self.bot)
@@ -463,7 +463,7 @@ class ChannelManageEventTypesSelect(discord.ui.Select):
         event_types = self.values
         await self.bot.config._channel_edit_events(self.channel, events=event_types)
 
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(f'{constants.tz()} Channel {self.channel.id} edited feeds to {event_types}')
+        await constants.msg_log(self.bot, f'Channel {self.channel.id} edited feeds to {event_types}')
 
         await interaction.response.send_message(embed=constants.common_success_embed("Changes saved successfully."), ephemeral=True)
         new_view = GuildManageChannelView(self.bot, self.channel)

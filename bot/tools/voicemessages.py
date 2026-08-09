@@ -287,4 +287,4 @@ class PreviewAudioMgr:
         if not resp.ok:
             logging.error(resp.text)
 
-        await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f"{constants.tz()} Voice Message for {self.track['track']['sn']} sent to {self.interaction.user.id}")
+        await constants.msg_log(self.bot, f'Voice Message for {self.track['track']['sn']} sent to {self.interaction.user.id}')

@@ -825,3 +825,6 @@ def tz():
 
 def rand_hex(from_str: str) -> str:
     return secrets.token_hex(len(from_str) // 2)
+
+async def msg_log(bot_instance: discord.Client, log_str: str):
+    await bot_instance.get_partial_messageable(LOG_CHANNEL).send(content=f"{tz()} {log_str}")

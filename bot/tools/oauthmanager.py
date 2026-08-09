@@ -86,7 +86,7 @@ class OAuthManager:
 
             logging.info(f'Logged into EOS as {self.account_id}')
 
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session started for ' + self._session_data['displayName'])
+            await constants.msg_log(self, f'Device auth session started for {self._session_data['displayName']}')
 
             if not skip_create:
                 try:
@@ -97,7 +97,7 @@ class OAuthManager:
 
             self._create_spotify_token()
             logging.info('Spotify token created successfully.')
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'Spotify session started successfully.')
+            await constants.msg_log(self, f'Spotify session started successfully.')
 
             if not skip_create:
                 try:
@@ -107,7 +107,7 @@ class OAuthManager:
             
         except Exception as e:
             logging.critical(f'Cannot create token:', exc_info=e)
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be started because of {e}')
+            await constants.msg_log(self, f'Device auth session cannot be started because of {e}')
 
     @tasks.loop(seconds=6900)
     async def refresh_session(self):
@@ -128,10 +128,10 @@ class OAuthManager:
             self._access_token = self._session_data['access_token']
             self._refresh_token = self._session_data['refresh_token']
 
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session refreshed for ' + self._session_data['displayName'])
+            await constants.msg_log(self, f'Device auth session refreshed for {self._session_data['displayName']}')
         except Exception as e:
             logging.critical(f'Device auth session cannot be refreshed because of {e}')
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session cannot be refreshed because of {e}')
+            await constants.msg_log(self, f'Device auth session cannot be refreshed because of {e}')
 
     @tasks.loop(seconds=3500)
     async def refresh_spotify_session(self):
@@ -139,7 +139,7 @@ class OAuthManager:
             self._create_spotify_token()
         except Exception as e:
             logging.critical(f'Spotify token cannot be refreshed because of {e}')
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Spotify token cannot be refreshed because of {e}')
+            await constants.msg_log(self, f'Spotify token cannot be refreshed because of {e}')
 
     @tasks.loop(seconds=60)
     async def verify_session(self):
@@ -151,7 +151,7 @@ class OAuthManager:
         response = requests.get(url, headers=headers)
         # response.raise_for_status()
         if not response.ok:
-            await self.bot.get_channel(constants.LOG_CHANNEL).send(content=f'{constants.tz()} Device auth session ended for ' + self._session_data['displayName'])
+            await constants.msg_log(self, f'Device auth session ended for {self._session_data['displayName']}')
             await self.create_session(skip_create=True)
 
     @property

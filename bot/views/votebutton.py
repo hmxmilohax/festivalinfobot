@@ -98,6 +98,9 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
 
                 await interaction.edit_original_response(embed=constants.common_success_embed(f"You have casted a **{'positive' if vote_direction == 1 else 'negative'}** vote for {song_fmt}."))
 
+            # TEMPORARY: usage analysis
+            await constants.msg_log(interaction.client, f'User {user.id} casted a **{'positive' if vote_direction == 1 else 'negative'}** vote for {shortname}')
+
             await update_view(interaction, shortname)
         else:
             await interaction.response.send_message('This is an old version of the button. Please run the command again.', ephemeral=True)
@@ -144,6 +147,10 @@ class UpdateVotesButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vo
 
         await interaction.response.defer(ephemeral=True, thinking=True)
         db.voting_update_last_usage_per_user_dict[user_id] = current_time
+
+        # TEMPORARY: usage analysis
+        await constants.msg_log(interaction.client, f'User {user_id} updated votes')
+
         await update_view(interaction, self.shortname)
         await interaction.edit_original_response(embed=constants.common_success_embed("Votes updated successfully."))
 
@@ -197,6 +204,9 @@ class VoteRemovalConfirmationView(discord.ui.View):
         except DbPolicyErr as e:
             await interaction.edit_original_response(embed=constants.common_error_embed(f"{e}"))
             return
+
+        # TEMPORARY: usage analysis
+        await constants.msg_log(interaction.client, f'User {self.user.id} removed vote for {self.shortname}')
 
         await update_view(self.original_interaction, self.shortname)
         await self.original_interaction.edit_original_response(embed=constants.common_success_embed("Vote removed successfully."), view=None)
