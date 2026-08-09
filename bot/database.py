@@ -18,6 +18,10 @@ class JamTrackEvent():
         self.id = _id
         self.desc = desc
 
+class PolicyException(Exception):
+    def __init__(self, message: str, *args) -> None:
+        super().__init__(message, *args)
+
 class JamTrackEvents(enum.Enum):
     Added = JamTrackEvent(
         _id='added', 
@@ -509,20 +513,22 @@ class Config:
     async def vote(self, operation: Literal['add', 'update', 'remove', 'get'], user: discord.User | discord.Object | str, shortname: str = None, **kwargs) -> int | dict | None:
         async with self.lock:
             user_id = user if isinstance(user, str) else str(user.id)
+
+            # check if user has accepted policies directly to avoid self.lock deadlock
+            async with self.db.execute(
+                "SELECT privacy_policy_accepted, terms_of_service_accepted FROM agreements WHERE user_id = ?",
+                (user_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+            
+            # if user has not accepted both policies, do not add vote.
+            if not row or not (row[0] and row[1]):
+                raise PolicyException(f"Please accept the privacy policy and terms of service to vote for songs. You can do this with /help.")
+
             if shortname is None:
                 shortname = kwargs.get('shortname')
 
             if operation in ('add', 'update'):
-                # check if user has accepted policies directly to avoid self.lock deadlock
-                async with self.db.execute(
-                    "SELECT privacy_policy_accepted, terms_of_service_accepted FROM agreements WHERE user_id = ?",
-                    (user_id,)
-                ) as cursor:
-                    row = await cursor.fetchone()
-                
-                if not row or not (row[0] and row[1]):
-                    return None
-
                 vote_direction = kwargs.get('vote_direction')
                 vote_channel_id = kwargs.get('vote_channel_id')
                 vote_server_id = kwargs.get('vote_server_id')

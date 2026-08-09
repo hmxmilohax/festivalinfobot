@@ -3,7 +3,7 @@
 import logging
 from datetime import timezone
 from datetime import datetime
-from bot.database import Config
+from bot.database import Config, PolicyException as DbPolicyErr
 import json
 import re
 import discord
@@ -70,7 +70,11 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
             within_new_until = datetime.now(tz=timezone.utc) < datetime.fromisoformat(track_data['track']['nu'])
 
             # check if user has voted
-            vote = await db.vote('get', user, shortname)
+            try:
+                vote = await db.vote('get', user, shortname)
+            except DbPolicyErr as e:
+                await interaction.edit_original_response(embed=constants.common_error_embed(f"{e}"))
+                return
 
             song_fmt = f'**{track_data['track']['tt']}** - *{track_data['track']['an']}*'
 
@@ -171,10 +175,13 @@ class VoteRemovalConfirmationView(discord.ui.View):
         await interaction.response.defer()
 
         db: Config = interaction.client.config
-        await db.vote('remove', self.user, self.shortname)
+        try:
+            await db.vote('remove', self.user, self.shortname)
+        except DbPolicyErr as e:
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"{e}"))
+            return
 
         await update_view(self.original_interaction, self.shortname)
-        # Edit using this button interaction to acknowledge it and avoid "Interaction Failed" errors
         await self.original_interaction.edit_original_response(embed=constants.common_success_embed("Vote removed successfully."), view=None)
 
         self.stop()
