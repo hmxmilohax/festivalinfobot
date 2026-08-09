@@ -75,7 +75,7 @@ class MixHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(track_list, song)
         if not matched_tracks:
-            await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not yield any results."))
             return
         
         track = matched_tracks[0] # By default, select the first track searched for

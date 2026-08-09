@@ -259,7 +259,7 @@ class HistoryHandler():
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
             # logging.error(f"No tracks found matching {song}.")
-            await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not give any results.'))
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not yield any results.'))
             return
         
         await interaction.response.defer()
@@ -389,7 +389,7 @@ class HistoryHandler():
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracks, song)
         if not matched_tracks:
             # logging.error(f"No tracks found matching {song}.")
-            await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not give any results.'))
+            await interaction.response.send_message(embed=constants.common_error_embed(f'The search query {song} did not yield any results.'))
             return
         
         await interaction.response.defer()

@@ -121,7 +121,7 @@ class PathCommandHandler():
         
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.edit_original_response(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            await interaction.edit_original_response(embed=constants.common_error_embed(f"The search query \"{song}\" did not yield any results."))
             return
 
 

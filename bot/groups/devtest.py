@@ -378,7 +378,7 @@ class TestCog(commands.Cog):
         # Perform fuzzy search
         matched_tracks = JamTrackHandler().fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(content=f"The search query \"{song}\" did not give any results.")
+            await interaction.response.send_message(content=f"The search query \"{song}\" did not yield any results.")
             return
         await interaction.response.defer()
         matched_track = matched_tracks[0]

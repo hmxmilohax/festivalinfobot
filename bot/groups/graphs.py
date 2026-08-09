@@ -74,7 +74,7 @@ class GraphCommandsHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not yield any results."))
             return
 
         await interaction.response.defer() # Makes the bot say Thinking...
@@ -113,7 +113,7 @@ class GraphCommandsHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not yield any results."))
             return
 
         await interaction.response.defer() # Makes the bot say Thinking...
@@ -154,7 +154,7 @@ class GraphCommandsHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not yield any results."))
             return
 
         await interaction.response.defer() # Makes the bot say Thinking...
@@ -195,7 +195,7 @@ class GraphCommandsHandler():
 
         matched_tracks = self.jam_track_handler.fuzzy_search_tracks(tracklist, song)
         if not matched_tracks:
-            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not give any results."))
+            await interaction.response.send_message(embed=const.common_error_embed(f"The search query \"{song}\" did not yield any results."))
             return
 
         await interaction.response.defer() # Makes the bot say Thinking...

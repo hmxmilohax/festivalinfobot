@@ -797,7 +797,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
             matched_track = track_handler.fuzzy_search_tracks(track_list, song)
             if not matched_track:
-                await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not give any results."))
+                await interaction.response.send_message(embed=constants.common_error_embed(f"The search query \"{song}\" did not yield any results."))
                 return
             track = matched_track[0]
 
