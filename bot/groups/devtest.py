@@ -389,7 +389,6 @@ class TestCog(commands.Cog):
             return
 
         await interaction.response.defer()
-        print(feed.value)
 
         conf: database.Config = self.bot.config
         mod_count = 0
@@ -401,7 +400,6 @@ class TestCog(commands.Cog):
 
             if ch.type == 'user':
                 await conf.subscription_user('edit', user=discord.Object(ch.id), events=events)
-                mod_count+=1
             elif ch.type == 'channel':
                 chan = self.bot.get_channel(ch.id)
                 if not chan:
@@ -409,9 +407,10 @@ class TestCog(commands.Cog):
                     continue
 
                 await conf._channel_edit_events(chan, events)
-                mod_count+=1
 
-        await interaction.edit_original_response(content=f"{mod_count} of {len(all_channels)} have been subbed to {feed}")
+            mod_count+=1
+
+        await interaction.edit_original_response(content=f"{mod_count} of {len(all_channels)} have been subbed to {feed.name} (`{feed.value}`)")
 
     @test_group.command(name="dbdump", description="Get a dump of the database")
     async def dbdump(self, interaction: discord.Interaction):
@@ -429,7 +428,7 @@ class TestCog(commands.Cog):
 
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(data), 'festivaltracker.db')])
 
-    @test_group.command(name="pm", description="Send a private message to a user")
+    @test_group.command(name="send_dm", description="Send a private message to a user")
     async def pm(self, interaction: discord.Interaction, user_id: str, message: discord.Attachment):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
