@@ -265,6 +265,7 @@ class TestCog(commands.Cog):
             f"Seconds Between Iterations: `{total_task_seconds_between_iters}s`\n" + 
             f"Running: `{is_running}`\n" +
             f"Current Iteration: `{task.current_loop}`\n" +
+            f"Func Name: `{task.coro.__name__}`\n"
             f"Next Iteration: {next_iter} ({next_iter_dt})", inline=False)
         
         await interaction.response.send_message(embed=embed)
