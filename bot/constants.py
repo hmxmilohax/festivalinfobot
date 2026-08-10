@@ -14,7 +14,7 @@ import discord
 import requests
 import secrets
 
-from discord.ext import commands
+from discord.ext import commands, tasks
 from bot import database
 
 class BotExt(commands.Bot):
@@ -214,6 +214,8 @@ EXTRA_COMPARISONS = {
 
 from bot.tools.oauthmanager import OAuthManager
 OAUTH_MANAGER: OAuthManager = None
+
+from bot.tools.taskregistry import TASK_REGISTRY, register_task
 
 class Analytic:
     def __init__(self, interaction: discord.Interaction):

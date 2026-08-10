@@ -63,8 +63,7 @@ class FestivalTracker(commands.AutoShardedBot):
         # it is possible to await this function here
         await self.setup_cogs()
 
-        logging.debug(f"Registering utility loop every {self.UTILITY_TASK_INTERVAL}min")
-        @tasks.loop(minutes=self.UTILITY_TASK_INTERVAL)
+        @constants.register_task(minutes=self.UTILITY_TASK_INTERVAL, name="Utility Loop")
         async def utility_task():
             try:
                 await self.wishlist_handler.handle_wishlists()
@@ -86,13 +85,11 @@ class FestivalTracker(commands.AutoShardedBot):
 
         self.utility_loop_task = utility_task
 
-        logging.debug(f"Registering activity loop every 2m30s")
-        @tasks.loop(minutes=2.5)
+        @constants.register_task(minutes=2.5, name="Activity Loop")
         async def activity_task():
             await self.check_handler.handle_activity_task()
 
-        logging.debug(f"Registering analytics loop every 5h")
-        @tasks.loop(hours=5)
+        @constants.register_task(hours=5, name="Analytics Loop")
         async def analytics():
             try:
                 await self.analytics_task()
@@ -108,8 +105,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self.add_dynamic_items(VoteButton)
         self.add_dynamic_items(UpdateVotesButton)
 
-        logging.debug("Registering bestsellers cacher loop every 1m")
-        @tasks.loop(minutes=1.0)
+        @constants.register_task(minutes=1.0, name="Bestsellers")
         async def bestsellers_cacher_task():
             try:
                 await self.bestsellers_renderer.handle_cacher()

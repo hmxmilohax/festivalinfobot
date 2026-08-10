@@ -1,3 +1,4 @@
+from aiohttp import client_exceptions
 from bot.tools.brand import make_discord_pfp
 import mido
 import asyncio
@@ -251,105 +252,56 @@ class TestCog(commands.Cog):
         await interaction.edit_original_response(content=f"Successfully left {guild.name} (`{guild.id}`)")
 
     @test_group.command(name="debug_tasks", description="Debug all tasks")
-    async def debug_tasks(self, interaction: discord.Interaction):
+    async def debug_tasks(self, interaction: discord.Interaction):        
+        embed = discord.Embed(title="Task Debug", colour=constants.ACCENT_COLOUR)
+
+        for task in constants.TASK_REGISTRY:
+            next_iter = discord.utils.format_dt(task.next_iteration, 'R') if task.next_iteration else "N/A"
+            next_iter_dt = discord.utils.format_dt(task.next_iteration, 'F') if task.next_iteration else "N/A"
+
+            total_task_seconds_between_iters = int((task.hours * 3600) + (task.minutes * 60) + task.seconds)
+            is_running = "Yes" if task.is_running() else "No"
+            embed.add_field(name=task._name, value=
+            f"Seconds Between Iterations: `{total_task_seconds_between_iters}s`\n" + 
+            f"Running: `{is_running}`\n" +
+            f"Current Iteration: `{task.current_loop}`\n" +
+            f"Next Iteration: {next_iter} ({next_iter_dt})", inline=False)
+        
+        await interaction.response.send_message(embed=embed)
+
+    @test_group.command(name="manage_task", description="Manage a task")
+    async def manage_task(self, interaction: discord.Interaction, task: str, action: Literal['Cancel (Stop)', 'Start', 'Restart', 'Stop (Actual Stop)']):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
         
-        text = "Tasks debug"
-        check: tasks.Loop = self.bot.utility_loop_task # type: ignore
-        text += f"\nUtility: \n{check.minutes = }m\n{check.is_running() = }\n{check.current_loop = }"
-        activity: tasks.Loop = self.bot.activity_task # type: ignore
-        text += f"\nActivity: \n{activity.minutes = }m\n{activity.is_running() = }\n{activity.current_loop = }"
-        analytic: tasks.Loop = self.bot.analytic_loop # type: ignore
-        text += f"\nAnalytic: \n{analytic.minutes = }m\n{analytic.is_running() = }\n{analytic.current_loop = }"
-        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session # type: ignore
-        text += f"\nOauth Refresh: \n{oauth_refresh.seconds = }s\n{oauth_refresh.is_running() = }\n{oauth_refresh.current_loop = }"
-        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session # type: ignore
-        text += f"\nOauth Verify: \n{oauth_verify.seconds = }s\n{oauth_verify.is_running() = }\n{oauth_verify.current_loop = }"
-        
-        await interaction.response.send_message(content=text)
-
-    @test_group.command(name="stop_task", description="Stop a task (doesnt use .stop rather .cancel)")
-    async def stop_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
+        _task = discord.utils.find(lambda t: t._name.lower() == task.lower(), constants.TASK_REGISTRY)
+        if not _task:
+            await interaction.response.send_message(content=f"Task \"{task}\" not found.", ephemeral=True)
             return
-        
-        check: tasks.Loop = self.bot.utility_loop_task
-        activity: tasks.Loop = self.bot.activity_task
-        analytic: tasks.Loop = self.bot.analytic_loop
-        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session
-        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session
 
-        if task == 'Check':
-            check.cancel()
-        elif task == 'Utility':
-            activity.cancel()
-        elif task == 'Analytics':
-            analytic.cancel()
-        elif task == 'Verify OAuth':
-            oauth_verify.cancel()
-        elif task == 'Refresh OAuth':
-            oauth_refresh.cancel()
+        if action == 'Cancel (Stop)':
+            _task.cancel()
+        elif action == 'Start':
+            _task.start()
+        elif action == 'Restart':
+            _task.restart()
+        elif action == 'Stop (Actual Stop)':
+            _task.stop()
 
-        await interaction.response.send_message(content=f"Task \"{task}\" stopped")
+        await interaction.response.send_message(content=f"{action} done on task \"{_task._name}\"")
 
-    @test_group.command(name="start_task", description="Start a task")
-    async def start_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        check: tasks.Loop = self.bot.utility_loop_task
-        activity: tasks.Loop = self.bot.activity_task
-        analytic: tasks.Loop = self.bot.analytic_loop
-        oauth_refresh: tasks.Loop = self.bot.oauth_manager.refresh_session
-        oauth_verify: tasks.Loop = self.bot.oauth_manager.verify_session
+    @manage_task.autocomplete('task')
+    async def task_autocomplete(self, interaction: discord.Interaction, current: str):
 
-        if task == 'Check':
-            check.start()
-        elif task == 'Activity':
-            activity.start()
-        elif task == 'Analytics':
-            analytic.start()
-        elif task == 'Verify OAuth':
-            oauth_verify.start()
-        elif task == 'Refresh OAuth':
-            oauth_refresh.start()
-
-        await interaction.response.send_message(content=f"Task \"{task}\" started")
-
-    @test_group.command(name="restart_task", description="Restart a task (only reinitates it, doesnt start it if cancelled)")
-    async def restart_task(self, interaction: discord.Interaction, task: Literal["Analytics", "Utility", "Activity", "Verify OAuth", "Refresh OAuth"]):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        check: tasks.Loop = self.bot.utility_loop_task
-        activity: tasks.Loop = self.bot.activity_task
-        analytic: tasks.Loop = self.bot.analytic_loop
-
-        if task == 'Check':
-            check.restart()
-        elif task == 'Activity':
-            activity.restart()
-        elif task == 'Analytics':
-            analytic.restart()
-        elif task == 'Verify OAuth':
-            self.bot.oauth_manager.verify_session.restart()
-        elif task == 'Refresh OAuth':
-            self.bot.oauth_manager.refresh_session.restart()
-
-        await interaction.response.send_message(content=f"Task \"{task}\" restarted")
-
-    @test_group.command(name="error", description="Invoke an error")
-    async def error(self, interaction: discord.Interaction):
-        if not (interaction.user.id in constants.BOT_OWNERS):
-            await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
-            return
-        
-        raise ValueError("Error invoked here")
+        if current == '':
+            return [
+                app_commands.Choice(name=task._name, value=task._name) for task in constants.TASK_REGISTRY
+            ]
+        else:
+            return [
+                app_commands.Choice(name=task._name, value=task._name) for task in constants.TASK_REGISTRY if current.lower() in task._name.lower()
+            ]
     
     @test_group.command(name="autocomplete", description="Test account username autocomplete")
     @app_commands.describe(username = "The Epic Account Username to search for")
@@ -425,21 +377,26 @@ class TestCog(commands.Cog):
         await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(''.join(lines).encode()), 'log.txt')])
 
     @test_group.command(name="suball", description="Subscribe all subscribed channels to a specific feed")
-    async def suball(self, interaction: discord.Interaction, feed: Literal["added", "modified", "removed", "announcements"]):
+    @app_commands.choices(
+        feed=[
+            app_commands.Choice(name=feed.value.english, value=feed.value.id) for feed in database.JamTrackEvents.get_all_events()
+        ]
+    )
+    async def suball(self, interaction: discord.Interaction, feed: app_commands.Choice[str]):
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
 
         await interaction.response.defer()
+        print(feed.value)
 
         conf: database.Config = self.bot.config
-
         mod_count = 0
 
         all_channels = await conf.get_all()
         for ch in all_channels:
             events = ch.events
-            events.append('announcements')
+            events.append(feed.value)
 
             if ch.type == 'user':
                 await conf.subscription_user('edit', user=discord.Object(ch.id), events=events)
@@ -463,11 +420,14 @@ class TestCog(commands.Cog):
         
         await interaction.response.defer(ephemeral=True)
 
-        f = open('subscriptions.db', 'rb')
+        f = open('festivaltracker.db', 'rb')
         data = f.read()
         f.close()
 
-        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(data), 'subscriptions.db')])
+        # missing db-shm and db-wal here
+
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(data), 'festivaltracker.db')])
+
     @test_group.command(name="pm", description="Send a private message to a user")
     async def pm(self, interaction: discord.Interaction, user_id: str, message: discord.Attachment):
         if not (interaction.user.id in constants.BOT_OWNERS):

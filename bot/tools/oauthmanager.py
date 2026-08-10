@@ -6,8 +6,10 @@ import discord.ext.tasks as tasks
 import discord
 import requests
 import bot.constants as constants
+from bot.tools.taskregistry import register_task
 from discord.ext import commands
 import logging
+from bot.tools.taskregistry import TASK_REGISTRY
 
 def b64_decode_padded(s: str) -> bytes:
     """Decodes a base64 string, adding padding if necessary."""
@@ -39,6 +41,10 @@ class OAuthManager:
         self._spotify_session_data = None
         self._spotify_access_token:str = None
         self.epic_client_token = base64.b64encode(f'{constants.EPIC_DEVICE_AUTH_CLIENT_ID}:{constants.EPIC_DEVICE_AUTH_CLIENT_SECRET}'.encode('utf-8')).decode('utf-8')
+
+        TASK_REGISTRY.append(self.refresh_session)
+        TASK_REGISTRY.append(self.refresh_spotify_session)
+        TASK_REGISTRY.append(self.verify_session)
 
     def _create_token(self):
         logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token (create)')
@@ -109,7 +115,7 @@ class OAuthManager:
             logging.critical(f'Cannot create token:', exc_info=e)
             await constants.msg_log(self.bot, f'Device auth session cannot be started because of {e}')
 
-    @tasks.loop(seconds=6900)
+    @tasks.loop(seconds=6900, name="Refresh Epic Session")
     async def refresh_session(self):
         logging.info('[POST] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/token (refresh)')
         try:
@@ -133,7 +139,7 @@ class OAuthManager:
             logging.critical(f'Device auth session cannot be refreshed because of {e}')
             await constants.msg_log(self.bot, f'Device auth session cannot be refreshed because of {e}')
 
-    @tasks.loop(seconds=3500)
+    @tasks.loop(seconds=3500, name="Refresh Spotify Session")
     async def refresh_spotify_session(self):
         try:
             self._create_spotify_token()
@@ -141,7 +147,7 @@ class OAuthManager:
             logging.critical(f'Spotify token cannot be refreshed because of {e}')
             await constants.msg_log(self.bot, f'Spotify token cannot be refreshed because of {e}')
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=60, name="Verify Epic Session")
     async def verify_session(self):
         logging.info('[GET] https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify (verify)')
         url = 'https://account-public-service-prod.ol.epicgames.com/account/api/oauth/verify'

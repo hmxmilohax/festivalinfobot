@@ -65,7 +65,7 @@ class JamTrackEvents(enum.Enum):
     )
 
     @classmethod
-    def get_all_events(cls):
+    def get_all_events(cls) -> list[JamTrackEvent]:
         return list(cls.__members__.values())
 
     @classmethod
