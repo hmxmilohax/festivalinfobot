@@ -19,7 +19,7 @@ import time
 from bot import constants
 from bot import database
 from bot.database import JamTrackEvents, SubscriptionChannel, SubscriptionObject, SubscriptionUser
-from bot.embeds import SearchEmbedHandler, StatsCommandEmbedHandler
+from bot.embeds import SearchEmbedHandler
 from bot.tools.midi import MidiArchiveTools
 from bot.views import history_views as history_tools
 from bot.views.previewpersist import PreviewButton
@@ -300,7 +300,7 @@ class HistoryHandler():
                 prev_date = prev[0]
                 prev_properties = prev[1]
 
-                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n{discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(prev_date), style='R')} to {discord.utils.format_dt(StatsCommandEmbedHandler().iso_to_unix_timestamp(date), style='R')}", colour=constants.ACCENT_COLOUR)
+                embed = discord.Embed(title=f"**{actual_title}** - *{actual_artist}*", description=f"**Logged metadata change:** \n{discord.utils.format_dt(constants.iso_to_unix_timestamp(prev_date), style='R')} to {discord.utils.format_dt(constants.iso_to_unix_timestamp(date), style='R')}", colour=constants.ACCENT_COLOUR)
                 embed.set_thumbnail(url=album_art_url)
 
                 for pk, pv in properties_that_changed.items():

@@ -1,3 +1,6 @@
+import sys
+import importlib
+import subprocess
 from typing import Literal
 from configparser import ConfigParser
 from datetime import datetime, timezone
@@ -822,3 +825,177 @@ def rand_hex(from_str: str) -> str:
 
 async def msg_log(bot_instance: discord.Client, log_str: str):
     await bot_instance.get_partial_messageable(LOG_CHANNEL).send(content=f"{tz()} {log_str}")
+
+def get_remote_url():
+    try:
+        return subprocess.check_output(['git', 'config', '--get', 'remote.origin.url']).strip().decode('utf-8')
+    except Exception:
+        return "Unknown"
+
+# Convert uptime to a more human-readable format
+def format_uptime(seconds):
+    uptime_str = []
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours > 0:
+        uptime_str.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    if minutes > 0:
+        uptime_str.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds > 0 or not uptime_str:
+        uptime_str.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+    return ', '.join(uptime_str)
+
+def fetch_latest_github_commit_hash():
+    repo_url = "https://api.github.com/repos/hmxmilohax/festivalinfobot/commits"
+    logging.debug(f'[GET] {repo_url}')
+    response = requests.get(repo_url)
+    if response.status_code == 200:
+        latest_commit = response.json()[0]
+        commit_hash = latest_commit['sha']
+        return commit_hash
+    return "Unknown"
+
+def get_local_commit_hash():
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('utf-8')
+        return commit_hash
+    except Exception as e:
+        logging.error(f"Error getting local commit info", exc_info=e)
+        return "Unknown"
+
+def get_loaded_package_versions() -> dict[str, str]:
+    module_to_dist = importlib.metadata.packages_distributions()
+    
+    package_versions = {}
+    for loaded_module in list(sys.modules.keys()):
+        top_level = loaded_module.split('.')[0]
+        
+        if top_level.startswith('_'):
+            continue
+            
+        dists = module_to_dist.get(top_level)
+        if dists:
+            for dist in dists:
+                if dist not in package_versions:
+                    try:
+                        package_versions[dist] = importlib.metadata.version(dist)
+                    except importlib.metadata.PackageNotFoundError:
+                        pass
+
+    return dict(sorted(package_versions.items()))
+
+def iso_to_unix_timestamp(iso_time_str):
+    try:
+        dt = datetime.fromisoformat(iso_time_str.replace('Z', '+00:00'))
+        return dt
+    except ValueError:
+        return None
+
+def fast_check_note_in_midi(file_path: str = None, file_bytes: bytes = None, note: int = 95) -> bool:
+    # written by gemini because midi is the worst file format ever (mido is slow)
+    data = None
+
+    if file_path:
+        try:
+            with open(file_path, 'rb') as f:
+                data = f.read()
+        except IOError:
+            print(f"Error reading {file_path}")
+            return False
+    
+    if file_bytes is not None:
+        data = file_bytes
+    
+    elif not data:
+        raise ValueError("No file_path or file_bytes provided")
+
+    try:
+        # Check for MThd (Standard MIDI File Header)
+        if data[0:4] != b'MThd':
+            return False
+            
+        # Standard MThd is usually 14 bytes (4 magic, 4 length, 6 data)
+        idx = 14 
+        length = len(data)
+
+        # Iterate through chunks (MTrk)
+        while idx < length:
+            chunk_type = data[idx:idx+4]
+            chunk_len = int.from_bytes(data[idx+4:idx+8], 'big')
+            idx += 8
+            
+            if chunk_type == b'MTrk':
+                track_end = idx + chunk_len
+                status = 0 # Holds the current Running Status
+                
+                while idx < track_end:
+                    # 1. Skip Delta Time (Variable Length Quantity)
+                    # High bit (0x80) indicates another byte follows
+                    while data[idx] & 0x80:
+                        idx += 1
+                    idx += 1 
+                    
+                    if idx >= track_end: 
+                        break
+                    
+                    # 2. Check for Event Status Byte
+                    event_byte = data[idx]
+                    if event_byte & 0x80:
+                        status = event_byte
+                        idx += 1
+                    # If the high bit is 0, it's a "Running Status" 
+                    
+                    if idx >= track_end: 
+                        break
+                    
+                    # 3. Process Event based on Status
+                    event_type = status & 0xF0
+                    
+                    if event_type == 0x90 or event_type == 0x80: 
+                        # Note On (0x90) or Note Off (0x80)
+                        if data[idx] == note:
+                            return True # Short-circuit
+                        idx += 2 # Skip the note and velocity bytes
+                        
+                    elif event_type in (0xA0, 0xB0, 0xE0):
+                        # Aftertouch, Control Change, Pitch Bend (all 2 data bytes)
+                        idx += 2 
+                        
+                    elif event_type in (0xC0, 0xD0):
+                        # Program Change, Channel Pressure (all 1 data byte)
+                        idx += 1 
+                        
+                    elif status == 0xFF: 
+                        # Meta Event
+                        idx += 1 # Skip Meta Type byte
+                        
+                        # Parse VLQ to find the length of the meta event data
+                        vlq_len = 0
+                        while True:
+                            b = data[idx]
+                            idx += 1
+                            vlq_len = (vlq_len << 7) | (b & 0x7F)
+                            if not (b & 0x80): 
+                                break
+                        idx += vlq_len # Jump over the meta text/data
+                        
+                    elif status in (0xF0, 0xF7): 
+                        # SysEx Event
+                        # Parse VLQ to find the length of the SysEx data
+                        vlq_len = 0
+                        while True:
+                            b = data[idx]
+                            idx += 1
+                            vlq_len = (vlq_len << 7) | (b & 0x7F)
+                            if not (b & 0x80): 
+                                break
+                        idx += vlq_len # Jump over the SysEx data
+            else:
+                # If it's a non-MTrk chunk (like proprietary sequencer data), skip it completely
+                idx += chunk_len
+                
+    except IndexError:
+        print(f'midi length is {len(data)}')
+        pass
+        
+    return False

@@ -1,3 +1,4 @@
+from bot.commands.lyricsv2 import LyricParser
 import io
 import os
 from typing import Literal
@@ -56,6 +57,13 @@ class LyricsHandler():
             return
         
         track = matched_tracks[0]
+
+        midi = track['track']['mu']
+        midi_path = await self.midi_tool.save_chart(midi)
+        parser = LyricParser()
+        parser.parse(midi_path)
+
+        return
 
         try:
             if pt == 'No':

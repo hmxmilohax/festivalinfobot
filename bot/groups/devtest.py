@@ -27,8 +27,11 @@ class TestCog(commands.Cog):
     def __init__(self, bot: constants.BotExt):
         self.bot = bot
 
-    # Define the base 'admin' group command
+    # Define the base 'test' group command
     test_group = app_commands.Group(name="test", description="Test commands", guild_only=True, guild_ids=[constants.TEST_GUILD])
+
+    # we RAN OUT of commands???
+    test2_group = app_commands.Group(name="test2", description="Test commands (cont'd)", guild_only=True, guild_ids=[constants.TEST_GUILD])
 
     @test_group.command(name="announcement", description="Announce a message to all subscribed users.")
     @app_commands.describe(message = "A text file. This contains the message content.")
@@ -769,3 +772,11 @@ class TestCog(commands.Cog):
         self.bot.bestsellers_renderer.last_notified_hash = 'test'
 
         await interaction.edit_original_response(content="Done!")
+
+    @test2_group.command(name="packages_versions", description="Lists the versions of the packages used in the bot.")
+    async def packages_versions(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        packages = constants.get_loaded_package_versions()
+        packages_str = "\n".join([f"{package}: {version}" for package, version in packages.items()])
+        await interaction.edit_original_response(attachments=[discord.File(io.BytesIO(packages_str.encode()), 'packages_versions.txt')])

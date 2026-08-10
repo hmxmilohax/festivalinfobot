@@ -8,10 +8,10 @@ import json
 import logging
 import datetime as dt
 from datetime import datetime, timezone, timedelta, time
-from zoneinfo import ZoneInfo
 import os
 import subprocess
 import sys
+import psutil
 import time
 from typing import Literal, Optional, Union
 from discord.ext import commands, tasks
@@ -755,7 +755,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
                         mid_bytes = mid.read()
                         pro_vocals_track = b'PRO VOCALS' in mid_bytes # the easiest way
-                        has_double_kick = search_embed_handler.fast_check_note_95(file_bytes=mid_bytes)
+                        has_double_kick = constants.fast_check_note_in_midi(file_bytes=mid_bytes, note=95)
                         mid.close()
                         if pro_vocals_track:
                             songs_with_pro_vocals.append(t)
@@ -887,39 +887,35 @@ class FestivalTracker(commands.AutoShardedBot):
         async def bot_stats(interaction: discord.Interaction):
             await interaction.response.defer()
 
-            # Get the number of servers the bot is in
             server_count = len(self.guilds)
             channel_count = 0
             users_count = 0
             for guild in self.guilds:
-                served_members = [m for m in guild.members]
-                served_channels = [c for c in guild.channels]
-                channel_count += len(served_channels)
-                users_count += len(served_members)
-            handler = embeds.StatsCommandEmbedHandler()
+                channel_count += len([m for m in guild.members])
+                users_count += len([c for c in guild.channels])
             
-            # Get the bot uptime
             current_time = time.time()
             uptime_seconds = int(current_time - self.start_time)
-            uptime = handler.format_uptime(uptime_seconds)
-            # GitHub
-            remote_url = handler.get_remote_url().replace('.git', '')
-            latest_commit_hash, last_update = handler.fetch_latest_github_commit_hash()
-            # Git (Local)
-            dirtyness, branch_name, local_commit_hash = handler.get_local_commit_hash()
-            # Compare Hashes
-            commit_status = handler.compare_commit_hashes(local_commit_hash, latest_commit_hash)
-            # Timestamps
-            last_update_timestamp = handler.iso_to_unix_timestamp(last_update)
-            if last_update_timestamp:
-                last_update_formatted = discord.utils.format_dt(last_update_timestamp, style="R")  # Use Discord's relative time format
-            else:
-                last_update_formatted = "Unknown"
+            uptime = constants.format_uptime(uptime_seconds)
+            up_since = discord.utils.format_dt(datetime.fromtimestamp(self.start_time), 'R')
+            ping = round(self.latency*1000, 2)
+            last_ready = discord.utils.format_dt(datetime.fromtimestamp(self.connection_time), 'R')
+
+            process = psutil.Process(os.getpid())
+            mem_mb = process.memory_info().rss / (1024 ** 2)
+
+            subscription_users = len(await self.config.subscription_global(operation='get_all_users'))
+            subscription_channels = len(await self.config.subscription_global(operation='get_all_channels'))
+            subscription_total = subscription_users + subscription_channels
+
+            # GitHub Info
+            remote_url = constants.get_remote_url().replace('.git', '')
+            latest_commit_hash = constants.fetch_latest_github_commit_hash()
+            # Git Info (Local)
+            local_commit_hash = constants.get_local_commit_hash()
 
             upstream_commit_url = remote_url + '/commit/' + latest_commit_hash
             local_commit_url = remote_url + '/commit/' + local_commit_hash
-            remote_branch_url = remote_url + '/tree/' + branch_name + '/'
-            # Create an embed to display the statistics
             embed = discord.Embed(
                 title="Festival Tracker Statistics",
                 description="",
@@ -928,17 +924,26 @@ class FestivalTracker(commands.AutoShardedBot):
             embed.add_field(name="Servers", value=f"{server_count} servers", inline=True)
             embed.add_field(name="Channels", value=f"{channel_count} channels", inline=True)
             embed.add_field(name="Users", value=f"{users_count} users", inline=True)
-            embed.add_field(name="Subscriptions", value=f"{len(await self.config.subscription_global(operation='get_all_users'))} users, {len(await self.config.subscription_global(operation='get_all_channels'))} channels", inline=True)
-            embed.add_field(name="Ping", value=f"{round(self.latency*1000, 2)}ms", inline=True)
-            embed.add_field(name="Up Since", value=f"{discord.utils.format_dt(datetime.fromtimestamp(self.start_time), 'R')}", inline=True)
-            embed.add_field(name="Uptime", value=f"{uptime}", inline=False)
-            embed.add_field(name="Latest Upstream Info", value=f"[`{latest_commit_hash[:7]}`]({upstream_commit_url}) {last_update_formatted}", inline=False)
-            embed.add_field(name="Local Commit Info", value=f"[`{branch_name}`]({remote_branch_url}) [`{local_commit_hash[:7]}`]({local_commit_url}) ({commit_status})", inline=False)
-            if len(dirtyness) > 0:
-                embed.add_field(name="Local Changes", value=f"```{dirtyness}```", inline=False)
 
-            view = OneButtonSimpleView(None, interaction.user.id, "Invite Festival Tracker", "🔗", "https://invite.festivaltracker.org", False)
-            view.message = await interaction.original_response()
+            embed.add_field(name="Total Subscriptions", value=f"{subscription_total}", inline=True)
+            embed.add_field(name="Ping", value=f"{ping}ms", inline=True)
+            embed.add_field(name="Mem Usage", value=f"{mem_mb:.2f}MB", inline=True)
+
+            embed.add_field(name="Start Time", value=f"{up_since}", inline=True)
+            embed.add_field(name="Last READY", value=f"{last_ready}", inline=True)
+            embed.add_field(name="Uptime", value=f"{uptime}", inline=True)
+
+            embed.add_field(name="Upstream Commit", value=f"[`{latest_commit_hash}`]({upstream_commit_url})", inline=False)
+            embed.add_field(name="Local Commit", value=f"[`{local_commit_hash}`]({local_commit_url})", inline=False)
+
+            invite_button = discord.ui.Button(
+                label="Invite Festival Tracker",
+                style=discord.ButtonStyle.link,
+                url="https://invite.festivaltracker.org",
+                emoji="🔗"
+            )
+            view = discord.ui.View()
+            view.add_item(invite_button)
 
             await interaction.edit_original_response(embed=embed, view=view)
 
