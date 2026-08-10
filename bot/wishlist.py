@@ -94,17 +94,6 @@ class WishlistManager():
 
         # handle everything again but this time for shop
 
-
-
-
-
-
-
-
-
-
-
-
         logging.debug(f'[GET] {constants.FN_CATALOG}')
         headers = {
             'Authorization': self.bot.oauth_manager.session_token
@@ -161,7 +150,6 @@ class WishlistManager():
                         bundle_with_track = bundle
                         break
 
-            print(bundle_with_track)
 
             track_not_in_shop = (shop_entry is None) and (bundle_with_track is None)
             # the track is NOT in the current shop
@@ -324,7 +312,6 @@ class WishlistManager():
         if first_time:
             await interaction.response.defer()
 
-        print('trigger')
         all_tracks = constants.get_jam_tracks(use_cache=True, max_cache_age=60)
 
         view = discord.ui.LayoutView(timeout=60)

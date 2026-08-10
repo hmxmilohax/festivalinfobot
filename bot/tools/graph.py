@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import discord
@@ -30,6 +31,23 @@ fm.fontManager.addfont(font_path)
 
 plt.rcParams['font.family'] = font_name
 
+event_map = {
+    'intro': 'Intro',
+    'verse': 'Verse',
+    'build': 'Build',
+    'chorus': 'Chorus',
+    'prechorus': 'Pre-Chorus',
+    'breakdown': 'Breakdown',
+    'bridge': 'Bridge',
+    'drop': 'Drop',
+    'solo_guitar': 'Guitar Solo',
+    'solo_bass': 'Bass Solo',
+    'solo_drums': 'Drum Solo',
+    'solo_vocals': 'Vocal Solo',
+    'solo_keys': 'Keyboard Solo',
+    'outro': 'Outro',
+}
+
 def tile_image(fig: matplotlib.figure.Figure, target_dpi=300):
     from PIL import Image
     img = mpimg.imread('bot/data/Logo/Festival_Tracker_Fuser_sat.png')
@@ -55,6 +73,9 @@ class GraphingFuncs():
 
     def generate_nps_chart(self, midi_path : str, path : str, inst : const.Instrument, diff : const.Difficulty, song_name, song_artist):
         _notes = MidiToObj().midi_to_object(midi_file_path=midi_path)
+
+        with open('notes_test.json', 'w') as f:
+            json.dump(_notes, f, indent=4)
 
         instrument_idx = 0
         for i, track in enumerate(_notes['tracks']):
@@ -85,6 +106,37 @@ class GraphingFuncs():
         max_nps = max(notes_per_second)
         max_nps_second = seconds[notes_per_second.index(max_nps)]
 
+        # plot the sub section markers
+        section_track = discord.utils.find(lambda t: t['name'] == 'SECTION', _notes['tracks'])
+        section_marker_events = section_track['events']
+        # subdivide by the note markers
+        section_sub_markers = list(filter(lambda n: n['note'] == 10, section_track['notes']))
+
+        marker_times: list[dict] = []
+
+        for mk in section_marker_events:
+            start_time = mk['time']
+            
+            next_marker = discord.utils.find(lambda m: m['time'] > mk['time'], section_marker_events)
+            if not next_marker:
+                end_time = float('inf')
+            else:
+                end_time = next_marker['time']
+
+            # find all sub_markers within the time frame of mk['time'] and the next sub_marker
+            related_sub_markers = list(filter(lambda sm: sm['start_time'] >= start_time and sm['start_time'] < end_time, section_sub_markers))
+
+            for idx, sm in enumerate(related_sub_markers):
+                cur_sub_start = sm['start_time']
+
+                sub_key = mk['text'][1:-1]
+                sub_name = event_map.get(sub_key, sub_key)
+                if len(related_sub_markers) > 1:
+                    sub_name += f" {chr(ord('A') + idx)}"
+                marker_times.append({'name': sub_name, 'time': cur_sub_start})
+
+        # print(marker_times)
+
         window_size = 10
         df = pd.DataFrame({'nps': notes_per_second}, index=seconds)
         ema = df['nps'].ewm(span=window_size, adjust=False).mean()
@@ -95,24 +147,95 @@ class GraphingFuncs():
         tile_image(fig, dpi)
 
         # Plot the original notes per second
-        plt.plot(seconds, notes_per_second, color='black', linestyle='-', linewidth=1, label='Notes per second')
+        plt.step(seconds, notes_per_second, color='black', linestyle='-', linewidth=0.5, label='Notes per second')
 
         # Plot the EMA
         plt.plot(ema.index, ema.values, color='purple', linestyle='--', linewidth=1, label='EMA (Average)')
 
-        # max notes per second
-        mxnps = plt.text(max_nps_second, max_nps, f'{max_nps}', color='red', fontsize=15, ha='center', va='bottom')
-        mxnps.set_path_effects([
-            path_effects.Stroke(linewidth=5, foreground='white'), path_effects.Normal()
-        ])
+        angle = 0 if len(marker_times) <= 15 else 45
+        alignment = 'center' if len(marker_times) <= 15 else 'left'
+        top_y = 1.04 if len(marker_times) <= 15 else 1.2
+        pad = 30 if len(marker_times) <= 15 else 55
+
+        for marker in marker_times:
+            t = marker['time'] / 1000
+            name = marker['name']
+
+            ax.axvline(x=t, color='black', linestyle=':', linewidth=0.75, zorder=1, alpha=0.3)
+
+            ax.text(
+                x=t, 
+                y=1.01,
+                s=name, 
+                transform=ax.get_xaxis_transform(),
+                rotation=angle,
+                ha=alignment,
+                va='bottom', 
+                fontsize=6,
+                color='black',
+            )
+
+        # # max notes per second
+        # mxnps = plt.text(max_nps_second, max_nps, f'{max_nps}', color='red', fontsize=15, ha='center', va='bottom')
+        # mxnps.set_path_effects([
+        #     path_effects.Stroke(linewidth=5, foreground='white'), path_effects.Normal()
+        # ])
+
+        ax.plot(
+            [max_nps_second, max_nps_second],
+            [0, top_y],
+            color="red",
+            linewidth=0.5,
+            transform=ax.get_xaxis_transform(),
+            clip_on=False,
+            alpha=0.5,
+            linestyle='--',
+            zorder=3,
+        )
+
+        mxnps = ax.text(
+            x=max_nps_second,
+            y=top_y,
+            s=f"{max_nps}",
+            color="red",
+            fontsize=15,
+            ha="center",
+            va="bottom",
+            fontweight="bold",
+            transform=ax.get_xaxis_transform(),
+            zorder=4,
+            clip_on=False,
+        )
+
+        # Add outline effect so it pops over the background canvas
+        mxnps.set_path_effects(
+            [
+                path_effects.Stroke(linewidth=2, foreground="white"),
+                path_effects.Normal(),
+            ]
+        )
 
         plt.xlabel('Time (seconds)')
         plt.ylabel('Notes per second')
-        plt.title(f'{diff.english} {inst.english} NPS [{song_name}]')
+        title_obj = ax.set_title(f'{diff.english} {inst.english} NPS [{song_name}]', pad=(pad - 12))
+
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        title_bbox = title_obj.get_window_extent(renderer=renderer)
+        mxnps_bbox = mxnps.get_window_extent(renderer=renderer)
+        x_overlap = (title_bbox.x0 <= mxnps_bbox.x1) and (
+            title_bbox.x1 >= mxnps_bbox.x0
+        )
+        y_overlap = (title_bbox.y0 <= mxnps_bbox.y1) and (
+            title_bbox.y1 >= mxnps_bbox.y0
+        )
+        if x_overlap and y_overlap:
+            # reset pad
+            ax.set_title(f"{diff.english} {inst.english} NPS [{song_name}]", pad=pad)
 
         plt.xticks(np.arange(min(seconds), max(seconds)+1, 10))
         plt.xticks(rotation=90)
-        plt.grid(axis='y')
+        plt.grid(axis='y', alpha=0.2)
 
         plt.legend()
 
@@ -490,7 +613,7 @@ class MidiToObj():
                     })
 
                 # If a note starts playing, write it down
-                if msg.type == 'note_on':
+                if msg.type == 'note_on' and msg.velocity > 0:
                     # Get the time in beats and increment the value
 
                     # Tempo of note
@@ -521,7 +644,7 @@ class MidiToObj():
 
                     #time.sleep(0.1)
                     
-                elif msg.type == 'note_off':
+                elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
                     # Get the note_on event
                     note_on_event = active_notes.pop(msg.note, None)
 
