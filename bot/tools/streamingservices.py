@@ -317,7 +317,7 @@ class StreamingServicesManager:
 
                         current_row.add_item(
                             discord.ui.Button(
-                                emoji=self.emojis_per_distributor[provider],
+                                emoji=self.emojis_per_distributor.get(provider, '<:music:1539115077028937738>'),
                                 url=provider_url,
                                 style=discord.ButtonStyle.link
                             )
@@ -488,7 +488,7 @@ class StreamingServicesManager:
 
                 current_row.add_item(
                     discord.ui.Button(
-                        emoji=self.emojis_per_distributor[provider],
+                        emoji=self.emojis_per_distributor.get(provider, '<:music:1539115077028937738>'),
                         url=provider_url,
                         style=discord.ButtonStyle.link
                     )
