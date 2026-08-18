@@ -359,6 +359,22 @@ class StreamingServicesManager:
                         "-# Festival Tracker"
                     )
                 )
+            else:
+                view = discord.ui.LayoutView(timeout=None)
+                container.accent_colour = constants.ERROR_COLOUR
+                container.add_item(
+                    discord.ui.Section(
+                        discord.ui.TextDisplay(f"## Stream Track"),
+                        discord.ui.TextDisplay(f"**{track['track']['tt']}**\n*{track['track']['an']}*"),
+                        discord.ui.TextDisplay(
+                            f"{constants.ERROR_EMOJI} **Weird...** We can't seem to find any streaming links for this track."
+                        ),
+                        accessory=discord.ui.Thumbnail(
+                            track['track']['au']
+                        )
+                    )
+                )
+                view.add_item(container)
         else:
             view = discord.ui.LayoutView(timeout=None)
             container.accent_colour = constants.ERROR_COLOUR
