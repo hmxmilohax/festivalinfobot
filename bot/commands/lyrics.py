@@ -63,7 +63,7 @@ class LyricsHandler():
         parser = LyricParser()
         parser.parse(midi_path)
 
-        return
+        # return
 
         try:
             if pt == 'No':
