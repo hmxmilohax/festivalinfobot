@@ -1,5 +1,4 @@
 from aiohttp import client_exceptions
-from bot.tools.brand import make_discord_pfp
 import mido
 import asyncio
 import json
