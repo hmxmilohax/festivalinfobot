@@ -159,6 +159,6 @@ class ActionSelect(discord.ui.DynamicItem[discord.ui.Select], template=r'actionm
             # import here to avoid circular import
             from bot.tools.streamingservices import StreamingServicesManager
             streaming_services_manager = StreamingServicesManager()
-            await streaming_services_manager.handle_interaction(interaction, chosen_metadata)
+            await streaming_services_manager.handle_track_interaction(interaction, chosen_metadata, private=True)
         else:
             await interaction.response.send_message(content=f'Invalid action {chosen_action} v{chosen_action_version}.')

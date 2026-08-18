@@ -60,6 +60,7 @@ SPOTIFY_CLIENT_ID: str = config.get('bot', 'spotify_api_client')
 SPOTIFY_CLIENT_PASS: str = config.get('bot', 'spotify_api_secret')
 
 GITHUB_PAT: str = config.get('bot', 'github_pat')
+ODESLI_API_KEY: str = config.get('bot', 'odesli_api_key')
 
 EPIC_ACCOUNT_ID: str = config.get('bot', 'epic_account_id')
 EPIC_DEVICE_ID: str = config.get('bot', 'epic_device_id')
@@ -90,6 +91,9 @@ SEASONS = {
     15: 'season015'
 }
 SEASON_NUMBER = 15
+
+ERROR_COLOUR = 0xbe2625
+SUCCESS_COLOUR = 0x3AB00B
 
 keyart_config = ConfigParser()
 keyart_config.read('bot/data/KeyArt/KeyArtOptions.ini')

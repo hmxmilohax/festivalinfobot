@@ -1,3 +1,5 @@
+from bot.tools.streamingservices import StreamingViewButton
+from bot.tools.streamingservices import StreamingServicesManager
 from bot.views.votebutton import UpdateVotesButton
 from bot.views.votebutton import VoteButton
 from bot.embeds import SearchEmbedHandler
@@ -104,6 +106,7 @@ class FestivalTracker(commands.AutoShardedBot):
         self.add_dynamic_items(ActionSelect)
         self.add_dynamic_items(VoteButton)
         self.add_dynamic_items(UpdateVotesButton)
+        self.add_dynamic_items(StreamingViewButton)
 
         @constants.register_task(minutes=1.0, name="Bestsellers")
         async def bestsellers_cacher_task():
@@ -1072,6 +1075,14 @@ class FestivalTracker(commands.AutoShardedBot):
         async def lyrics_command(interaction: discord.Interaction, song: str, plaintext: Literal['No', 'Yes', 'Yes (Include Overdrive)'] = 'No', style: Literal['Legacy', 'Stable'] = 'Stable'):
             lyrics_handler = LyricsHandler()
             await lyrics_handler.handle_interaction(interaction, song, pt=plaintext, style=style)
+
+        @self.tree.command(name="stream", description="Get links to stream a Jam Track on supported services.")
+        @app_commands.describe(track = "A search query: an artist, song name, or shortname.")
+        @app_commands.allowed_installs(guilds=True, users=True)
+        @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+        async def streaming_command(interaction: discord.Interaction, track: str):
+            streaming_handler = StreamingServicesManager()
+            await streaming_handler.handle_track_interaction(interaction, track, private=False)
 
     async def setup_cogs(self):
         test_cog = TestCog(self)
