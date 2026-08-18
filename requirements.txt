@@ -12,3 +12,4 @@ cloudscraper
 beautifulsoup4
 pycountry
 playwright
+psutil
