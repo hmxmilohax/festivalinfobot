@@ -513,7 +513,7 @@ class StreamingViewButton(discord.ui.DynamicItem[discord.ui.Button], template=r'
     def __init__(self, view_type: str, track_shortname: str, user_id: int, version: str = '1', spotify_id: str = None) -> None:
         super().__init__(
             discord.ui.Button(
-                label='View Album' if view_type == "t" else "View Track",
+                label='View Album' if view_type == "a" else "View Track",
                 style=discord.ButtonStyle.secondary,
                 custom_id=f'strm:{view_type}:{version}:{track_shortname}:{user_id}:{spotify_id}',
                 emoji='<:music:1539115077028937738>',
