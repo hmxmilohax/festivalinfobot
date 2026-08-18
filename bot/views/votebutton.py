@@ -67,7 +67,10 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vote:(?P<
                 chid = interaction.channel.id
                 guid = interaction.guild.id
 
-            within_new_until = datetime.now(tz=timezone.utc) < datetime.fromisoformat(track_data['track']['nu'])
+            try:
+                within_new_until = datetime.now(tz=timezone.utc) < datetime.fromisoformat(track_data['track']['nu'])
+            except:
+                within_new_until = False
 
             # check if user has voted
             try:
