@@ -267,7 +267,7 @@ class SearchCommandHandler:
         view.message = message
         await message.edit(embed=embed, view=view)
 
-    async def handle_interaction(self, interaction: discord.Interaction, query:str, detail: bool = False):
+    async def handle_interaction(self, interaction: discord.Interaction, query:str, advanced: bool = False):
         await interaction.response.defer() # edit_original_response
 
         # meow case for im a cat
@@ -298,7 +298,7 @@ class SearchCommandHandler:
         else:
             track = matched_tracks[0]
 
-        embed = await self.embed_handler.generate_track_embed(track, is_detail=detail)
+        embed = await self.embed_handler.generate_track_embed(track, is_detail=advanced)
         constants.add_fields(track, embed, weekly_tracks, shop_tracks)
 
         view = ActionView(self.bot, track, user_id=interaction.user.id)

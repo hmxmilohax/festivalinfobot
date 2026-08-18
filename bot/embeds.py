@@ -125,28 +125,6 @@ class SearchEmbedHandler:
         # if gameplay_tags and not is_detail:
         #     embed.add_field(name="Gameplay Tags", value=', '.join(gameplay_tags), inline=True)
 
-        if is_detail:
-            embed.add_field(name="Animation Genre", value=track.get('ag', 'N/A'), inline=True)
-            embed.add_field(name="Stage Mood", value=track.get('sm', 'N/A'), inline=True)
-            embed.add_field(name="Streaming Data", value='```' + track.get('qi', 'N/A') + '```', inline=False)
-
-            sib = track.get('sib', "N/A")
-            sid = track.get('sid', "N/A")
-            siv = track.get('siv', "N/A")
-            sig = track.get('sig', "N/A")
-
-            embed.add_field(name="Starting Instruments", value="```" +
-                            f"{sib = }\n" +
-                            f"{sid = }\n" +
-                            f"{siv = }\n" +
-                            f"{sig = }```", inline=False)
-
-            embed.add_field(name="MIDI Url", value=track.get('mu', 'N/A'), inline=False)
-            embed.add_field(name="Lip Sync Asset Url", value=track.get('ld', 'N/A'), inline=False)
-            embed.add_field(name="Leaderboard Event ID", value='`' + track.get('su', 'N/A') + '`', inline=False)
-            
-            embed.add_field(name="Rating", value=f"`{track.get('ar', 'N/A')}`", inline=True)
-
         # average diff
         difficulties_array = [
             vocals_diff, guitar_diff,
@@ -193,6 +171,9 @@ class SearchEmbedHandler:
         doublekick_status = ""
         if has_double_kick:
             doublekick_status = "· Double Kick Supported"
+
+        if is_detail:
+            embed.add_field(name="Raw Data", value=json.dumps(track, indent=2))
 
         embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} {doublekick_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         

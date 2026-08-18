@@ -637,9 +637,9 @@ class FestivalTracker(commands.AutoShardedBot):
         @app_commands.allowed_installs(guilds=True, users=True)
         @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
         @app_commands.describe(query = "A search query: an artist, song name, or shortname.")
-        @app_commands.describe(detail = "Whether to show extra information about the track.")
-        async def search_command(interaction: discord.Interaction, query:str, detail:bool = False):
-            await self.search_handler.handle_interaction(interaction=interaction, query=query, detail=detail)
+        @app_commands.describe(advanced = "Whether to show extra information about the track.")
+        async def search_command(interaction: discord.Interaction, query:str, advanced:bool = False):
+            await self.search_handler.handle_interaction(interaction=interaction, query=query, advanced=advanced)
 
         @self.tree.command(name="weekly", description="Display the tracks currently in weekly rotation.")
         @app_commands.allowed_installs(guilds=True, users=True)
