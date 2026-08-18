@@ -140,7 +140,7 @@ PRO_KEYTAR_EMOJI = '<:prokeyar:1349038526968102993>'
 # [14] olivia rodrigo   (246, 192, 215)
 # [15] lil tecca        (45, 52, 80)
 # [15] addiSON rae      (251, 131, 202)
-SEASON_COLOUR = (251, 131, 202)
+SEASON_COLOUR = (45, 52, 80)
 
 # DO NOT USE
 SEASON_COLOUR_COPY = tuple(c for c in SEASON_COLOUR)
