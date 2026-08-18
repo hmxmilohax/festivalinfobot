@@ -28,13 +28,7 @@ RUN playwright install --with-deps chromium
 
 COPY . .
 
-RUN chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt.sh \
-    && chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt \
-    && chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt/1/CHOpt.sh \
-    && chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt/1/CHOpt \
-    && chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt/2/CHOpt.sh \
-    && chmod +x bot/data/Binaries/Linux/CHOpt/CHOpt/2/CHOpt \
-    && chmod +x bot/data/Binaries/Linux/FFmpeg/bin/ffmpeg \
-    && chmod +x bot/data/Binaries/Linux/FFmpeg/bin/ffprobe
+RUN find bot/data/Binaries/Linux/CHOpt/ bot/data/Binaries/Linux/FFmpeg/bin/ \
+    -type f \( -name "*.sh" -o -not -name "*.*" \) -exec chmod +x {} +
 
 CMD ["python", "festivalinfobot.py"]
