@@ -36,7 +36,7 @@ class TestCog(commands.Cog):
 
     @test_group.command(name="announcement", description="Announce a message to all subscribed users.")
     @app_commands.describe(message = "A text file. This contains the message content.")
-    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None, feed: Literal["added", "modified", "removed", "announcements"] = None) : # type: ignore
+    async def test_command(self, interaction: discord.Interaction, message: discord.Attachment, image: discord.Attachment = None, feed: Literal["added", "modified", "removed", "announcements", "best_sellers"] = None) : # type: ignore
         if not (interaction.user.id in constants.BOT_OWNERS):
             await interaction.response.send_message(content="You are not authorized to run this command.", ephemeral=True)
             return
