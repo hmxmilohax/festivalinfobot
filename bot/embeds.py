@@ -173,7 +173,14 @@ class SearchEmbedHandler:
             doublekick_status = "· Double Kick Supported"
 
         if is_detail:
-            embed.add_field(name="Raw Data", value=json.dumps(track, indent=2))
+            raw_str = json.dumps(track, indent=2)
+            # Wrap in codeblock if possible or chunk into max 1024 chars per field value
+            # Note: Discord field value max length is 1024 characters.
+            chunk_size = 1000
+            chunks = [raw_str[i:i + chunk_size] for i in range(0, len(raw_str), chunk_size)]
+            for idx, chunk in enumerate(chunks):
+                field_name = "Raw Data" if idx == 0 else f"Raw Data (Cont. {idx + 1})"
+                embed.add_field(name=field_name, value=f"```json\n{chunk}\n```", inline=False)
 
         embed.set_footer(text=f"Festival Tracker · ESRB {rating_description} {doublekick_status}", icon_url=f"https://festivaltracker.org/assets/img/rating/{rating}.png")
         
