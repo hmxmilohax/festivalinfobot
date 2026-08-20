@@ -206,8 +206,8 @@ class LyricParser:
             marker_name = re.search(r"\[(.*?)\]", section['marker']).group(1)
 
             for sub_section in section['sub_sections']:
-                letter = ['A', 'B', 'C', 'D', 'E', 'F']
-                sentences.append(f"\n\n{marker_name} {letter[sub_section['index']]}\n")
+                letter = chr(ord('A') + sub_section['index'])
+                sentences.append(f"\n\n{marker_name} {letter}\n")
 
                 for phrase in sub_section['phrases']:
                     sentence_text = ''
