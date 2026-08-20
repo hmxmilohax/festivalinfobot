@@ -223,6 +223,7 @@ class BestsellersRenderer:
                     'SparksBass',
                     'SparksMicrophone',
                     'SparksKeytar',
+                    'SparksKeyboard',
                     'SparksDrums',
                     'SparksAura',
                     'SparksDrum', # for good measure
@@ -235,6 +236,7 @@ class BestsellersRenderer:
                     'SparksGuitar': 'Guitar',
                     'SparksBass': 'Bass',
                     'SparksKeytar': 'Keytar',
+                    'SparksKeyboard': 'Keytar',
                     'SparksDrums': 'Drums',
                     'SparksAura': 'Aura',
                     'SparksDrum': 'Drums',
