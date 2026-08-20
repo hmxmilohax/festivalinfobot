@@ -534,7 +534,7 @@ class Config:
             
             # if user has not accepted both policies, do not add vote.
             if not row or not (row[0] and row[1]):
-                raise PolicyException(f"Please accept the privacy policy and terms of service to vote for songs. You can do this with /help.")
+                raise PolicyException(f"Please accept the privacy policy and terms of service to vote for songs. You can do this with /agreements.")
 
             if shortname is None:
                 shortname = kwargs.get('shortname')
