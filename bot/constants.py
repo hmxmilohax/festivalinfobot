@@ -700,7 +700,7 @@ def get_jam_tracks(use_cache: bool = False, max_cache_age: int = 300):
             data = JAM_TRACK_CACHE
             logging.debug('[JTC] Using cached data')
         else:
-            response = requests.get(content_url)
+            response = requests.get(content_url, timeout=10)
             response.raise_for_status()
             data = response.json()
             
