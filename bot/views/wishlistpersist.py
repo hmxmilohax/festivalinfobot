@@ -34,7 +34,8 @@ class WishlistButton(discord.ui.DynamicItem[discord.ui.Button], template=r'wishl
         title = track['track']['tt'] 
         artist = track['track']['an']
 
-        user = interaction.client.get_user(self.user_id)
+        user = await interaction.client.fetch_user(self.user_id)
+        print(user)
 
         if not user:
             await interaction.edit_original_response(embed=constants.common_error_embed("User not found."))

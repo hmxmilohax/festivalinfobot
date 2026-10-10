@@ -20,6 +20,28 @@ class WishlistManager():
         self.daily_handler = DailyCommandHandler(self.bot)
         self.shop_handler = ShopCommandHandler(self.bot)
 
+    async def do_the_entire_work_for_me_please(self, user_id: int) -> discord.DMChannel | None:
+        dm_channel_id = await self.config.user_sub_dm_ch_id(operation='get', user=discord.Object(user_id))
+        if dm_channel_id:
+            return self.bot.get_partial_messageable(dm_channel_id)
+
+        try:
+            user = await self.bot.fetch_user(user_id)
+            user_dm_channel = await user.create_dm()
+            dm_channel = self.bot.get_partial_messageable(user_dm_channel.id)
+
+            await self.config.user_sub_dm_ch_id(operation='add', user=user, channel_id=dm_channel.id)
+            logging.info(f"Added dm channel for user {user.id} ({dm_channel.id})")
+
+            return dm_channel
+
+        except discord.NotFound:
+            return None
+        except discord.HTTPException as e:
+            logging.error(f"HTTPException when fetching user {user_id}, skipping.", exc_info=e)
+        except Exception as e:
+            logging.error(f"Unexpected error when fetching user {user_id}, skipping.", exc_info=e)
+
     async def handle_wishlists(self):
         all_wishlists: list[database.WishlistEntry] = await self.config.wishlist('get_all')
         logging.info('Processing wishlists...')
@@ -52,10 +74,10 @@ class WishlistManager():
                         text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
                     )
 
-                    user = self.bot.get_user(entry.user.id)
-                    if user:
+                    dm_channel = await self.do_the_entire_work_for_me_please(entry.user.id)
+                    if dm_channel:
                         try:
-                            await user.send(embed=embed)
+                            await dm_channel.send(embed=embed)
                         except Exception as e:
                             logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
@@ -85,10 +107,10 @@ class WishlistManager():
                 text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
             )
 
-            user = self.bot.get_user(entry.user.id)
-            if user:
+            dm_channel = await self.do_the_entire_work_for_me_please(entry.user.id)
+            if dm_channel:
                 try:
-                    await user.send(embed=embed)
+                    await dm_channel.send(embed=embed)
                 except Exception as e:
                     logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
@@ -185,10 +207,10 @@ class WishlistManager():
                         text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
                     )
 
-                    user = self.bot.get_user(entry.user.id)
-                    if user:
+                    dm_channel = await self.do_the_entire_work_for_me_please(entry.user.id)
+                    if dm_channel:
                         try:
-                            await user.send(embed=embed)
+                            await dm_channel.send(embed=embed)
                         except Exception as e:
                             logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
@@ -297,10 +319,10 @@ class WishlistManager():
                 text=f"You wishlisted this item on {entry.created_at.strftime('%B %d, %Y at %H:%M:%S')}. · Festival Tracker",
             )
 
-            user = self.bot.get_user(entry.user.id)
-            if user:
+            dm_channel = await self.do_the_entire_work_for_me_please(entry.user.id)
+            if dm_channel:
                 try:
-                    await user.send(embed=embed)
+                    await dm_channel.send(embed=embed)
                 except Exception as e:
                     logging.error("Cannot notify wishlist ocurrence", exc_info=e)
 
