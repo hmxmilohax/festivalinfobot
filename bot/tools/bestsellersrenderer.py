@@ -507,7 +507,8 @@ class BestsellersRenderer:
             await self.capture_renderer_screenshot(auto=True)
 
             if channel:
-                await channel.send(file=discord.File(constants.CACHE_FOLDER + "bestsellers.png"))
+                await channel.send(content="<@&1449981375166812355>",
+                file=discord.File(constants.CACHE_FOLDER + "bestsellers.png"))
 
             self.last_best_sellers_hash = best_sellers_hash
             try:
