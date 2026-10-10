@@ -226,15 +226,26 @@ class FestivalTracker(commands.AutoShardedBot):
 
         self.bot_is_ready = True
 
-    async def on_reaction_add(self, reaction, user):
-        if user.bot:
+    async def on_raw_reaction_add(self, payload):
+        # 1. Ignore reactions added by the bot itself
+        if payload.user_id == self.user.id:
             return
 
-        if reaction.message.guild is not None:
+        # 2. Ignore reactions in servers (guild_id will be None for DMs)
+        if payload.guild_id is not None:
             return
 
-        if reaction.message.author == self.user:
-            await constants.msg_log(self, f"{user.name} ({user.id}) reacted with {reaction.emoji} to the bot's message!")
+        # 3. Fetch the DM channel and message to verify the bot sent it
+        try:
+            channel = self.get_channel(payload.channel_id) or await self.fetch_channel(payload.channel_id)
+            message = await channel.fetch_message(payload.message_id)
+        except discord.HTTPException:
+            return  # Message or channel couldn't be fetched
+
+        # 4. Check if the message was sent by your bot
+        if message.author == self.user:
+            emoji = payload.emoji
+            await constants.msg_log(self, f"User ID {payload.user_id} reacted with {emoji} to the bot's DM message!")
 
     async def on_shard_connect(self, shard_id: int):
         await constants.msg_log(self, f"Shard {shard_id} connected")
