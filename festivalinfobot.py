@@ -230,6 +230,9 @@ class FestivalTracker(commands.AutoShardedBot):
         if user.bot:
             return
 
+        if reaction.message.guild is not None:
+            return
+
         if reaction.message.author == self.user:
             await constants.msg_log(self, f"{user.name} ({user.id}) reacted with {reaction.emoji} to the bot's message!")
 
