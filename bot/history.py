@@ -596,10 +596,17 @@ class LoopCheckHandler():
                 #     except Exception as e:
                 #         logging.error(f"Unexpected error when fetching channel {channel_to_send.id}, skipping.", exc_info=e)
             elif channel_to_send.type == 'user':
-                channel = self.bot.get_user(channel_to_send.id)
+                dm_channel_id = getattr(channel_to_send, 'dm_channel_id', None)
+                if dm_channel_id:
+                    channel = self.bot.get_partial_messageable(dm_channel_id)
+                else:
+                    channel = None
+
                 if not channel:
                     try:
-                        channel = await self.bot.fetch_user(channel_to_send.id)
+                        user = await self.bot.fetch_user(channel_to_send.id)
+                        dm_channel = await user.create_dm()
+                        channel = self.bot.get_partial_messageable(dm_channel.id)
                     except discord.NotFound:
                         channel = None
                     except discord.HTTPException as e:

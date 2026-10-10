@@ -193,20 +193,20 @@ class FestivalTracker(commands.AutoShardedBot):
         uptime = datetime.now() - datetime.fromtimestamp(self.connection_time)
         await constants.msg_log(self, f"Ready in {uptime.seconds}s")
 
-        await constants.msg_log(self, f"Beginning to make USER SUBS to DM CH ID connections.")
-        dm_subs = await self.config.subscription_global(operation="get_all_users")
-        for user in dm_subs:
-            try:
-                uid = user.id
-                await constants.msg_log(self, f"Fetching user object for {uid}.")
-                user_obj = await self.fetch_user(uid)
-                await constants.msg_log(self, f"Creating DM channel for {uid}.")
-                dm_channel = await user_obj.create_dm()
-                await constants.msg_log(self, f"DM Channel ID {dm_channel.id} for {uid} is being saved...")
-                await self.config.user_sub_dm_ch_id(operation='add', user=user_obj, channel_id=dm_channel.id)
-            except Exception as e:
-                await constants.msg_log(self, f"There is an issue with {uid}. Exception: {e}")
-                logging.error("Could not create DM channel for user", exc_info=e)
+        # await constants.msg_log(self, f"Beginning to make USER SUBS to DM CH ID connections.")
+        # dm_subs = await self.config.subscription_global(operation="get_all_users")
+        # for user in dm_subs:
+        #     try:
+        #         uid = user.id
+        #         await constants.msg_log(self, f"Fetching user object for {uid}.")
+        #         user_obj = await self.fetch_user(uid)
+        #         await constants.msg_log(self, f"Creating DM channel for {uid}.")
+        #         dm_channel = await user_obj.create_dm()
+        #         await constants.msg_log(self, f"DM Channel ID {dm_channel.id} for {uid} is being saved...")
+        #         await self.config.user_sub_dm_ch_id(operation='add', user=user_obj, channel_id=dm_channel.id)
+        #     except Exception as e:
+        #         await constants.msg_log(self, f"There is an issue with {uid}. Exception: {e}")
+        #         logging.error("Could not create DM channel for user", exc_info=e)
 
         restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
         if restart_arg:

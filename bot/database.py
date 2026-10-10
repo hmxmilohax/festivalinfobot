@@ -91,9 +91,10 @@ class SubscriptionChannel(SubscriptionObject):
         self.type = 'channel'
 
 class SubscriptionUser(SubscriptionObject):
-    def __init__(self, uid, events) -> None:
+    def __init__(self, uid, events, dm_channel_id: int) -> None:
         self.id = uid
         self.events = events
+        self.dm_channel_id = dm_channel_id
         self.type = 'user'
 
 class WishlistEntry():
@@ -286,7 +287,20 @@ class Config:
                     if row:
                         user_id, events_str = row
                         events = events_str.split(',')
-                        return SubscriptionUser(int(user_id), events)
+                        
+                        
+                        dm_channel_id = None
+                        row = await self.db.execute(
+                            "SELECT dm_channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
+                            (str(user_id),)
+                        )
+                        if row:
+                            row = await row.fetchone()
+                            if row:
+                                dm_channel_id = int(row[0])
+
+                                
+                        return SubscriptionUser(int(user_id), events, dm_channel_id)
                     return None
             elif operation == 'edit':
                 events = kwargs.get('events', [])
@@ -373,7 +387,18 @@ class Config:
                     for row in rows:
                         user_id, events_str = row
                         events = events_str.split(',')
-                        users.append(SubscriptionUser(int(user_id), events))
+
+                        dm_channel_id = None
+                        row = await self.db.execute(
+                            "SELECT dm_channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
+                            (str(user_id),)
+                        )
+                        if row:
+                            row = await row.fetchone()
+                            if row:
+                                dm_channel_id = int(row[0])
+
+                        users.append(SubscriptionUser(int(user_id), events, dm_channel_id))
                     return users
             elif operation == 'delete_channels_with_query':
                 query = kwargs.get('query')
