@@ -226,6 +226,13 @@ class FestivalTracker(commands.AutoShardedBot):
 
         self.bot_is_ready = True
 
+    async def on_reaction_add(self, reaction, user):
+        if user.bot:
+            return
+
+        if reaction.message.author == self.user:
+            await constants.msg_log(self, f"{user.name} ({user.id}) reacted with {reaction.emoji} to the bot's message!")
+
     async def on_shard_connect(self, shard_id: int):
         await constants.msg_log(self, f"Shard {shard_id} connected")
 
