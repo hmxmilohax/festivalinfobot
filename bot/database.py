@@ -135,6 +135,13 @@ class Config:
                 );
             ''')
             await self.db.execute('''
+                CREATE TABLE IF NOT EXISTS user_sub_dm_ch_ids (
+                    user_id TEXT,
+                    channel_id TEXT ,
+                    PRIMARY KEY (user_id, channel_id)
+                );
+            ''')
+            await self.db.execute('''
                 CREATE TABLE IF NOT EXISTS wishlists (
                     user_id TEXT,
                     shortname TEXT,
@@ -304,6 +311,34 @@ class Config:
                             "INSERT INTO user_subscriptions (user_id, events) VALUES (?, ?)",
                             (str(user.id), ",".join(events))
                         )
+                    await self.db.commit()
+            return None
+
+    @overload
+    async def user_sub_dm_ch_id(self, operation: Literal['get'], user: discord.User | discord.Object | str) -> str | None: ...
+
+    @overload
+    async def user_sub_dm_ch_id(self, operation: Literal['add'], user: discord.User | discord.Object | str, channel_id: int) -> None: ...
+
+    async def user_sub_dm_ch_id(self, operation: Literal['get', 'add'], user: discord.User | discord.Object | str, **kwargs) -> str | None:
+        async with self.lock:
+            user_id = user if isinstance(user, str) else str(user.id)
+            if operation == 'get':
+                async with self.db.execute(
+                    "SELECT channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
+                    (user_id,)
+                ) as cursor:
+                    row = await cursor.fetchone()
+                    if row:
+                        return row[0]
+                    return None
+            elif operation == 'add':
+                channel_id = kwargs.get('channel_id')
+                if channel_id is not None:
+                    await self.db.execute(
+                        "INSERT OR REPLACE INTO user_sub_dm_ch_ids (user_id, channel_id) VALUES (?, ?)",
+                        (user_id, str(channel_id))
+                    )
                     await self.db.commit()
             return None
 
