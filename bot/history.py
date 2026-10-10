@@ -609,6 +609,7 @@ class LoopCheckHandler():
                         channel = self.bot.get_partial_messageable(dm_channel.id)
 
                         await bot_config.user_sub_dm_ch_id(operation='add', user=user, channel_id=dm_channel.id)
+                        logging.info(f"Added dm channel for user {user.id} ({dm_channel.id})")
 
                     except discord.NotFound:
                         channel = None

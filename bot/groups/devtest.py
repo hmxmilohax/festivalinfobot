@@ -59,7 +59,27 @@ class TestCog(commands.Cog):
         for subscribed_channel in all_channels:
             channel: discord.User | discord.TextChannel | None = None
             if subscribed_channel.type == 'user':
-                channel = self.bot.get_user(subscribed_channel.id)
+                dm_channel_id = getattr(subscribed_channel, 'dm_channel_id', None)
+                if dm_channel_id:
+                    channel = self.bot.get_partial_messageable(dm_channel_id)
+                else:
+                    channel = None
+
+                if not channel:
+                    try:
+                        user = await self.bot.fetch_user(subscribed_channel.id)
+                        dm_channel = await user.create_dm()
+                        channel = self.bot.get_partial_messageable(dm_channel.id)
+
+                        await bot_config.user_sub_dm_ch_id(operation='add', user=user, channel_id=dm_channel.id)
+                        logging.info(f"Added dm channel for user {user.id} ({dm_channel.id})")
+
+                    except discord.NotFound:
+                        channel = None
+                    except discord.HTTPException as e:
+                        logging.error(f"HTTPException when fetching user {subscribed_channel.id}, skipping.", exc_info=e)
+                    except Exception as e:
+                        logging.error(f"Unexpected error when fetching user {subscribed_channel.id}, skipping.", exc_info=e)
             else:
                 _channel = self.bot.get_channel(subscribed_channel.id)
                 if isinstance(_channel, discord.TextChannel):

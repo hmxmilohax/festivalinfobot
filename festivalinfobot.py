@@ -218,22 +218,22 @@ class FestivalTracker(commands.AutoShardedBot):
             except Exception as e:
                 logging.error("Could not send ready message", exc_info=e)                
 
-        self._connection.parsers['GUILD_MEMBERS_CHUNK'] = self.custom_parse_guild_members_chunk
-        logging.debug("Guilds chunking...")
+        # self._connection.parsers['GUILD_MEMBERS_CHUNK'] = self.custom_parse_guild_members_chunk
+        # logging.debug("Guilds chunking...")
 
-        total_guilds_chunked = 0
-        guild_chunk_start_time = datetime.now()
-        self.is_done_chunking = False
+        # total_guilds_chunked = 0
+        # guild_chunk_start_time = datetime.now()
+        # self.is_done_chunking = False
 
-        for guild in self.guilds:
-            if not guild.chunked:
-                await guild.chunk()
-                total_guilds_chunked += 1
+        # for guild in self.guilds:
+        #     if not guild.chunked:
+        #         await guild.chunk()
+        #         total_guilds_chunked += 1
 
-        guild_chunk_end_time = datetime.now() - guild_chunk_start_time
-        logging.info(f"{total_guilds_chunked} guilds chunked in {guild_chunk_end_time.seconds}s")
-        await constants.msg_log(self, f"Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
-        self.is_done_chunking = True
+        # guild_chunk_end_time = datetime.now() - guild_chunk_start_time
+        # logging.info(f"{total_guilds_chunked} guilds chunked in {guild_chunk_end_time.seconds}s")
+        # await constants.msg_log(self, f"Chunked {total_guilds_chunked} guilds in {guild_chunk_end_time.seconds}s")
+        # self.is_done_chunking = True
 
         if not self.utility_loop_task.is_running():
             logging.debug("Starting utility loop task...")
@@ -291,7 +291,7 @@ class FestivalTracker(commands.AutoShardedBot):
 
         # Set up Discord bot with necessary intents
         intents = discord.Intents.default()
-        intents.members = True
+        # intents.members = True
         intents.message_content = True  # Enable message content intent
 
         prefix = 'ft'

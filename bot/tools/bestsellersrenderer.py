@@ -577,10 +577,21 @@ class BestsellersRenderer:
                 if channel_to_send.type == 'channel':
                     channel = self.bot.get_channel(channel_to_send.id)
                 elif channel_to_send.type == 'user':
-                    channel = self.bot.get_user(channel_to_send.id)
+                    dm_channel_id = getattr(channel_to_send, 'dm_channel_id', None)
+                    if dm_channel_id:
+                        channel = self.bot.get_partial_messageable(dm_channel_id)
+                    else:
+                        channel = None
+
                     if not channel:
                         try:
-                            channel = await self.bot.fetch_user(channel_to_send.id)
+                            user = await self.bot.fetch_user(channel_to_send.id)
+                            dm_channel = await user.create_dm()
+                            channel = self.bot.get_partial_messageable(dm_channel.id)
+
+                            await db.user_sub_dm_ch_id(operation='add', user=user, channel_id=dm_channel.id)
+                            logging.info(f"Added dm channel for user {user.id} ({dm_channel.id})")
+
                         except discord.NotFound:
                             channel = None
                         except discord.HTTPException as e:

@@ -291,7 +291,7 @@ class Config:
                         
                         dm_channel_id = None
                         row = await self.db.execute(
-                            "SELECT dm_channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
+                            "SELECT channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
                             (str(user_id),)
                         )
                         if row:
@@ -390,7 +390,7 @@ class Config:
 
                         dm_channel_id = None
                         row = await self.db.execute(
-                            "SELECT dm_channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
+                            "SELECT channel_id FROM user_sub_dm_ch_ids WHERE user_id = ?",
                             (str(user_id),)
                         )
                         if row:
