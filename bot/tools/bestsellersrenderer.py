@@ -507,7 +507,7 @@ class BestsellersRenderer:
             await self.capture_renderer_screenshot(auto=True)
 
             if channel:
-                await channel.send(content="<@&1449981375166812355>",
+                await channel.send(content="<@&1449981375166812355>" if not constants.IS_DEVELOPER_ENVIRONMENT else "", 
                 file=discord.File(constants.CACHE_FOLDER + "bestsellers.png"))
 
             self.last_best_sellers_hash = best_sellers_hash
