@@ -46,7 +46,6 @@ from bot.tracks import SearchCommandHandler, JamTrackHandler
 from bot.helpers import DailyCommandHandler, ShopCommandHandler, TracklistHandler
 from bot.commands.mix import MixHandler
 from bot.tools.oauthmanager import OAuthManager
-from bot.tools.events import EventListener
 from bot.views.actionmenu import ActionSelect
 
 import traceback
@@ -267,8 +266,6 @@ class FestivalTracker(commands.AutoShardedBot):
             intents=intents,
             chunk_guilds_at_startup=False
         )
-
-        self.events = EventListener()
 
         self.search_handler = SearchCommandHandler(self)
         self.daily_handler = DailyCommandHandler(self)
