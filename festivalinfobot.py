@@ -189,21 +189,6 @@ class FestivalTracker(commands.AutoShardedBot):
         uptime = datetime.now() - datetime.fromtimestamp(self.connection_time)
         await constants.msg_log(self, f"Ready in {uptime.seconds}s")
 
-        # await constants.msg_log(self, f"Beginning to make USER SUBS to DM CH ID connections.")
-        # dm_subs = await self.config.subscription_global(operation="get_all_users")
-        # for user in dm_subs:
-        #     try:
-        #         uid = user.id
-        #         await constants.msg_log(self, f"Fetching user object for {uid}.")
-        #         user_obj = await self.fetch_user(uid)
-        #         await constants.msg_log(self, f"Creating DM channel for {uid}.")
-        #         dm_channel = await user_obj.create_dm()
-        #         await constants.msg_log(self, f"DM Channel ID {dm_channel.id} for {uid} is being saved...")
-        #         await self.config.user_sub_dm_ch_id(operation='add', user=user_obj, channel_id=dm_channel.id)
-        #     except Exception as e:
-        #         await constants.msg_log(self, f"There is an issue with {uid}. Exception: {e}")
-        #         logging.error("Could not create DM channel for user", exc_info=e)
-
         restart_arg = discord.utils.find(lambda arg: arg.startswith('-restart-msg:'), sys.argv)
         if restart_arg:
             ids = restart_arg.split(':')
@@ -269,17 +254,15 @@ class FestivalTracker(commands.AutoShardedBot):
 
         # Set up Discord bot with necessary intents
         intents = discord.Intents.default()
+        # rip privileged intents
         # intents.members = True
-        intents.message_content = True  # Enable message content intent
-
-        prefix = 'ft'
-        if self.DEVELOPER: prefix = 'ftdev'
+        # intents.message_content = True
 
         starting = discord.Game(name="booting up...")
 
         super().__init__(
             activity=starting,
-            command_prefix=commands.when_mentioned_or(f'{prefix}!'),
+            command_prefix=commands.when_mentioned,
             help_command=None,
             intents=intents,
             chunk_guilds_at_startup=False
