@@ -137,17 +137,6 @@ class UpdateVotesButton(discord.ui.DynamicItem[discord.ui.Button], template=r'vo
         user_id = interaction.user.id
         current_time = datetime.now(timezone.utc)
 
-        # rate limit: 10 second cooldown
-        if user_id in db.voting_update_last_usage_per_user_dict:
-            last_usage = db.voting_update_last_usage_per_user_dict[user_id]
-            if (current_time - last_usage).total_seconds() < 10:
-                time_remaining = 10 - int((current_time - last_usage).total_seconds())
-                await interaction.response.send_message(
-                    embed=constants.common_error_embed(f"Please wait **{time_remaining} seconds** before updating votes again."), 
-                    ephemeral=True
-                )
-                return
-
         await interaction.response.defer(ephemeral=True, thinking=True)
         db.voting_update_last_usage_per_user_dict[user_id] = current_time
 
