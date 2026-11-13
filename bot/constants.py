@@ -88,9 +88,10 @@ SEASONS = {
     12: 'season012',
     13: 'season013',
     14: 'season014',
-    15: 'season015'
+    15: 'season015',
+    16: 'season016'
 }
-SEASON_NUMBER = 15
+SEASON_NUMBER = 16
 
 ERROR_COLOUR = 0xbe2625
 SUCCESS_COLOUR = 0x3AB00B
@@ -155,10 +156,7 @@ VOTING_IS_ENABLED = True
 
 # lil tecca
 HEADLINER_SONGS = [
-    'ransom',
-    'darkthoughts',
-    'loveme',
-    'fivehundredlbs'
+    'birdbrain'
 ]
 
 # no collab at the moment
